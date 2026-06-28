@@ -1,0 +1,24 @@
+@tailwind base;
+@tailwind components;
+@tailwind utilities;
+
+:root {
+  --font-space: "Space Grotesk";
+  --font-inter: Inter;
+  --font-mono: "JetBrains Mono";
+}
+
+html,
+body {
+  min-height: 100%;
+}
+
+body {
+  background: #f4f6f9;
+  color: #0d1f3c;
+}
+
+*:focus-visible {
+  outline: 3px solid #00c48c;
+  outline-offset: 2px;
+}

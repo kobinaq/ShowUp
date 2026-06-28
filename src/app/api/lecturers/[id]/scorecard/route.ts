@@ -1,0 +1,23 @@
+import { prisma } from "@/lib/prisma";
+import { withAuth, json } from "@/lib/middleware/withAuth";
+
+type Params = { params: { id: string } };
+
+export const GET = withAuth<Params>(async (_request, { params }) => {
+  const lecturer = await prisma.lecturer.findUnique({
+    where: { id: params.id },
+    include: { courses: { include: { reports: true } }, flags: true, notifications: true }
+  });
+  if (!lecturer) return json({ error: "Not found" }, { status: 404 });
+  const reports = lecturer.courses.flatMap((course) => course.reports);
+  const held = reports.filter((report) => report.lecturerPresent !== "ABSENT").length;
+  const punctual = reports.filter((report) => report.arrivalStatus !== "LATE").length;
+  return json({
+    data: {
+      lecturer,
+      attendanceRate: reports.length ? Math.round((held / reports.length) * 100) : 0,
+      punctualityRate: reports.length ? Math.round((punctual / reports.length) * 100) : 0,
+      totalFlags: lecturer.flags.length
+    }
+  });
+});

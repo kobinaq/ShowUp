@@ -1,0 +1,16 @@
+{
+  "name": "ShowUp",
+  "short_name": "ShowUp",
+  "description": "University lecturer quality assurance reporting.",
+  "start_url": "/rep/submit",
+  "display": "standalone",
+  "background_color": "#ffffff",
+  "theme_color": "#0D1F3C",
+  "icons": [
+    {
+      "src": "/icon.svg",
+      "sizes": "192x192",
+      "type": "image/svg+xml"
+    }
+  ]
+}

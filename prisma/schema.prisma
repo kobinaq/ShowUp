@@ -1,0 +1,351 @@
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider  = "postgresql"
+  url       = env("DATABASE_URL")
+  directUrl = env("DIRECT_URL")
+}
+
+model University {
+  id        String      @id @default(cuid())
+  name      String
+  logo      String?
+  address   String?
+  createdAt DateTime    @default(now())
+  faculties Faculty[]
+  profiles  Profile[]
+  semesters Semester[]
+  logs      ActivityLog[]
+}
+
+model Faculty {
+  id           String       @id @default(cuid())
+  name         String
+  universityId String
+  university   University   @relation(fields: [universityId], references: [id], onDelete: Cascade)
+  departments  Department[]
+}
+
+model Department {
+  id        String     @id @default(cuid())
+  name      String
+  facultyId String
+  faculty   Faculty    @relation(fields: [facultyId], references: [id], onDelete: Cascade)
+  courses   Course[]
+  profiles  Profile[]
+  lecturers Lecturer[]
+}
+
+model Semester {
+  id           String     @id @default(cuid())
+  name         String
+  startDate    DateTime
+  endDate      DateTime
+  isActive     Boolean    @default(false)
+  universityId String
+  university   University @relation(fields: [universityId], references: [id], onDelete: Cascade)
+  courses      Course[]
+  createdAt    DateTime   @default(now())
+}
+
+model Profile {
+  id              String           @id @default(cuid())
+  supabaseUid     String           @unique
+  anonymousAlias  String?          @unique
+  displayName     String?
+  email           String?
+  role            Role
+  departmentId    String?
+  department      Department?      @relation(fields: [departmentId], references: [id])
+  universityId    String
+  university      University       @relation(fields: [universityId], references: [id], onDelete: Cascade)
+  repAssignments  RepAssignment[]
+  submissions     LectureReport[]
+  contestsRaised  Contest[]        @relation("ContestRaisedBy")
+  contestsResolved Contest[]       @relation("ContestResolvedBy")
+  identityLookups IdentityLookup[] @relation("LookedUpProfile")
+  lookupsMade     IdentityLookup[] @relation("LookupPerformer")
+  uploadedOutlines CourseOutline[]
+  activityLogs    ActivityLog[]
+  isActive        Boolean          @default(true)
+  createdAt       DateTime         @default(now())
+}
+
+enum Role {
+  SUPER_ADMIN
+  VC
+  QA_OFFICER
+  HOD
+  HOD_ASSISTANT
+  CLASS_REP
+}
+
+model SealedRepIdentity {
+  id             String   @id @default(cuid())
+  supabaseUid    String   @unique
+  anonymousAlias String   @unique
+  realName       String
+  realEmail      String
+  realPhone      String
+  courseId       String
+  createdAt      DateTime @default(now())
+}
+
+model Lecturer {
+  id           String                 @id @default(cuid())
+  firstName    String
+  lastName     String
+  email        String                 @unique
+  phone        String
+  staffId      String                 @unique
+  departmentId String
+  department   Department             @relation(fields: [departmentId], references: [id], onDelete: Cascade)
+  courses      Course[]
+  flags        Flag[]
+  notifications LecturerNotification[]
+  createdAt    DateTime               @default(now())
+}
+
+model Course {
+  id             String          @id @default(cuid())
+  code           String
+  title          String
+  departmentId   String
+  department     Department      @relation(fields: [departmentId], references: [id], onDelete: Cascade)
+  semesterId     String
+  semester       Semester        @relation(fields: [semesterId], references: [id], onDelete: Cascade)
+  lecturerId     String
+  lecturer       Lecturer        @relation(fields: [lecturerId], references: [id])
+  outline        CourseOutline?
+  schedule       ClassSchedule[]
+  reports        LectureReport[]
+  repAssignments RepAssignment[]
+  creditHours    Int
+  createdAt      DateTime        @default(now())
+
+  @@unique([code, semesterId])
+}
+
+model CourseOutline {
+  id           String         @id @default(cuid())
+  courseId     String         @unique
+  course       Course         @relation(fields: [courseId], references: [id], onDelete: Cascade)
+  fileUrl      String
+  fileName     String
+  outlineType  OutlineType
+  topics       OutlineTopic[]
+  uploadedById String
+  uploadedBy   Profile        @relation(fields: [uploadedById], references: [id])
+  uploadedAt   DateTime       @default(now())
+}
+
+enum OutlineType {
+  WEEKLY
+  FLAT
+}
+
+model OutlineTopic {
+  id          String        @id @default(cuid())
+  outlineId   String
+  outline     CourseOutline @relation(fields: [outlineId], references: [id], onDelete: Cascade)
+  title       String
+  description String?
+  weekNumber  Int?
+  order       Int
+  reportedIn  ReportTopic[]
+}
+
+model ClassSchedule {
+  id        String          @id @default(cuid())
+  courseId  String
+  course    Course          @relation(fields: [courseId], references: [id], onDelete: Cascade)
+  dayOfWeek Int
+  startTime String
+  endTime   String
+  venue     String?
+  reports   LectureReport[]
+}
+
+model RepAssignment {
+  id            String        @id @default(cuid())
+  courseId      String
+  course        Course        @relation(fields: [courseId], references: [id], onDelete: Cascade)
+  profileId     String
+  profile       Profile       @relation(fields: [profileId], references: [id], onDelete: Cascade)
+  startDate     DateTime
+  endDate       DateTime?
+  isActive      Boolean       @default(true)
+  rotationOrder Int
+  assignedById  String
+  rotationWeeks Int           @default(4)
+  createdAt     DateTime      @default(now())
+  logs          RotationLog[]
+}
+
+model LectureReport {
+  id                       String           @id @default(cuid())
+  courseId                 String
+  course                   Course           @relation(fields: [courseId], references: [id], onDelete: Cascade)
+  scheduleId               String
+  schedule                 ClassSchedule    @relation(fields: [scheduleId], references: [id])
+  submittedById            String
+  submittedBy              Profile          @relation(fields: [submittedById], references: [id])
+  lectureDate              DateTime
+  lecturerPresent          PresenceStatus
+  substituteNote           String?
+  arrivalStatus            ArrivalStatus?
+  lateMinutes              Int?
+  earlyDismissal           Boolean          @default(false)
+  dismissedEarlyMinutes    Int?
+  topicsCovered            ReportTopic[]
+  previousTopicsRevisited  Boolean          @default(false)
+  teachingAids             TeachingAid[]
+  wasInteractive           InteractiveLevel
+  studentCount             Int?
+  additionalNotes          String?
+  isContested              Boolean          @default(false)
+  isVoided                 Boolean          @default(false)
+  contest                  Contest?
+  flags                    Flag[]
+  submittedAt              DateTime         @default(now())
+  windowClosedAt           DateTime
+
+  @@unique([scheduleId, lectureDate])
+}
+
+enum PresenceStatus {
+  PRESENT
+  ABSENT
+  SUBSTITUTE
+}
+
+enum ArrivalStatus {
+  ON_TIME
+  LATE
+}
+
+enum InteractiveLevel {
+  YES
+  SOMEWHAT
+  NO
+}
+
+model TeachingAid {
+  id       String        @id @default(cuid())
+  reportId String
+  report   LectureReport @relation(fields: [reportId], references: [id], onDelete: Cascade)
+  type     AidType
+}
+
+enum AidType {
+  SLIDES
+  WHITEBOARD
+  HANDOUTS
+  VIDEO
+  NONE
+  OTHER
+}
+
+model ReportTopic {
+  id       String        @id @default(cuid())
+  reportId String
+  report   LectureReport @relation(fields: [reportId], references: [id], onDelete: Cascade)
+  topicId  String
+  topic    OutlineTopic  @relation(fields: [topicId], references: [id])
+
+  @@unique([reportId, topicId])
+}
+
+model Contest {
+  id             String        @id @default(cuid())
+  reportId       String        @unique
+  report         LectureReport @relation(fields: [reportId], references: [id], onDelete: Cascade)
+  raisedById     String
+  raisedBy       Profile       @relation("ContestRaisedBy", fields: [raisedById], references: [id])
+  reason         String
+  evidenceUrl    String?
+  status         ContestStatus @default(PENDING)
+  resolvedById   String?
+  resolvedBy     Profile?      @relation("ContestResolvedBy", fields: [resolvedById], references: [id])
+  resolutionNote String?
+  raisedAt       DateTime      @default(now())
+  resolvedAt     DateTime?
+}
+
+enum ContestStatus {
+  PENDING
+  ACCEPTED
+  DISMISSED
+}
+
+model Flag {
+  id               String         @id @default(cuid())
+  lecturerId       String
+  lecturer         Lecturer       @relation(fields: [lecturerId], references: [id], onDelete: Cascade)
+  reportId         String?
+  report           LectureReport? @relation(fields: [reportId], references: [id], onDelete: SetNull)
+  type             FlagType
+  message          String
+  internalNotes    String?
+  isResolved       Boolean        @default(false)
+  notificationSent Boolean        @default(false)
+  createdAt        DateTime       @default(now())
+}
+
+enum FlagType {
+  ABSENCE
+  LATENESS
+  EARLY_DISMISSAL
+  COVERAGE_LAG
+  REPEATED_ABSENCE
+  REPEATED_LATENESS
+}
+
+model LecturerNotification {
+  id         String              @id @default(cuid())
+  lecturerId String
+  lecturer   Lecturer            @relation(fields: [lecturerId], references: [id], onDelete: Cascade)
+  channel    NotificationChannel
+  message    String
+  sentAt     DateTime            @default(now())
+  status     String
+}
+
+enum NotificationChannel {
+  EMAIL
+  SMS
+}
+
+model IdentityLookup {
+  id                String   @id @default(cuid())
+  performedById     String
+  performedBy       Profile  @relation("LookupPerformer", fields: [performedById], references: [id])
+  lookedUpProfileId String
+  lookedUpProfile   Profile  @relation("LookedUpProfile", fields: [lookedUpProfileId], references: [id])
+  reason            String
+  performedAt       DateTime @default(now())
+}
+
+model RotationLog {
+  id             String        @id @default(cuid())
+  courseId       String
+  assignmentId   String?
+  assignment     RepAssignment? @relation(fields: [assignmentId], references: [id], onDelete: SetNull)
+  outgoingAlias  String?
+  incomingAlias  String?
+  action         String
+  createdAt      DateTime      @default(now())
+}
+
+model ActivityLog {
+  id           String     @id @default(cuid())
+  universityId String
+  university   University @relation(fields: [universityId], references: [id], onDelete: Cascade)
+  actorId      String?
+  actor        Profile?   @relation(fields: [actorId], references: [id], onDelete: SetNull)
+  action       String
+  metadata     Json?
+  createdAt    DateTime   @default(now())
+}
