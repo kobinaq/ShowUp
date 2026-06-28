@@ -29,7 +29,7 @@ export function badRequest(message: string, details?: unknown) {
 
 export function withAuth<T>(handler: ApiHandler<T>, roles?: Role[]) {
   return async (request: NextRequest, context: T) => {
-    const supabase = createClient();
+    const supabase = await createClient();
     const { data, error } = await supabase.auth.getUser();
     if (error || !data.user) return json({ error: "Unauthorized" }, { status: 401 });
 

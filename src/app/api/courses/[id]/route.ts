@@ -3,24 +3,28 @@ import { prisma } from "@/lib/prisma";
 import { withAuth, json, badRequest } from "@/lib/middleware/withAuth";
 import { createCourseSchema } from "@/lib/validators/course";
 
-type Params = { params: { id: string } };
+type Params = { params: Promise<{ id: string }> };
 
 export const GET = withAuth<Params>(async (_request, { params }) => {
+  const { id } = await params;
   const course = await prisma.course.findUnique({
-    where: { id: params.id },
+    where: { id },
     include: { lecturer: true, schedule: true, outline: { include: { topics: true } }, reports: true }
   });
   return course ? json({ data: course }) : json({ error: "Not found" }, { status: 404 });
 });
 
 export const PUT = withAuth<Params>(async (request, { params }) => {
+  const { id } = await params;
   const parsed = createCourseSchema.partial({ schedule: true }).safeParse(await request.json());
   if (!parsed.success) return badRequest("Invalid course payload", parsed.error.flatten());
-  const course = await prisma.course.update({ where: { id: params.id }, data: parsed.data });
+  const { schedule: _schedule, ...data } = parsed.data;
+  const course = await prisma.course.update({ where: { id }, data });
   return json({ data: course });
 }, [Role.SUPER_ADMIN, Role.HOD, Role.HOD_ASSISTANT]);
 
 export const DELETE = withAuth<Params>(async (_request, { params }) => {
-  await prisma.course.delete({ where: { id: params.id } });
+  const { id } = await params;
+  await prisma.course.delete({ where: { id } });
   return json({ ok: true });
 }, [Role.SUPER_ADMIN, Role.HOD]);

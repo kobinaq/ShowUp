@@ -2,10 +2,11 @@ import { Role } from "@prisma/client";
 import { withAuth, json } from "@/lib/middleware/withAuth";
 import { flagService } from "@/lib/services/flag.service";
 
-type Params = { params: { id: string } };
+type Params = { params: Promise<{ id: string }> };
 
 export const PUT = withAuth<Params>(async (request, { params }) => {
+  const { id } = await params;
   const body = await request.json().catch(() => ({}));
-  const flag = await flagService.resolve(params.id, body.internalNotes);
+  const flag = await flagService.resolve(id, body.internalNotes);
   return json({ data: flag });
 }, [Role.SUPER_ADMIN, Role.QA_OFFICER]);

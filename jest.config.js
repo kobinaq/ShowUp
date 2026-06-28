@@ -1,12 +1,12 @@
-import type { Config } from "jest";
-
-const config: Config = {
+/** @type {import('jest').Config} */
+const config = {
   preset: "ts-jest",
   testEnvironment: "jsdom",
   moduleNameMapper: {
     "^@/(.*)$": "<rootDir>/src/$1"
   },
   setupFilesAfterEnv: ["<rootDir>/jest.setup.ts"],
+  testPathIgnorePatterns: ["<rootDir>/tests/e2e/"],
   collectCoverageFrom: ["src/lib/services/**/*.ts", "src/app/api/**/*.ts"],
   coverageThreshold: {
     global: {
@@ -18,4 +18,4 @@ const config: Config = {
   }
 };
 
-export default config;
+module.exports = config;

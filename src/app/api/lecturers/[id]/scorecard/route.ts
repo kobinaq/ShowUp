@@ -1,11 +1,12 @@
 import { prisma } from "@/lib/prisma";
 import { withAuth, json } from "@/lib/middleware/withAuth";
 
-type Params = { params: { id: string } };
+type Params = { params: Promise<{ id: string }> };
 
 export const GET = withAuth<Params>(async (_request, { params }) => {
+  const { id } = await params;
   const lecturer = await prisma.lecturer.findUnique({
-    where: { id: params.id },
+    where: { id },
     include: { courses: { include: { reports: true } }, flags: true, notifications: true }
   });
   if (!lecturer) return json({ error: "Not found" }, { status: 404 });

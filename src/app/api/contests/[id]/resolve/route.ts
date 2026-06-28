@@ -4,14 +4,15 @@ import { withAuth, json, badRequest } from "@/lib/middleware/withAuth";
 import { resolveContestSchema } from "@/lib/validators/contest";
 import { coverageService } from "@/lib/services/coverage.service";
 
-type Params = { params: { id: string } };
+type Params = { params: Promise<{ id: string }> };
 
 export const PUT = withAuth<Params>(async (request, { params, profile }) => {
+  const { id } = await params;
   const parsed = resolveContestSchema.safeParse(await request.json());
   if (!parsed.success) return badRequest("Invalid resolution payload", parsed.error.flatten());
   const contest = await prisma.$transaction(async (tx) => {
     const resolved = await tx.contest.update({
-      where: { id: params.id },
+      where: { id },
       data: { status: parsed.data.status, resolutionNote: parsed.data.resolutionNote, resolvedById: profile.id, resolvedAt: new Date() },
       include: { report: true }
     });

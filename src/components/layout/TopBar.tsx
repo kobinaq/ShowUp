@@ -1,7 +1,8 @@
 import { createClient } from "@/lib/supabase/server";
 
 export async function TopBar() {
-  const { data } = await createClient().auth.getUser();
+  const supabase = await createClient();
+  const { data } = await supabase.auth.getUser();
   return (
     <header className="flex min-h-16 items-center justify-between border-b bg-white px-4 md:px-8">
       <div>

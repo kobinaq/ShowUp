@@ -1,5 +1,4 @@
 import { NextResponse, type NextRequest } from "next/server";
-import { prisma } from "@/lib/prisma";
 import { canAccessPath, roleHome } from "@/lib/auth/roles";
 import { updateSession } from "@/lib/supabase/middleware";
 
@@ -11,14 +10,15 @@ export async function middleware(request: NextRequest) {
     return NextResponse.next();
   }
 
-  const { response, user } = await updateSession(request);
+  const { response, user, supabase } = await updateSession(request);
   if (!user) return NextResponse.redirect(new URL("/login", request.url));
 
   if (path.startsWith("/api")) return response;
 
-  const profile = await prisma.profile.findUnique({ where: { supabaseUid: user.id }, select: { role: true } });
-  if (!profile) return NextResponse.redirect(new URL("/login", request.url));
-  if (!canAccessPath(profile.role, path)) return NextResponse.redirect(new URL(roleHome[profile.role], request.url));
+  const { data: profile } = await supabase.from("Profile").select("role").eq("supabaseUid", user.id).single();
+  if (!profile?.role) return NextResponse.redirect(new URL("/login", request.url));
+  const role = profile.role as keyof typeof roleHome;
+  if (!canAccessPath(role, path)) return NextResponse.redirect(new URL(roleHome[role], request.url));
   return response;
 }
 

@@ -12,7 +12,7 @@ const items = [
   { href: "/admin", label: "Admin", icon: Users }
 ];
 
-export function Sidebar() {
+export function Sidebar({ children }: { children?: React.ReactNode }) {
   return (
     <aside className="hidden w-64 shrink-0 bg-navy text-white md:block">
       <div className="px-6 py-6 font-display text-2xl font-bold">ShowUp</div>
@@ -23,6 +23,7 @@ export function Sidebar() {
             {item.label}
           </Link>
         ))}
+        {children}
       </nav>
     </aside>
   );

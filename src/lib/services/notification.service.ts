@@ -1,16 +1,11 @@
 import { NotificationChannel, type Lecturer } from "@prisma/client";
 import { Resend } from "resend";
-import africastalking from "africastalking";
 import { prisma } from "@/lib/prisma";
 
 type MessageTarget = Pick<Lecturer, "id" | "firstName" | "lastName" | "email" | "phone">;
 
 export class NotificationService {
   private resend = process.env.RESEND_API_KEY ? new Resend(process.env.RESEND_API_KEY) : null;
-  private sms =
-    process.env.AT_API_KEY && process.env.AT_USERNAME
-      ? africastalking({ apiKey: process.env.AT_API_KEY, username: process.env.AT_USERNAME }).SMS
-      : null;
 
   async notifyLecturer(target: MessageTarget, subject: string, message: string) {
     const email = await this.sendEmail(target.email, subject, this.wrapEmail(target.firstName, message));
@@ -54,9 +49,24 @@ export class NotificationService {
   }
 
   private async sendSms(to: string, message: string) {
-    if (!this.sms) return "skipped";
+    if (!process.env.AT_API_KEY || !process.env.AT_USERNAME) return "skipped";
     try {
-      await this.sms.send({ to: [to], message, from: process.env.AT_SENDER_ID });
+      const body = new URLSearchParams({
+        username: process.env.AT_USERNAME,
+        to,
+        message
+      });
+      if (process.env.AT_SENDER_ID) body.set("from", process.env.AT_SENDER_ID);
+      const response = await fetch("https://api.africastalking.com/version1/messaging", {
+        method: "POST",
+        headers: {
+          apiKey: process.env.AT_API_KEY,
+          accept: "application/json",
+          "content-type": "application/x-www-form-urlencoded"
+        },
+        body
+      });
+      if (!response.ok) return "failed";
       return "sent";
     } catch (error) {
       console.error(error);
