@@ -1,16 +1,64 @@
 import { createClient } from "@supabase/supabase-js";
-import { PrismaClient, Role, PresenceStatus, ArrivalStatus, InteractiveLevel, AidType, OutlineType, FlagType } from "@prisma/client";
+import {
+  AidType,
+  ArrivalStatus,
+  FlagType,
+  InteractiveLevel,
+  OutlineType,
+  PresenceStatus,
+  PrismaClient,
+  Role
+} from "@prisma/client";
 
 const prisma = new PrismaClient();
 
 const supabaseUrl = process.env.NEXT_PUBLIC_SUPABASE_URL;
 const serviceKey = process.env.SUPABASE_SERVICE_ROLE_KEY;
 
-async function createAuthUser(email: string, password: string, displayName: string) {
-  if (!supabaseUrl || !serviceKey) {
-    return { id: `seed-${email}` };
-  }
+const universityId = "atu_university";
+const password = process.env.SEED_USER_PASSWORD ?? "Password123!";
 
+const faculties = [
+  {
+    id: "atu_fac_eng",
+    name: "Faculty of Engineering",
+    departments: [
+      ["atu_dept_ceng", "Computer Engineering", "CENG"],
+      ["atu_dept_eeng", "Electrical/Electronic Engineering", "EENG"],
+      ["atu_dept_civil", "Civil Engineering", "CIV"]
+    ]
+  },
+  {
+    id: "atu_fac_abe",
+    name: "Faculty of Applied Sciences",
+    departments: [
+      ["atu_dept_cs", "Computer Science", "CS"],
+      ["atu_dept_stats", "Statistics", "STAT"],
+      ["atu_dept_math", "Mathematics", "MATH"]
+    ]
+  },
+  {
+    id: "atu_fac_business",
+    name: "Business School",
+    departments: [
+      ["atu_dept_acc", "Accounting and Finance", "ACCT"],
+      ["atu_dept_mkt", "Marketing", "MKT"],
+      ["atu_dept_proc", "Procurement and Supply Chain", "PROC"]
+    ]
+  },
+  {
+    id: "atu_fac_built",
+    name: "Faculty of Built Environment",
+    departments: [
+      ["atu_dept_btech", "Building Technology", "BT"],
+      ["atu_dept_estate", "Estate Management", "EST"],
+      ["atu_dept_fashion", "Fashion Design and Textiles", "FDT"]
+    ]
+  }
+] as const;
+
+async function createAuthUser(email: string, displayName: string) {
+  if (!supabaseUrl || !serviceKey) return { id: `seed-${email}` };
   const supabase = createClient(supabaseUrl, serviceKey, {
     auth: { autoRefreshToken: false, persistSession: false }
   });
@@ -23,50 +71,59 @@ async function createAuthUser(email: string, password: string, displayName: stri
   if (error && !error.message.includes("already registered")) throw error;
   if (data.user) return data.user;
 
-  const { data: listed } = await supabase.auth.admin.listUsers();
-  const existing = listed.users.find((user) => user.email === email);
+  const { data: users } = await supabase.auth.admin.listUsers();
+  const existing = users.users.find((user) => user.email === email);
   if (!existing) throw new Error(`Could not find Supabase user for ${email}`);
   return existing;
 }
 
+async function cleanupDemoData() {
+  const courses = await prisma.course.findMany({ where: { id: { startsWith: "atu_course_" } }, select: { id: true } });
+  const courseIds = courses.map((course) => course.id);
+  const lecturers = await prisma.lecturer.findMany({ where: { id: { startsWith: "atu_lect_" } }, select: { id: true } });
+  const lecturerIds = lecturers.map((lecturer) => lecturer.id);
+  const reports = await prisma.lectureReport.findMany({ where: { courseId: { in: courseIds } }, select: { id: true } });
+  const reportIds = reports.map((report) => report.id);
+  const outlines = await prisma.courseOutline.findMany({ where: { courseId: { in: courseIds } }, select: { id: true } });
+  const outlineIds = outlines.map((outline) => outline.id);
+
+  await prisma.identityLookup.deleteMany({ where: { OR: [{ performedBy: { email: { endsWith: "@atu.showup.demo" } } }, { lookedUpProfile: { email: { endsWith: "@atu.showup.demo" } } }] } });
+  await prisma.activityLog.deleteMany({ where: { universityId } });
+  await prisma.rotationLog.deleteMany({ where: { courseId: { in: courseIds } } });
+  await prisma.lecturerNotification.deleteMany({ where: { lecturerId: { in: lecturerIds } } });
+  await prisma.flag.deleteMany({ where: { OR: [{ lecturerId: { in: lecturerIds } }, { reportId: { in: reportIds } }] } });
+  await prisma.contest.deleteMany({ where: { reportId: { in: reportIds } } });
+  await prisma.teachingAid.deleteMany({ where: { reportId: { in: reportIds } } });
+  await prisma.reportTopic.deleteMany({ where: { reportId: { in: reportIds } } });
+  await prisma.lectureReport.deleteMany({ where: { id: { in: reportIds } } });
+  await prisma.repAssignment.deleteMany({ where: { courseId: { in: courseIds } } });
+  await prisma.sealedRepIdentity.deleteMany({ where: { anonymousAlias: { startsWith: "reporter_ATU_" } } });
+  await prisma.outlineTopic.deleteMany({ where: { outlineId: { in: outlineIds } } });
+  await prisma.courseOutline.deleteMany({ where: { id: { in: outlineIds } } });
+  await prisma.classSchedule.deleteMany({ where: { courseId: { in: courseIds } } });
+  await prisma.course.deleteMany({ where: { id: { in: courseIds } } });
+  await prisma.profile.deleteMany({ where: { OR: [{ email: { endsWith: "@atu.showup.demo" } }, { anonymousAlias: { startsWith: "reporter_ATU_" } }] } });
+  await prisma.lecturer.deleteMany({ where: { id: { in: lecturerIds } } });
+  await prisma.department.deleteMany({ where: { id: { startsWith: "atu_dept_" } } });
+  await prisma.faculty.deleteMany({ where: { id: { startsWith: "atu_fac_" } } });
+  await prisma.semester.deleteMany({ where: { id: { startsWith: "atu_sem_" } } });
+  await prisma.university.deleteMany({ where: { id: universityId } });
+}
+
 async function main() {
-  await prisma.$transaction([
-    prisma.identityLookup.deleteMany(),
-    prisma.activityLog.deleteMany(),
-    prisma.rotationLog.deleteMany(),
-    prisma.lecturerNotification.deleteMany(),
-    prisma.flag.deleteMany(),
-    prisma.contest.deleteMany(),
-    prisma.teachingAid.deleteMany(),
-    prisma.reportTopic.deleteMany(),
-    prisma.lectureReport.deleteMany(),
-    prisma.repAssignment.deleteMany(),
-    prisma.sealedRepIdentity.deleteMany(),
-    prisma.outlineTopic.deleteMany(),
-    prisma.courseOutline.deleteMany(),
-    prisma.classSchedule.deleteMany(),
-    prisma.course.deleteMany(),
-    prisma.lecturer.deleteMany(),
-    prisma.profile.deleteMany(),
-    prisma.semester.deleteMany(),
-    prisma.department.deleteMany(),
-    prisma.faculty.deleteMany(),
-    prisma.university.deleteMany()
-  ]);
+  await cleanupDemoData();
 
   const university = await prisma.university.create({
-    data: { name: "University of Ghana", address: "Legon, Accra" }
+    data: {
+      id: universityId,
+      name: "Accra Technical University",
+      address: "Barnes Road, Accra"
+    }
   });
-  const science = await prisma.faculty.create({ data: { name: "Science", universityId: university.id } });
-  const arts = await prisma.faculty.create({ data: { name: "Arts", universityId: university.id } });
-  const departments = await Promise.all([
-    prisma.department.create({ data: { name: "Computer Science", facultyId: science.id } }),
-    prisma.department.create({ data: { name: "Mathematics", facultyId: science.id } }),
-    prisma.department.create({ data: { name: "English", facultyId: arts.id } }),
-    prisma.department.create({ data: { name: "History", facultyId: arts.id } })
-  ]);
+
   const semester = await prisma.semester.create({
     data: {
+      id: "atu_sem_2026_2027_1",
       name: "2026/2027 First Semester",
       startDate: new Date("2026-08-17T00:00:00.000Z"),
       endDate: new Date("2026-12-18T00:00:00.000Z"),
@@ -75,63 +132,81 @@ async function main() {
     }
   });
 
-  const users = [
-    ["admin@showup.app", "SUPER_ADMIN", "Super Admin", departments[0].id],
-    ["vc@showup.app", "VC", "Vice Chancellor", null],
-    ["qa@showup.app", "QA_OFFICER", "QA Officer", null],
-    ["hod.cs@showup.app", "HOD", "CS HOD", departments[0].id],
-    ["hod.math@showup.app", "HOD", "Math HOD", departments[1].id]
-  ] as const;
-  const profiles = new Map<string, string>();
-  for (const [email, role, displayName, departmentId] of users) {
-    const user = await createAuthUser(email, "Password123!", displayName);
-    const profile = await prisma.profile.create({
-      data: {
-        supabaseUid: user.id,
-        displayName,
-        email,
-        role: role as Role,
-        departmentId,
-        universityId: university.id
-      }
-    });
-    profiles.set(email, profile.id);
+  const adminUser = await createAuthUser("admin@atu.showup.demo", "ATU Super Admin");
+  const vcUser = await createAuthUser("vc@atu.showup.demo", "ATU Vice Chancellor");
+  const qaUser = await createAuthUser("qa@atu.showup.demo", "ATU QA Officer");
+  const admin = await prisma.profile.create({
+    data: { id: "atu_profile_admin", supabaseUid: adminUser.id, email: "admin@atu.showup.demo", displayName: "ATU Super Admin", role: Role.SUPER_ADMIN, universityId: university.id }
+  });
+  await prisma.profile.create({
+    data: { id: "atu_profile_vc", supabaseUid: vcUser.id, email: "vc@atu.showup.demo", displayName: "ATU Vice Chancellor", role: Role.VC, universityId: university.id }
+  });
+  await prisma.profile.create({
+    data: { id: "atu_profile_qa", supabaseUid: qaUser.id, email: "qa@atu.showup.demo", displayName: "ATU QA Officer", role: Role.QA_OFFICER, universityId: university.id }
+  });
+
+  const departmentRecords: Array<{ id: string; name: string; code: string; hodProfileId: string }> = [];
+  for (const faculty of faculties) {
+    await prisma.faculty.create({ data: { id: faculty.id, name: faculty.name, universityId: university.id } });
+    for (const [id, name, code] of faculty.departments) {
+      await prisma.department.create({ data: { id, name, facultyId: faculty.id } });
+      const hodEmail = `hod.${code.toLowerCase()}@atu.showup.demo`;
+      const hodUser = await createAuthUser(hodEmail, `${name} HOD`);
+      const hod = await prisma.profile.create({
+        data: {
+          id: `atu_profile_hod_${code.toLowerCase()}`,
+          supabaseUid: hodUser.id,
+          email: hodEmail,
+          displayName: `${name} HOD`,
+          role: Role.HOD,
+          departmentId: id,
+          universityId: university.id
+        }
+      });
+      departmentRecords.push({ id, name, code, hodProfileId: hod.id });
+    }
   }
 
-  const lecturers = await Promise.all(
-    departments.flatMap((department, deptIndex) =>
-      [0, 1].map((index) =>
-        prisma.lecturer.create({
-          data: {
-            firstName: ["Ama", "Kofi", "Esi", "Kwame", "Akua", "Yaw", "Abena", "Kojo"][deptIndex * 2 + index],
-            lastName: ["Mensah", "Boateng", "Asante", "Owusu", "Addo", "Darko", "Nyarko", "Appiah"][deptIndex * 2 + index],
-            email: `lecturer${deptIndex}${index}@showup.app`,
-            phone: `+2332400000${deptIndex}${index}`,
-            staffId: `UG-${deptIndex}${index}`,
-            departmentId: department.id
-          }
-        })
-      )
-    )
-  );
+  const firstNames = ["Akua", "Kwame", "Ama", "Kofi", "Esi", "Yaw", "Abena", "Kojo", "Efua", "Kwesi", "Adjoa", "Fiifi"];
+  const lastNames = ["Mensah", "Boateng", "Asante", "Owusu", "Addo", "Darko", "Nyarko", "Appiah", "Agyemang", "Ofori", "Sarpong", "Quartey"];
+  const allCourses: Array<{ id: string; scheduleId: string; topicIds: string[]; lecturerId: string }> = [];
 
-  for (const [departmentIndex, department] of departments.entries()) {
+  for (const [deptIndex, dept] of departmentRecords.entries()) {
+    const lecturers = [];
+    for (let i = 0; i < 3; i++) {
+      const lecturer = await prisma.lecturer.create({
+        data: {
+          id: `atu_lect_${dept.code.toLowerCase()}_${i + 1}`,
+          firstName: firstNames[(deptIndex + i) % firstNames.length],
+          lastName: lastNames[(deptIndex * 2 + i) % lastNames.length],
+          email: `${dept.code.toLowerCase()}.lecturer${i + 1}@atu.edu.gh`,
+          phone: `+233240${String(deptIndex).padStart(2, "0")}${String(i + 10).padStart(4, "0")}`,
+          staffId: `ATU-${dept.code}-${100 + i}`,
+          departmentId: dept.id
+        }
+      });
+      lecturers.push(lecturer);
+    }
+
     for (let i = 0; i < 2; i++) {
-      const lecturer = lecturers[departmentIndex * 2 + i];
+      const lecturer = lecturers[i % lecturers.length];
+      const code = `${dept.code}${300 + i + 1}`;
       const course = await prisma.course.create({
         data: {
-          code: `${["CS", "MATH", "ENGL", "HIST"][departmentIndex]}${301 + i}`,
-          title: `${department.name} Seminar ${i + 1}`,
-          departmentId: department.id,
+          id: `atu_course_${dept.code.toLowerCase()}_${i + 1}`,
+          code,
+          title: `${dept.name} Professional Practice ${i + 1}`,
+          departmentId: dept.id,
           semesterId: semester.id,
           lecturerId: lecturer.id,
-          creditHours: 3,
+          creditHours: i === 0 ? 3 : 2,
           schedule: {
             create: {
-              dayOfWeek: i,
-              startTime: "08:00",
-              endTime: "10:00",
-              venue: `Room ${departmentIndex + 1}${i + 1}`
+              id: `atu_schedule_${dept.code.toLowerCase()}_${i + 1}`,
+              dayOfWeek: (deptIndex + i) % 5,
+              startTime: i === 0 ? "08:00" : "13:00",
+              endTime: i === 0 ? "10:00" : "15:00",
+              venue: `${dept.code} Lab ${i + 1}`
             }
           }
         },
@@ -139,112 +214,130 @@ async function main() {
       });
       const outline = await prisma.courseOutline.create({
         data: {
+          id: `atu_outline_${dept.code.toLowerCase()}_${i + 1}`,
           courseId: course.id,
-          fileUrl: "https://example.com/outline.pdf",
-          fileName: `${course.code}-outline.pdf`,
+          fileUrl: "https://example.com/atu-course-outline.pdf",
+          fileName: `${code}-outline.pdf`,
           outlineType: OutlineType.WEEKLY,
-          uploadedById: profiles.get(departmentIndex < 2 ? "hod.cs@showup.app" : "hod.math@showup.app") ?? profiles.get("admin@showup.app")!
+          uploadedById: dept.hodProfileId
         }
       });
-      await prisma.outlineTopic.createMany({
-        data: Array.from({ length: 12 }, (_, index) => ({
-          outlineId: outline.id,
-          title: `Topic ${index + 1}`,
-          weekNumber: index + 1,
-          order: index + 1
-        }))
-      });
+      const topics = [];
+      for (let topicIndex = 0; topicIndex < 12; topicIndex++) {
+        topics.push(
+          await prisma.outlineTopic.create({
+            data: {
+              id: `atu_topic_${dept.code.toLowerCase()}_${i + 1}_${topicIndex + 1}`,
+              outlineId: outline.id,
+              title: `${dept.name} Topic ${topicIndex + 1}`,
+              description: `Week ${topicIndex + 1} competency for ${code}`,
+              weekNumber: topicIndex + 1,
+              order: topicIndex + 1
+            }
+          })
+        );
+      }
+      allCourses.push({ id: course.id, scheduleId: course.schedule[0].id, topicIds: topics.map((topic) => topic.id), lecturerId: lecturer.id });
     }
   }
 
-  const courses = await prisma.course.findMany({ include: { schedule: true, outline: { include: { topics: true } } } });
-  for (let i = 0; i < 3; i++) {
-    const alias = `reporter_${Math.random().toString(36).slice(2, 6).toUpperCase()}`;
-    const auth = await createAuthUser(`${alias}@showup.internal`, "Reporter123!", `Reporter ${i + 1}`);
+  for (const [index, course] of allCourses.slice(0, 18).entries()) {
+    const alias = `reporter_ATU_${String(index + 1).padStart(2, "0")}`;
+    const auth = await createAuthUser(`${alias}@showup.internal`, `ATU Reporter ${index + 1}`);
     const profile = await prisma.profile.create({
       data: {
+        id: `atu_profile_rep_${index + 1}`,
         supabaseUid: auth.id,
         anonymousAlias: alias,
         role: Role.CLASS_REP,
-        departmentId: courses[i].departmentId,
+        departmentId: (await prisma.course.findUniqueOrThrow({ where: { id: course.id } })).departmentId,
         universityId: university.id
       }
     });
     await prisma.sealedRepIdentity.create({
       data: {
+        id: `atu_identity_rep_${index + 1}`,
         supabaseUid: auth.id,
         anonymousAlias: alias,
-        realName: `Student Reporter ${i + 1}`,
-        realEmail: `student${i + 1}@example.com`,
-        realPhone: `+23355000000${i}`,
-        courseId: courses[i].id
+        realName: `ATU Class Rep ${index + 1}`,
+        realEmail: `rep${index + 1}@atu.edu.gh`,
+        realPhone: `+23355000${String(index + 1).padStart(4, "0")}`,
+        courseId: course.id
       }
     });
     await prisma.repAssignment.create({
       data: {
-        courseId: courses[i].id,
+        id: `atu_assignment_${index + 1}`,
+        courseId: course.id,
         profileId: profile.id,
-        startDate: new Date(),
+        startDate: new Date("2026-08-17T00:00:00.000Z"),
         isActive: true,
-        rotationOrder: i + 1,
-        assignedById: profiles.get("hod.cs@showup.app")!
+        rotationOrder: index + 1,
+        assignedById: admin.id
       }
     });
   }
 
-  const reps = await prisma.profile.findMany({ where: { role: Role.CLASS_REP } });
-  for (let i = 0; i < 10; i++) {
-    const course = courses[i % courses.length];
-    const rep = reps[i % reps.length];
-    const report = await prisma.lectureReport.create({
-      data: {
-        courseId: course.id,
-        scheduleId: course.schedule[0].id,
-        submittedById: rep.id,
-        lectureDate: new Date(Date.now() - i * 86400000),
-        lecturerPresent: i % 5 === 0 ? PresenceStatus.ABSENT : PresenceStatus.PRESENT,
-        arrivalStatus: i % 3 === 0 ? ArrivalStatus.LATE : ArrivalStatus.ON_TIME,
-        lateMinutes: i % 3 === 0 ? 12 : null,
-        earlyDismissal: i % 4 === 0,
-        dismissedEarlyMinutes: i % 4 === 0 ? 15 : null,
-        previousTopicsRevisited: i % 2 === 0,
-        wasInteractive: i % 2 === 0 ? InteractiveLevel.YES : InteractiveLevel.SOMEWHAT,
-        studentCount: 80 - i,
-        windowClosedAt: new Date(Date.now() + 7200000),
-        topicsCovered: {
-          create: course.outline?.topics.slice(0, Math.min(3, course.outline.topics.length)).map((topic) => ({
-            topicId: topic.id
-          })) ?? []
-        },
-        teachingAids: { create: [{ type: AidType.WHITEBOARD }, { type: AidType.SLIDES }] }
-      }
-    });
-    if (i === 0) {
-      await prisma.contest.create({
+  const reps = await prisma.profile.findMany({ where: { anonymousAlias: { startsWith: "reporter_ATU_" } } });
+  for (const [courseIndex, course] of allCourses.entries()) {
+    const rep = reps[courseIndex % reps.length];
+    for (let week = 1; week <= 8; week++) {
+      const report = await prisma.lectureReport.create({
         data: {
-          reportId: report.id,
-          raisedById: profiles.get("hod.cs@showup.app")!,
-          reason: "Lecturer submitted evidence that class was held."
+          id: `atu_report_${courseIndex + 1}_${week}`,
+          courseId: course.id,
+          scheduleId: course.scheduleId,
+          submittedById: rep.id,
+          lectureDate: new Date(Date.UTC(2026, 7, 17 + week * 7 + (courseIndex % 5))),
+          lecturerPresent: (courseIndex + week) % 11 === 0 ? PresenceStatus.ABSENT : PresenceStatus.PRESENT,
+          arrivalStatus: (courseIndex + week) % 4 === 0 ? ArrivalStatus.LATE : ArrivalStatus.ON_TIME,
+          lateMinutes: (courseIndex + week) % 4 === 0 ? 10 + (week % 4) * 5 : null,
+          earlyDismissal: (courseIndex + week) % 9 === 0,
+          dismissedEarlyMinutes: (courseIndex + week) % 9 === 0 ? 20 : null,
+          previousTopicsRevisited: week % 2 === 0,
+          wasInteractive: week % 3 === 0 ? InteractiveLevel.SOMEWHAT : InteractiveLevel.YES,
+          studentCount: 42 + ((courseIndex + week) % 55),
+          additionalNotes: week % 5 === 0 ? "Students requested more lab time for the topic." : null,
+          windowClosedAt: new Date(Date.UTC(2026, 7, 17 + week * 7 + (courseIndex % 5), 17)),
+          topicsCovered: {
+            create: course.topicIds.slice(Math.max(0, week - 2), Math.min(course.topicIds.length, week + 1)).map((topicId) => ({ topicId }))
+          },
+          teachingAids: { create: [{ type: AidType.WHITEBOARD }, { type: week % 2 === 0 ? AidType.SLIDES : AidType.HANDOUTS }] }
         }
       });
-      await prisma.lectureReport.update({ where: { id: report.id }, data: { isContested: true } });
+      if ((courseIndex + week) % 11 === 0) {
+        await prisma.flag.create({
+          data: { id: `atu_flag_absence_${courseIndex + 1}_${week}`, lecturerId: course.lecturerId, reportId: report.id, type: FlagType.ABSENCE, message: "Reported absent in ATU demo data." }
+        });
+      }
+      if ((courseIndex + week) % 4 === 0) {
+        await prisma.flag.create({
+          data: { id: `atu_flag_late_${courseIndex + 1}_${week}`, lecturerId: course.lecturerId, reportId: report.id, type: FlagType.LATENESS, message: "Reported late in ATU demo data." }
+        });
+      }
     }
   }
 
-  const firstLecturer = lecturers[0];
-  await prisma.flag.createMany({
-    data: [
-      { lecturerId: firstLecturer.id, type: FlagType.ABSENCE, message: "Reported absent for CS301." },
-      { lecturerId: firstLecturer.id, type: FlagType.COVERAGE_LAG, message: "Course coverage is behind expected pace." }
-    ]
-  });
+  const contestedReport = await prisma.lectureReport.findFirst({ where: { id: "atu_report_1_5" } });
+  if (contestedReport) {
+    await prisma.contest.create({
+      data: {
+        id: "atu_contest_1",
+        reportId: contestedReport.id,
+        raisedById: departmentRecords[0].hodProfileId,
+        reason: "Lecturer provided attendance evidence for the session."
+      }
+    });
+    await prisma.lectureReport.update({ where: { id: contestedReport.id }, data: { isContested: true } });
+  }
 
   await prisma.activityLog.create({
     data: {
+      id: "atu_activity_seed_completed",
       universityId: university.id,
-      actorId: profiles.get("admin@showup.app"),
-      action: "seed.completed",
-      metadata: { courses: courses.length }
+      actorId: admin.id,
+      action: "atu.demo_seed.completed",
+      metadata: { departments: departmentRecords.length, courses: allCourses.length, reports: allCourses.length * 8 }
     }
   });
 }
