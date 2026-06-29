@@ -1,4 +1,4 @@
-import { Role } from "@prisma/client";
+import { AidType, Role } from "@prisma/client";
 import { prisma } from "@/lib/prisma";
 import { withAuth, json, badRequest, forbidden } from "@/lib/middleware/withAuth";
 import { reportSchema } from "@/lib/validators/report";
@@ -57,7 +57,7 @@ export const POST = withAuth(async (request, { profile }) => {
       submittedById: profile.id,
       windowClosedAt,
       topicsCovered: { create: isAbsent ? [] : topicIds.map((topicId) => ({ topicId })) },
-      teachingAids: { create: (isAbsent ? ["NONE"] : teachingAids).map((type) => ({ type })) }
+      teachingAids: { create: (isAbsent ? [AidType.NONE] : teachingAids).map((type) => ({ type })) }
     },
     include: { topicsCovered: true, teachingAids: true }
   });
