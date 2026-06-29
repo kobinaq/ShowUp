@@ -74,6 +74,12 @@ async function createAuthUser(email: string, displayName: string) {
   const { data: users } = await supabase.auth.admin.listUsers();
   const existing = users.users.find((user) => user.email === email);
   if (!existing) throw new Error(`Could not find Supabase user for ${email}`);
+  const { error: updateError } = await supabase.auth.admin.updateUserById(existing.id, {
+    password,
+    email_confirm: true,
+    user_metadata: { displayName }
+  });
+  if (updateError) throw updateError;
   return existing;
 }
 

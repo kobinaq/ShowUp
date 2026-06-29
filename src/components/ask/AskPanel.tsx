@@ -38,13 +38,13 @@ export function AskPanel() {
         ...previous,
         {
           q,
-          a: payload.answer ?? payload.error ?? "Ask ShowUp could not answer that right now."
+          a: payload.answer ?? payload.error ?? "ShowUp AI could not answer that right now."
         }
       ]);
     } catch {
       setMessages((previous) => [
         ...previous,
-        { q, a: "Ask ShowUp could not connect. Please check your connection and try again." }
+        { q, a: "ShowUp AI could not connect. Please check your connection and try again." }
       ]);
     } finally {
       setLoading(false);
@@ -56,10 +56,11 @@ export function AskPanel() {
       <button
         type="button"
         onClick={() => setIsOpen(true)}
-        className="mt-4 flex w-full items-center gap-2 rounded-md bg-accent/10 px-3 py-3 text-sm font-semibold text-accent transition-colors hover:bg-accent/20"
+        className="fixed bottom-20 right-5 z-40 flex h-14 w-14 items-center justify-center rounded-full bg-accent text-navy shadow-2xl shadow-navy/20 transition hover:scale-105 hover:bg-accent/90 focus:outline-none focus:ring-4 focus:ring-accent/30 md:bottom-6 md:right-6"
+        aria-label="Open ShowUp AI"
+        title="ShowUp AI"
       >
-        <MessageSquare className="h-4 w-4" aria-hidden />
-        Ask ShowUp
+        <MessageSquare className="h-6 w-6" aria-hidden />
       </button>
 
       {isOpen ? (
@@ -67,20 +68,20 @@ export function AskPanel() {
           <button
             type="button"
             className="absolute inset-0 bg-navy/30"
-            aria-label="Close Ask ShowUp"
+            aria-label="Close ShowUp AI"
             onClick={() => setIsOpen(false)}
           />
           <aside className="absolute inset-y-0 right-0 flex w-full max-w-[420px] flex-col border-l border-slate-100 bg-white shadow-2xl">
             <header className="flex items-center justify-between border-b border-slate-100 px-5 py-4">
               <div>
-                <h2 className="font-display text-lg font-bold text-navy">Ask ShowUp</h2>
+                <h2 className="font-display text-lg font-bold text-navy">ShowUp AI</h2>
                 <p className="mt-0.5 text-xs text-muted">Ask about lecturer performance</p>
               </div>
               <button
                 type="button"
                 onClick={() => setIsOpen(false)}
                 className="rounded-md p-2 text-muted hover:bg-slate-100 hover:text-navy"
-                aria-label="Close Ask ShowUp"
+                aria-label="Close ShowUp AI"
               >
                 <X className="h-5 w-5" aria-hidden />
               </button>
@@ -143,7 +144,7 @@ export function AskPanel() {
                   <Send className="h-4 w-4" aria-hidden />
                 </button>
               </div>
-              <p className="mt-2 text-center text-[10px] text-slate-400">Powered by Claude Haiku. Data from ShowUp only.</p>
+              <p className="mt-2 text-center text-[10px] text-slate-400">Powered by Gemini. Data from ShowUp only.</p>
             </footer>
           </aside>
         </div>

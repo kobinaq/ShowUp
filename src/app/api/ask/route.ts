@@ -37,8 +37,8 @@ export const POST = withAuth(async (request, { profile }) => {
     console.error(error);
     return json(
       {
-        error: "Ask ShowUp is unavailable",
-        answer: "Ask ShowUp could not answer that right now. Please check the Anthropic API key and try again."
+        error: "ShowUp AI is unavailable",
+        answer: "ShowUp AI could not answer that right now. Please check the Gemini API key and try again."
       },
       { status: 503 }
     );

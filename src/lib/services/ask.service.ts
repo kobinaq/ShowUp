@@ -1,4 +1,4 @@
-import Anthropic from "@anthropic-ai/sdk";
+import { GoogleGenAI } from "@google/genai";
 import { z } from "zod";
 import { askQueryTypes, type QueryPlan } from "@/types/ask";
 
@@ -27,18 +27,21 @@ const queryPlanSchema = z.object({
   intent: z.string().default("")
 });
 
-function anthropicClient() {
-  if (!process.env.ANTHROPIC_API_KEY) {
-    throw new Error("ANTHROPIC_API_KEY is not configured");
+function geminiClient() {
+  if (!process.env.GEMINI_API_KEY) {
+    throw new Error("GEMINI_API_KEY is not configured");
   }
-  return new Anthropic({ apiKey: process.env.ANTHROPIC_API_KEY });
+  return new GoogleGenAI({ apiKey: process.env.GEMINI_API_KEY });
 }
 
 export async function parseQuestion(question: string): Promise<QueryPlan> {
-  const response = await anthropicClient().messages.create({
-    model: "claude-haiku-4-5",
-    max_tokens: 500,
-    system: `You are a query planner for ShowUp, a university lecturer quality assurance platform.
+  const response = await geminiClient().models.generateContent({
+    model: process.env.GEMINI_MODEL ?? "gemini-2.0-flash",
+    config: {
+      temperature: 0,
+      maxOutputTokens: 500,
+      responseMimeType: "application/json",
+      systemInstruction: `You are a query planner for ShowUp, a university lecturer quality assurance platform.
 
 ShowUp tracks:
 - Lecturer attendance (present / absent / late / early dismissal) per class session
@@ -63,34 +66,31 @@ Respond ONLY with a valid JSON object, no explanation, no markdown. Example:
 }
 
 If the question is unrelated to ShowUp data, return:
-{ "queryType": "unsupported", "params": {}, "intent": "" }`,
-    messages: [{ role: "user", content: question }]
+{ "queryType": "unsupported", "params": {}, "intent": "" }`
+    },
+    contents: question
   });
 
-  const text = response.content[0]?.type === "text" ? response.content[0].text : "{}";
+  const text = response.text ?? "{}";
   const jsonText = text.replace(/```json|```/g, "").trim();
   return queryPlanSchema.parse(JSON.parse(jsonText));
 }
 
 export async function formatAnswer(question: string, data: object): Promise<string> {
-  const response = await anthropicClient().messages.create({
-    model: "claude-haiku-4-5",
-    max_tokens: 400,
-    system: `You are the ShowUp analytics assistant for a university quality assurance platform.
+  const response = await geminiClient().models.generateContent({
+    model: process.env.GEMINI_MODEL ?? "gemini-2.0-flash",
+    config: {
+      temperature: 0.2,
+      maxOutputTokens: 400,
+      systemInstruction: `You are the ShowUp analytics assistant for a university quality assurance platform.
 You will receive a user's question and the relevant data fetched from the ShowUp database.
 Write a clear, concise, plain-English answer in 1-4 sentences.
 Use specific names, numbers, and percentages from the data.
 Do not mention databases, APIs, or technical terms.
-If the data is empty, say so clearly and suggest why (e.g. "No absences recorded this semester yet.").`,
-    messages: [
-      {
-        role: "user",
-        content: `Question: ${question}\n\nData: ${JSON.stringify(data, null, 2)}`
-      }
-    ]
+If the data is empty, say so clearly and suggest why (e.g. "No absences recorded this semester yet.").`
+    },
+    contents: `Question: ${question}\n\nData: ${JSON.stringify(data, null, 2)}`
   });
 
-  return response.content[0]?.type === "text"
-    ? response.content[0].text
-    : "Sorry, I could not generate an answer. Please try again.";
+  return response.text ?? "Sorry, I could not generate an answer. Please try again.";
 }

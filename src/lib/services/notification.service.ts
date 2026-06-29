@@ -49,22 +49,20 @@ export class NotificationService {
   }
 
   private async sendSms(to: string, message: string) {
-    if (!process.env.AT_API_KEY || !process.env.AT_USERNAME) return "skipped";
+    if (!process.env.ARKESEL_API_KEY || !process.env.ARKESEL_SENDER_ID) return "skipped";
     try {
-      const body = new URLSearchParams({
-        username: process.env.AT_USERNAME,
-        to,
-        message
-      });
-      if (process.env.AT_SENDER_ID) body.set("from", process.env.AT_SENDER_ID);
-      const response = await fetch("https://api.africastalking.com/version1/messaging", {
+      const response = await fetch("https://sms.arkesel.com/api/v2/sms/send", {
         method: "POST",
         headers: {
-          apiKey: process.env.AT_API_KEY,
+          "api-key": process.env.ARKESEL_API_KEY,
           accept: "application/json",
-          "content-type": "application/x-www-form-urlencoded"
+          "content-type": "application/json"
         },
-        body
+        body: JSON.stringify({
+          sender: process.env.ARKESEL_SENDER_ID,
+          message,
+          recipients: [to]
+        })
       });
       if (!response.ok) return "failed";
       return "sent";
