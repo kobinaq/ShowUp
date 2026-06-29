@@ -1,4 +1,5 @@
 import type { Role } from "@prisma/client";
+import { LogoutButton } from "@/components/layout/LogoutButton";
 
 export function TopBar({ role, email }: { role?: Role; email?: string | null }) {
   return (
@@ -6,7 +7,10 @@ export function TopBar({ role, email }: { role?: Role; email?: string | null }) 
       <div>
         <h1 className="font-display text-xl font-bold">{dashboardTitle(role)}</h1>
       </div>
-      <div className="text-right text-sm text-muted">{email}</div>
+      <div className="flex items-center gap-3">
+        <div className="hidden text-right text-sm text-muted sm:block">{email}</div>
+        <LogoutButton />
+      </div>
     </header>
   );
 }
