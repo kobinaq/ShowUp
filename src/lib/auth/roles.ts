@@ -10,9 +10,9 @@ export const roleHome: Record<Role, string> = {
 };
 
 export const routeRoles: Array<{ pattern: RegExp; roles: Role[] }> = [
-  { pattern: /^\/admin/, roles: [Role.SUPER_ADMIN] },
+  { pattern: /^\/admin/, roles: [Role.SUPER_ADMIN, Role.VC, Role.QA_OFFICER, Role.HOD, Role.HOD_ASSISTANT] },
   { pattern: /^\/analytics/, roles: [Role.SUPER_ADMIN, Role.VC, Role.QA_OFFICER, Role.HOD, Role.HOD_ASSISTANT] },
-  { pattern: /^\/courses/, roles: [Role.SUPER_ADMIN, Role.HOD, Role.HOD_ASSISTANT] },
+  { pattern: /^\/courses/, roles: [Role.SUPER_ADMIN, Role.VC, Role.QA_OFFICER, Role.HOD, Role.HOD_ASSISTANT] },
   { pattern: /^\/reports/, roles: [Role.SUPER_ADMIN, Role.VC, Role.QA_OFFICER, Role.HOD, Role.HOD_ASSISTANT] },
   { pattern: /^\/lecturers/, roles: [Role.SUPER_ADMIN, Role.VC, Role.QA_OFFICER, Role.HOD, Role.HOD_ASSISTANT] },
   { pattern: /^\/flags/, roles: [Role.SUPER_ADMIN, Role.QA_OFFICER] },

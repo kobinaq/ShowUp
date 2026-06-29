@@ -1,11 +1,34 @@
 import { notFound } from "next/navigation";
+import { Role } from "@prisma/client";
 import { prisma } from "@/lib/prisma";
+import { ReportTable } from "@/components/reports/ReportTable";
+import { createClient } from "@/lib/supabase/server";
 
 export default async function CourseDetailPage({ params }: { params: Promise<{ id: string }> }) {
   const { id } = await params;
-  const course = await prisma.course.findUnique({
-    where: { id },
-    include: { lecturer: true, schedule: true, outline: { include: { topics: { orderBy: { order: "asc" } } } }, reports: true, repAssignments: { include: { profile: true } } }
+  const supabase = await createClient();
+  const { data } = await supabase.auth.getUser();
+  const profile = data.user
+    ? await prisma.profile.findUnique({ where: { supabaseUid: data.user.id }, select: { role: true, universityId: true, departmentId: true } })
+    : null;
+  const isSuperAdmin = profile?.role === Role.SUPER_ADMIN;
+  const isDepartmentScope = profile?.role === Role.HOD || profile?.role === Role.HOD_ASSISTANT;
+  const course = await prisma.course.findFirst({
+    where: {
+      id,
+      ...(isSuperAdmin
+        ? {}
+        : isDepartmentScope
+          ? { departmentId: profile?.departmentId ?? "__none__" }
+          : { department: { faculty: { universityId: profile?.universityId ?? "__none__" } } })
+    },
+    include: {
+      lecturer: true,
+      schedule: true,
+      outline: { include: { topics: { orderBy: { order: "asc" } } } },
+      reports: { include: { course: { include: { lecturer: true } }, flags: true, contest: true }, orderBy: { lectureDate: "desc" } },
+      repAssignments: { include: { profile: true } }
+    }
   });
   if (!course) notFound();
   return (
@@ -25,6 +48,10 @@ export default async function CourseDetailPage({ params }: { params: Promise<{ i
         <ol className="mt-4 grid gap-2 md:grid-cols-2">
           {course.outline?.topics.map((topic) => <li key={topic.id} className="rounded-md border p-3 text-sm">Week {topic.weekNumber ?? "-"}: {topic.title}</li>)}
         </ol>
+      </section>
+      <section className="rounded-card bg-white p-5 shadow-card">
+        <h2 className="font-display text-xl font-bold">Reports</h2>
+        <ReportTable reports={course.reports} />
       </section>
     </div>
   );

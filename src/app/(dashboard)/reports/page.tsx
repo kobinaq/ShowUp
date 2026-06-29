@@ -1,29 +1,30 @@
-import Link from "next/link";
+import { Role } from "@prisma/client";
 import { prisma } from "@/lib/prisma";
-import { StatusBadge } from "@/components/shared/StatusBadge";
+import { ReportTable } from "@/components/reports/ReportTable";
+import { createClient } from "@/lib/supabase/server";
 
 export default async function ReportsPage() {
-  const reports = await prisma.lectureReport.findMany({ include: { course: { include: { lecturer: true } }, flags: true, contest: true }, orderBy: { lectureDate: "desc" }, take: 100 });
+  const supabase = await createClient();
+  const { data } = await supabase.auth.getUser();
+  const profile = data.user
+    ? await prisma.profile.findUnique({ where: { supabaseUid: data.user.id }, select: { role: true, universityId: true, departmentId: true } })
+    : null;
+  const isSuperAdmin = profile?.role === Role.SUPER_ADMIN;
+  const isDepartmentScope = profile?.role === Role.HOD || profile?.role === Role.HOD_ASSISTANT;
+  const reports = await prisma.lectureReport.findMany({
+    where: isSuperAdmin
+      ? {}
+      : isDepartmentScope
+        ? { course: { departmentId: profile?.departmentId ?? "__none__" } }
+        : { course: { department: { faculty: { universityId: profile?.universityId ?? "__none__" } } } },
+    include: { course: { include: { lecturer: true } }, flags: true, contest: true },
+    orderBy: { lectureDate: "desc" },
+    take: 100
+  });
   return (
     <section className="rounded-card bg-white p-5 shadow-card">
       <h1 className="font-display text-2xl font-bold">Reports</h1>
-      <div className="mt-4 overflow-x-auto">
-        <table className="w-full min-w-[760px] text-left text-sm">
-          <thead className="text-muted"><tr><th className="py-2">Date</th><th>Course</th><th>Lecturer</th><th>Presence</th><th>Flags</th><th>Contest</th></tr></thead>
-          <tbody>
-            {reports.map((report) => (
-              <tr key={report.id} className="border-t odd:bg-slate-50/70">
-                <td className="py-3"><Link href={`/reports/${report.id}`} className="font-semibold">{report.lectureDate.toDateString()}</Link></td>
-                <td className="font-mono">{report.course.code}</td>
-                <td>{report.course.lecturer.firstName} {report.course.lecturer.lastName}</td>
-                <td><StatusBadge tone={report.lecturerPresent === "ABSENT" ? "red" : report.arrivalStatus === "LATE" ? "amber" : "green"}>{report.lecturerPresent}</StatusBadge></td>
-                <td>{report.flags.length}</td>
-                <td>{report.contest ? <StatusBadge tone="amber">{report.contest.status}</StatusBadge> : "-"}</td>
-              </tr>
-            ))}
-          </tbody>
-        </table>
-      </div>
+      <ReportTable reports={reports} />
     </section>
   );
 }

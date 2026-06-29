@@ -222,22 +222,18 @@ async function main() {
           uploadedById: dept.hodProfileId
         }
       });
-      const topics = [];
-      for (let topicIndex = 0; topicIndex < 12; topicIndex++) {
-        topics.push(
-          await prisma.outlineTopic.create({
-            data: {
-              id: `atu_topic_${dept.code.toLowerCase()}_${i + 1}_${topicIndex + 1}`,
-              outlineId: outline.id,
-              title: `${dept.name} Topic ${topicIndex + 1}`,
-              description: `Week ${topicIndex + 1} competency for ${code}`,
-              weekNumber: topicIndex + 1,
-              order: topicIndex + 1
-            }
-          })
-        );
-      }
-      allCourses.push({ id: course.id, scheduleId: course.schedule[0].id, topicIds: topics.map((topic) => topic.id), lecturerId: lecturer.id });
+      const topicIds = Array.from({ length: 12 }, (_, topicIndex) => `atu_topic_${dept.code.toLowerCase()}_${i + 1}_${topicIndex + 1}`);
+      await prisma.outlineTopic.createMany({
+        data: topicIds.map((id, topicIndex) => ({
+          id,
+          outlineId: outline.id,
+          title: `${dept.name} Topic ${topicIndex + 1}`,
+          description: `Week ${topicIndex + 1} competency for ${code}`,
+          weekNumber: topicIndex + 1,
+          order: topicIndex + 1
+        }))
+      });
+      allCourses.push({ id: course.id, scheduleId: course.schedule[0].id, topicIds, lecturerId: lecturer.id });
     }
   }
 
@@ -307,12 +303,12 @@ async function main() {
       });
       if ((courseIndex + week) % 11 === 0) {
         await prisma.flag.create({
-          data: { id: `atu_flag_absence_${courseIndex + 1}_${week}`, lecturerId: course.lecturerId, reportId: report.id, type: FlagType.ABSENCE, message: "Reported absent in ATU demo data." }
+          data: { id: `atu_flag_absence_${courseIndex + 1}_${week}`, lecturerId: course.lecturerId, reportId: report.id, type: FlagType.ABSENCE, message: "Lecturer was reported absent for this session." }
         });
       }
       if ((courseIndex + week) % 4 === 0) {
         await prisma.flag.create({
-          data: { id: `atu_flag_late_${courseIndex + 1}_${week}`, lecturerId: course.lecturerId, reportId: report.id, type: FlagType.LATENESS, message: "Reported late in ATU demo data." }
+          data: { id: `atu_flag_late_${courseIndex + 1}_${week}`, lecturerId: course.lecturerId, reportId: report.id, type: FlagType.LATENESS, message: "Lecturer was reported late for this session." }
         });
       }
     }
@@ -336,7 +332,7 @@ async function main() {
       id: "atu_activity_seed_completed",
       universityId: university.id,
       actorId: admin.id,
-      action: "atu.demo_seed.completed",
+      action: "sample_data.loaded",
       metadata: { departments: departmentRecords.length, courses: allCourses.length, reports: allCourses.length * 8 }
     }
   });

@@ -1,8 +1,25 @@
 import Link from "next/link";
+import { Role } from "@prisma/client";
 import { prisma } from "@/lib/prisma";
+import { createClient } from "@/lib/supabase/server";
 
 export default async function LecturersPage() {
-  const lecturers = await prisma.lecturer.findMany({ include: { department: true, courses: true, flags: true }, orderBy: { lastName: "asc" } });
+  const supabase = await createClient();
+  const { data } = await supabase.auth.getUser();
+  const profile = data.user
+    ? await prisma.profile.findUnique({ where: { supabaseUid: data.user.id }, select: { role: true, universityId: true, departmentId: true } })
+    : null;
+  const isSuperAdmin = profile?.role === Role.SUPER_ADMIN;
+  const isDepartmentScope = profile?.role === Role.HOD || profile?.role === Role.HOD_ASSISTANT;
+  const lecturers = await prisma.lecturer.findMany({
+    where: isSuperAdmin
+      ? {}
+      : isDepartmentScope
+        ? { departmentId: profile?.departmentId ?? "__none__" }
+        : { department: { faculty: { universityId: profile?.universityId ?? "__none__" } } },
+    include: { department: true, courses: true, flags: true },
+    orderBy: { lastName: "asc" }
+  });
   return (
     <section className="grid gap-4 md:grid-cols-2 xl:grid-cols-3">
       {lecturers.map((lecturer) => (

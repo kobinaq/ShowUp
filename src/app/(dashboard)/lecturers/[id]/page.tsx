@@ -1,12 +1,41 @@
 import { notFound } from "next/navigation";
+import { Role } from "@prisma/client";
 import { prisma } from "@/lib/prisma";
 import { coverageService } from "@/lib/services/coverage.service";
+import { ReportTable } from "@/components/reports/ReportTable";
+import { createClient } from "@/lib/supabase/server";
 
 export default async function LecturerPage({ params }: { params: Promise<{ id: string }> }) {
   const { id } = await params;
-  const lecturer = await prisma.lecturer.findUnique({ where: { id }, include: { courses: true, flags: true, notifications: true } });
+  const supabase = await createClient();
+  const { data } = await supabase.auth.getUser();
+  const profile = data.user
+    ? await prisma.profile.findUnique({ where: { supabaseUid: data.user.id }, select: { role: true, universityId: true, departmentId: true } })
+    : null;
+  const isSuperAdmin = profile?.role === Role.SUPER_ADMIN;
+  const isDepartmentScope = profile?.role === Role.HOD || profile?.role === Role.HOD_ASSISTANT;
+  const lecturer = await prisma.lecturer.findFirst({
+    where: {
+      id,
+      ...(isSuperAdmin
+        ? {}
+        : isDepartmentScope
+          ? { departmentId: profile?.departmentId ?? "__none__" }
+          : { department: { faculty: { universityId: profile?.universityId ?? "__none__" } } })
+    },
+    include: {
+      courses: {
+        include: {
+          reports: { include: { course: { include: { lecturer: true } }, flags: true, contest: true }, orderBy: { lectureDate: "desc" } }
+        }
+      },
+      flags: true,
+      notifications: true
+    }
+  });
   if (!lecturer) notFound();
   const coverage = await Promise.all(lecturer.courses.map((course) => coverageService.calculate(course.id).then((summary) => [course.code, summary] as const)));
+  const reports = lecturer.courses.flatMap((course) => course.reports).sort((first, second) => second.lectureDate.getTime() - first.lectureDate.getTime());
   return (
     <div className="space-y-6">
       <header>
@@ -23,6 +52,10 @@ export default async function LecturerPage({ params }: { params: Promise<{ id: s
         <div className="mt-4 space-y-3">
           {coverage.map(([code, item]) => <p key={code} className="font-mono">{code}: {item.coveragePercent}% {item.pacingStatus}</p>)}
         </div>
+      </section>
+      <section className="rounded-card bg-white p-5 shadow-card">
+        <h2 className="font-display text-xl font-bold">Reports</h2>
+        <ReportTable reports={reports} showCourseTitle />
       </section>
     </div>
   );

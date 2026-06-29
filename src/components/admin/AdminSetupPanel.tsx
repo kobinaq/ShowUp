@@ -1,6 +1,7 @@
 "use client";
 
-import { useState } from "react";
+import { Role } from "@prisma/client";
+import { useMemo, useState } from "react";
 import { useRouter } from "next/navigation";
 import toast from "react-hot-toast";
 import { Building2, CalendarDays, GraduationCap, LibraryBig, Plus, School, UserRound } from "lucide-react";
@@ -9,12 +10,13 @@ type Option = { id: string; name: string };
 type LecturerOption = Option & { departmentId: string };
 
 type Props = {
+  role: Role;
+  scopeLabel: string;
   universities: Option[];
   faculties: Option[];
   departments: Option[];
   semesters: Option[];
   lecturers: LecturerOption[];
-  canManageStructure: boolean;
 };
 
 const cards = [
@@ -26,11 +28,26 @@ const cards = [
   { type: "course", title: "Course", icon: GraduationCap }
 ] as const;
 
-export function AdminSetupPanel({ universities, faculties, departments, semesters, lecturers, canManageStructure }: Props) {
+type CardType = (typeof cards)[number]["type"];
+
+export function AdminSetupPanel({ role, scopeLabel, universities, faculties, departments, semesters, lecturers }: Props) {
   const router = useRouter();
-  const [type, setType] = useState<(typeof cards)[number]["type"]>("faculty");
+  const visibleCards = useMemo(() => getVisibleCards(role), [role]);
+  const [type, setType] = useState<CardType>(visibleCards[0]?.type ?? "lecturer");
   const [loading, setLoading] = useState(false);
-  const visibleCards = cards.filter((card) => canManageStructure || ["lecturer", "course"].includes(card.type));
+  const showUniversityFields = role === "SUPER_ADMIN";
+  const showDepartmentFields = role === "SUPER_ADMIN" || role === "QA_OFFICER";
+
+  if (role === "VC") {
+    return (
+      <section className="rounded-card bg-white p-5 shadow-card">
+        <h2 className="font-display text-xl font-bold">University administration</h2>
+        <p className="mt-2 max-w-2xl text-sm text-muted">
+          Leadership access is scoped to {scopeLabel}. Operational setup actions are handled by QA and department administrators.
+        </p>
+      </section>
+    );
+  }
 
   async function submit(event: React.FormEvent<HTMLFormElement>) {
     event.preventDefault();
@@ -57,8 +74,8 @@ export function AdminSetupPanel({ universities, faculties, departments, semester
     <section className="rounded-card bg-white p-5 shadow-card">
       <div className="mb-4 flex items-center justify-between gap-3">
         <div>
-          <h2 className="font-display text-xl font-bold">Production setup</h2>
-          <p className="text-sm text-muted">Create the core records needed before reports start flowing.</p>
+          <h2 className="font-display text-xl font-bold">Administration setup</h2>
+          <p className="text-sm text-muted">Create records within {scopeLabel}.</p>
         </div>
       </div>
       <div className="mb-5 grid gap-2 md:grid-cols-6">
@@ -67,7 +84,7 @@ export function AdminSetupPanel({ universities, faculties, departments, semester
             type="button"
             key={card.type}
             onClick={() => setType(card.type)}
-            className={`flex min-h-14 items-center justify-center gap-2 rounded-md border px-3 text-sm font-semibold ${type === card.type ? "border-accent bg-accent/10 text-navy" : "bg-white text-muted"}`}
+            className={`flex min-h-14 items-center justify-center gap-2 rounded-md border px-3 text-sm font-semibold ${type === card.type ? "border-accent bg-accent/10 text-navy" : "bg-white text-muted hover:border-slate-300 hover:text-navy"}`}
           >
             <card.icon className="h-4 w-4" aria-hidden />
             {card.title}
@@ -75,7 +92,16 @@ export function AdminSetupPanel({ universities, faculties, departments, semester
         ))}
       </div>
       <form onSubmit={submit} className="grid gap-3 md:grid-cols-2">
-        <Fields type={type} universities={universities} faculties={faculties} departments={departments} semesters={semesters} lecturers={lecturers} />
+        <Fields
+          type={type}
+          universities={universities}
+          faculties={faculties}
+          departments={departments}
+          semesters={semesters}
+          lecturers={lecturers}
+          showUniversityFields={showUniversityFields}
+          showDepartmentFields={showDepartmentFields}
+        />
         <div className="md:col-span-2">
           <button disabled={loading} className="inline-flex h-11 items-center gap-2 rounded-md bg-accent px-4 text-sm font-semibold text-navy disabled:opacity-60">
             <Plus className="h-4 w-4" aria-hidden />
@@ -87,20 +113,29 @@ export function AdminSetupPanel({ universities, faculties, departments, semester
   );
 }
 
+function getVisibleCards(role: Role) {
+  if (role === "SUPER_ADMIN") return cards;
+  if (role === "QA_OFFICER") return cards.filter((card) => card.type !== "university");
+  if (role === "HOD" || role === "HOD_ASSISTANT") return cards.filter((card) => ["lecturer", "course"].includes(card.type));
+  return [];
+}
+
 function Fields({
   type,
   universities,
   faculties,
   departments,
   semesters,
-  lecturers
-}: Omit<Props, "canManageStructure"> & { type: string }) {
+  lecturers,
+  showUniversityFields,
+  showDepartmentFields
+}: Omit<Props, "role" | "scopeLabel"> & { type: CardType; showUniversityFields: boolean; showDepartmentFields: boolean }) {
   if (type === "university") return <><Input name="name" label="Name" /><Input name="address" label="Address" /></>;
-  if (type === "faculty") return <><Input name="name" label="Name" /><Select name="universityId" label="University" options={universities} /></>;
+  if (type === "faculty") return <><Input name="name" label="Name" />{showUniversityFields ? <Select name="universityId" label="University" options={universities} /> : null}</>;
   if (type === "department") return <><Input name="name" label="Name" /><Select name="facultyId" label="Faculty" options={faculties} /></>;
-  if (type === "semester") return <><Input name="name" label="Name" /><Select name="universityId" label="University" options={universities} /><Input name="startDate" label="Start date" type="date" /><Input name="endDate" label="End date" type="date" /><label className="flex items-center gap-2 text-sm"><input name="isActive" type="checkbox" defaultChecked /> Active semester</label></>;
-  if (type === "lecturer") return <><Input name="firstName" label="First name" /><Input name="lastName" label="Last name" /><Input name="email" label="Email" type="email" /><Input name="phone" label="Phone" /><Input name="staffId" label="Staff ID" /><Select name="departmentId" label="Department" options={departments} /></>;
-  return <><Input name="code" label="Code" /><Input name="title" label="Title" /><Select name="departmentId" label="Department" options={departments} /><Select name="semesterId" label="Semester" options={semesters} /><Select name="lecturerId" label="Lecturer" options={lecturers} /><Input name="creditHours" label="Credit hours" type="number" defaultValue="3" /><Select name="dayOfWeek" label="Day" options={[{ id: "0", name: "Monday" }, { id: "1", name: "Tuesday" }, { id: "2", name: "Wednesday" }, { id: "3", name: "Thursday" }, { id: "4", name: "Friday" }]} /><Input name="startTime" label="Start time" defaultValue="08:00" /><Input name="endTime" label="End time" defaultValue="10:00" /><Input name="venue" label="Venue" /></>;
+  if (type === "semester") return <><Input name="name" label="Name" />{showUniversityFields ? <Select name="universityId" label="University" options={universities} /> : null}<Input name="startDate" label="Start date" type="date" /><Input name="endDate" label="End date" type="date" /><label className="flex items-center gap-2 text-sm"><input name="isActive" type="checkbox" defaultChecked /> Active semester</label></>;
+  if (type === "lecturer") return <><Input name="firstName" label="First name" /><Input name="lastName" label="Last name" /><Input name="email" label="Email" type="email" /><Input name="phone" label="Phone" /><Input name="staffId" label="Staff ID" />{showDepartmentFields ? <Select name="departmentId" label="Department" options={departments} /> : null}</>;
+  return <><Input name="code" label="Code" /><Input name="title" label="Title" />{showDepartmentFields ? <Select name="departmentId" label="Department" options={departments} /> : null}<Select name="semesterId" label="Semester" options={semesters} /><Select name="lecturerId" label="Lecturer" options={lecturers} /><Input name="creditHours" label="Credit hours" type="number" defaultValue="3" /><Select name="dayOfWeek" label="Day" options={[{ id: "0", name: "Monday" }, { id: "1", name: "Tuesday" }, { id: "2", name: "Wednesday" }, { id: "3", name: "Thursday" }, { id: "4", name: "Friday" }]} /><Input name="startTime" label="Start time" defaultValue="08:00" /><Input name="endTime" label="End time" defaultValue="10:00" /><Input name="venue" label="Venue" /></>;
 }
 
 function Input({ name, label, type = "text", defaultValue }: { name: string; label: string; type?: string; defaultValue?: string }) {

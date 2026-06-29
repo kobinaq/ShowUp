@@ -3,43 +3,45 @@ import { prisma } from "@/lib/prisma";
 import { coverageService } from "@/lib/services/coverage.service";
 import type { QueryPlan } from "@/types/ask";
 
-async function resolveSemesterId(semesterId?: string) {
+type QueryScope = { universityId?: string; departmentId?: string | null };
+
+async function resolveSemesterId(semesterId?: string, scope?: QueryScope) {
   if (semesterId === "active" || !semesterId) {
-    return (await prisma.semester.findFirst({ where: { isActive: true }, select: { id: true } }))?.id;
+    return (await prisma.semester.findFirst({ where: { isActive: true, universityId: scope?.universityId }, select: { id: true } }))?.id;
   }
   return semesterId;
 }
 
-export async function executeQueryPlan(plan: QueryPlan) {
+export async function executeQueryPlan(plan: QueryPlan, scope: QueryScope = {}) {
   const { queryType, params } = plan;
   if (queryType === "unsupported") return [];
 
-  const semesterId = await resolveSemesterId(params.semesterId);
+  const semesterId = await resolveSemesterId(params.semesterId, scope);
   const limit = params.limit ?? 10;
 
   switch (queryType) {
     case "lecturer_attendance":
-      return lecturerAttendance({ ...params, semesterId, limit });
+      return lecturerAttendance({ ...params, semesterId, limit }, scope);
     case "topic_coverage":
-      return topicCoverage({ ...params, semesterId });
+      return topicCoverage({ ...params, semesterId }, scope);
     case "top_absent":
-      return rankedPresence(PresenceStatus.ABSENT, { ...params, semesterId, limit });
+      return rankedPresence(PresenceStatus.ABSENT, { ...params, semesterId, limit }, scope);
     case "top_late":
-      return rankedLateness({ ...params, semesterId, limit });
+      return rankedLateness({ ...params, semesterId, limit }, scope);
     case "flags":
-      return flags({ ...params, semesterId, limit });
+      return flags({ ...params, semesterId, limit }, scope);
     case "coverage_lag":
-      return coverageLag({ ...params, semesterId });
+      return coverageLag({ ...params, semesterId }, scope);
     case "department_summary":
-      return departmentSummary({ ...params, semesterId });
+      return departmentSummary({ ...params, semesterId }, scope);
   }
 }
 
-async function lecturerAttendance(params: QueryPlan["params"] & { semesterId?: string; limit: number }) {
+async function lecturerAttendance(params: QueryPlan["params"] & { semesterId?: string; limit: number }, scope: QueryScope) {
   const lecturers = await prisma.lecturer.findMany({
     where: {
       id: params.lecturerId,
-      departmentId: params.departmentId,
+      ...lecturerScope(params, scope),
       courses: params.semesterId ? { some: { semesterId: params.semesterId } } : undefined
     },
     include: {
@@ -70,11 +72,11 @@ async function lecturerAttendance(params: QueryPlan["params"] & { semesterId?: s
   });
 }
 
-async function topicCoverage(params: QueryPlan["params"] & { semesterId?: string }) {
+async function topicCoverage(params: QueryPlan["params"] & { semesterId?: string }, scope: QueryScope) {
   const courses = await prisma.course.findMany({
     where: {
       id: params.courseId,
-      departmentId: params.departmentId,
+      ...courseScope(params, scope),
       semesterId: params.semesterId
     },
     include: { lecturer: true, department: true },
@@ -94,14 +96,15 @@ async function topicCoverage(params: QueryPlan["params"] & { semesterId?: string
 
 async function rankedPresence(
   presence: PresenceStatus,
-  params: QueryPlan["params"] & { semesterId?: string; limit: number }
+  params: QueryPlan["params"] & { semesterId?: string; limit: number },
+  scope: QueryScope
 ) {
   const grouped = await prisma.lectureReport.groupBy({
     by: ["courseId"],
     where: {
       lecturerPresent: presence,
       isVoided: false,
-      course: { semesterId: params.semesterId, departmentId: params.departmentId }
+      course: { semesterId: params.semesterId, ...courseScope(params, scope) }
     },
     _count: { id: true },
     orderBy: { _count: { id: "desc" } },
@@ -110,13 +113,13 @@ async function rankedPresence(
   return hydrateCourseCounts(grouped);
 }
 
-async function rankedLateness(params: QueryPlan["params"] & { semesterId?: string; limit: number }) {
+async function rankedLateness(params: QueryPlan["params"] & { semesterId?: string; limit: number }, scope: QueryScope) {
   const grouped = await prisma.lectureReport.groupBy({
     by: ["courseId"],
     where: {
       arrivalStatus: ArrivalStatus.LATE,
       isVoided: false,
-      course: { semesterId: params.semesterId, departmentId: params.departmentId }
+      course: { semesterId: params.semesterId, ...courseScope(params, scope) }
     },
     _count: { id: true },
     orderBy: { _count: { id: "desc" } },
@@ -143,12 +146,12 @@ async function hydrateCourseCounts(grouped: Array<{ courseId: string; _count: { 
   });
 }
 
-async function flags(params: QueryPlan["params"] & { semesterId?: string; limit: number }) {
+async function flags(params: QueryPlan["params"] & { semesterId?: string; limit: number }, scope: QueryScope) {
   return prisma.flag.findMany({
     where: {
       lecturerId: params.lecturerId,
       type: params.type,
-      lecturer: { departmentId: params.departmentId },
+      lecturer: lecturerRelationScope(params, scope),
       report: params.semesterId ? { course: { semesterId: params.semesterId } } : undefined
     },
     include: {
@@ -160,17 +163,17 @@ async function flags(params: QueryPlan["params"] & { semesterId?: string; limit:
   });
 }
 
-async function coverageLag(params: QueryPlan["params"] & { semesterId?: string }) {
+async function coverageLag(params: QueryPlan["params"] & { semesterId?: string }, scope: QueryScope) {
   const threshold = params.threshold ?? 80;
-  const coverage = await topicCoverage(params);
+  const coverage = await topicCoverage(params, scope);
   return coverage
     .filter((course) => course.coveragePercent < threshold || course.pacingStatus === "Behind")
     .sort((a, b) => a.coveragePercent - b.coveragePercent);
 }
 
-async function departmentSummary(params: QueryPlan["params"] & { semesterId?: string }) {
+async function departmentSummary(params: QueryPlan["params"] & { semesterId?: string }, scope: QueryScope) {
   const departments = await prisma.department.findMany({
-    where: { id: params.departmentId },
+    where: departmentScope(params, scope),
     include: {
       faculty: true,
       courses: {
@@ -200,4 +203,28 @@ async function departmentSummary(params: QueryPlan["params"] & { semesterId?: st
       attendanceRate: reports.length ? Math.round((present / reports.length) * 100) : 0
     };
   });
+}
+
+function courseScope(params: QueryPlan["params"], scope: QueryScope) {
+  if (scope.departmentId) return { departmentId: scope.departmentId };
+  if (scope.universityId) return { department: { faculty: { universityId: scope.universityId } } };
+  return params.departmentId ? { departmentId: params.departmentId } : {};
+}
+
+function lecturerScope(params: QueryPlan["params"], scope: QueryScope) {
+  if (scope.departmentId) return { departmentId: scope.departmentId };
+  if (scope.universityId) return { department: { faculty: { universityId: scope.universityId } } };
+  return params.departmentId ? { departmentId: params.departmentId } : {};
+}
+
+function lecturerRelationScope(params: QueryPlan["params"], scope: QueryScope) {
+  if (scope.departmentId) return { departmentId: scope.departmentId };
+  if (scope.universityId) return { department: { faculty: { universityId: scope.universityId } } };
+  return params.departmentId ? { departmentId: params.departmentId } : undefined;
+}
+
+function departmentScope(params: QueryPlan["params"], scope: QueryScope) {
+  if (scope.departmentId) return { id: scope.departmentId };
+  if (scope.universityId) return { faculty: { universityId: scope.universityId } };
+  return params.departmentId ? { id: params.departmentId } : {};
 }

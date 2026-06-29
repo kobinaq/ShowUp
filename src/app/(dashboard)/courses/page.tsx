@@ -1,9 +1,26 @@
 import Link from "next/link";
+import { Role } from "@prisma/client";
 import { prisma } from "@/lib/prisma";
 import { EmptyState } from "@/components/shared/EmptyState";
+import { createClient } from "@/lib/supabase/server";
 
 export default async function CoursesPage() {
-  const courses = await prisma.course.findMany({ include: { lecturer: true, department: true, schedule: true, outline: { include: { topics: true } } }, orderBy: { code: "asc" } });
+  const supabase = await createClient();
+  const { data } = await supabase.auth.getUser();
+  const profile = data.user
+    ? await prisma.profile.findUnique({ where: { supabaseUid: data.user.id }, select: { role: true, universityId: true, departmentId: true } })
+    : null;
+  const isSuperAdmin = profile?.role === Role.SUPER_ADMIN;
+  const isDepartmentScope = profile?.role === Role.HOD || profile?.role === Role.HOD_ASSISTANT;
+  const courses = await prisma.course.findMany({
+    where: isSuperAdmin
+      ? {}
+      : isDepartmentScope
+        ? { departmentId: profile?.departmentId ?? "__none__" }
+        : { department: { faculty: { universityId: profile?.universityId ?? "__none__" } } },
+    include: { lecturer: true, department: true, schedule: true, outline: { include: { topics: true } } },
+    orderBy: { code: "asc" }
+  });
   return (
     <section className="space-y-4">
       <div className="flex items-center justify-between">

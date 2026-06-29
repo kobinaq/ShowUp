@@ -1,8 +1,26 @@
+import { Role } from "@prisma/client";
 import { prisma } from "@/lib/prisma";
 import { StatusBadge } from "@/components/shared/StatusBadge";
+import { createClient } from "@/lib/supabase/server";
+import { displayText } from "@/lib/utils/displayText";
 
 export default async function FlagsPage() {
-  const flags = await prisma.flag.findMany({ include: { lecturer: true, report: { include: { course: true } } }, orderBy: { createdAt: "desc" } });
+  const supabase = await createClient();
+  const { data } = await supabase.auth.getUser();
+  const profile = data.user
+    ? await prisma.profile.findUnique({ where: { supabaseUid: data.user.id }, select: { role: true, universityId: true, departmentId: true } })
+    : null;
+  const isSuperAdmin = profile?.role === Role.SUPER_ADMIN;
+  const isDepartmentScope = profile?.role === Role.HOD || profile?.role === Role.HOD_ASSISTANT;
+  const flags = await prisma.flag.findMany({
+    where: isSuperAdmin
+      ? {}
+      : isDepartmentScope
+        ? { lecturer: { departmentId: profile?.departmentId ?? "__none__" } }
+        : { lecturer: { department: { faculty: { universityId: profile?.universityId ?? "__none__" } } } },
+    include: { lecturer: true, report: { include: { course: true } } },
+    orderBy: { createdAt: "desc" }
+  });
   return (
     <section className="rounded-card bg-white p-5 shadow-card">
       <h1 className="font-display text-2xl font-bold">Flags</h1>
@@ -15,7 +33,7 @@ export default async function FlagsPage() {
               <td>{flag.lecturer.firstName} {flag.lecturer.lastName}</td>
               <td>{flag.report?.course.code ?? "-"}</td>
               <td><StatusBadge tone={flag.isResolved ? "green" : "amber"}>{flag.isResolved ? "Reviewed" : "Open"}</StatusBadge></td>
-              <td>{flag.message}</td>
+              <td>{displayText(flag.message)}</td>
             </tr>
           ))}</tbody>
         </table>

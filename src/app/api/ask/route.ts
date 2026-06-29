@@ -22,12 +22,14 @@ export const POST = withAuth(async (request, { profile }) => {
       });
     }
 
+    const scope: { universityId?: string; departmentId?: string | null } = profile.role === "SUPER_ADMIN" ? {} : { universityId: profile.universityId };
     if (profile.role === "HOD" || profile.role === "HOD_ASSISTANT") {
       if (!profile.departmentId) return forbidden("HOD analytics require a department assignment");
       plan.params.departmentId = profile.departmentId;
+      scope.departmentId = profile.departmentId;
     }
 
-    const data = await executeQueryPlan(plan);
+    const data = await executeQueryPlan(plan, scope);
     const answer = await formatAnswer(parsed.data.question, data);
 
     return json({ answer, data, plan });
@@ -41,4 +43,4 @@ export const POST = withAuth(async (request, { profile }) => {
       { status: 503 }
     );
   }
-}, [Role.QA_OFFICER, Role.VC, Role.HOD, Role.HOD_ASSISTANT]);
+}, [Role.SUPER_ADMIN, Role.QA_OFFICER, Role.VC, Role.HOD, Role.HOD_ASSISTANT]);

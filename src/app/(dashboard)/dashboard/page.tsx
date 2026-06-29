@@ -1,12 +1,31 @@
 import Link from "next/link";
+import { Role } from "@prisma/client";
 import { prisma } from "@/lib/prisma";
 import { StatusBadge } from "@/components/shared/StatusBadge";
+import { createClient } from "@/lib/supabase/server";
 
 export default async function DashboardPage() {
+  const supabase = await createClient();
+  const { data } = await supabase.auth.getUser();
+  const profile = data.user
+    ? await prisma.profile.findUnique({ where: { supabaseUid: data.user.id }, select: { role: true, universityId: true, departmentId: true } })
+    : null;
+  const isSuperAdmin = profile?.role === Role.SUPER_ADMIN;
+  const isDepartmentScope = profile?.role === Role.HOD || profile?.role === Role.HOD_ASSISTANT;
+  const reportScope = isSuperAdmin
+    ? {}
+    : isDepartmentScope
+      ? { course: { departmentId: profile?.departmentId ?? "__none__" } }
+      : { course: { department: { faculty: { universityId: profile?.universityId ?? "__none__" } } } };
+  const lecturerScope = isSuperAdmin
+    ? {}
+    : isDepartmentScope
+      ? { lecturer: { departmentId: profile?.departmentId ?? "__none__" } }
+      : { lecturer: { department: { faculty: { universityId: profile?.universityId ?? "__none__" } } } };
   const [reports, flags, contests] = await Promise.all([
-    prisma.lectureReport.findMany({ take: 6, orderBy: { lectureDate: "desc" }, include: { course: true } }),
-    prisma.flag.count({ where: { isResolved: false } }),
-    prisma.contest.count({ where: { status: "PENDING" } })
+    prisma.lectureReport.findMany({ where: reportScope, take: 6, orderBy: { lectureDate: "desc" }, include: { course: true } }),
+    prisma.flag.count({ where: { isResolved: false, ...lecturerScope } }),
+    prisma.contest.count({ where: { status: "PENDING", report: reportScope } })
   ]);
   return (
     <div className="space-y-6">
