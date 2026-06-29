@@ -16,7 +16,9 @@ export function ReportForm({ course }: { course: CoursePayload }) {
   const [online, setOnline] = useState(typeof navigator === "undefined" ? true : navigator.onLine);
   const [submitting, setSubmitting] = useState(false);
   const [submitted, setSubmitted] = useState(false);
+  const [presence, setPresence] = useState("PRESENT");
   const topics = useMemo(() => course.outline?.topics.slice(0, 6) ?? [], [course.outline?.topics]);
+  const isAbsent = presence === "ABSENT";
 
   useEffect(() => {
     if (typeof window === "undefined") return;
@@ -35,7 +37,7 @@ export function ReportForm({ course }: { course: CoursePayload }) {
     if (!confirm("Once submitted, this report cannot be edited.")) return;
     const form = new FormData(event.currentTarget);
     const teachingAids = form.getAll("teachingAids");
-    const normalizedTeachingAids = teachingAids.length === 0 || teachingAids.includes("NONE") ? ["NONE"] : teachingAids;
+    const normalizedTeachingAids = isAbsent || teachingAids.length === 0 || teachingAids.includes("NONE") ? ["NONE"] : teachingAids;
     setSubmitting(true);
     const response = await fetch("/api/reports", {
       method: "POST",
@@ -45,15 +47,15 @@ export function ReportForm({ course }: { course: CoursePayload }) {
         scheduleId: course.schedule[0]?.id,
         lectureDate: new Date().toISOString(),
         lecturerPresent: form.get("lecturerPresent"),
-        arrivalStatus: form.get("arrivalStatus") || undefined,
-        lateMinutes: Number(form.get("lateMinutes") || 0) || undefined,
-        earlyDismissal: form.get("earlyDismissal") === "on",
-        dismissedEarlyMinutes: Number(form.get("dismissedEarlyMinutes") || 0) || undefined,
-        topicIds: form.getAll("topicIds"),
-        previousTopicsRevisited: form.get("previousTopicsRevisited") === "on",
+        arrivalStatus: isAbsent ? undefined : form.get("arrivalStatus") || undefined,
+        lateMinutes: isAbsent ? undefined : Number(form.get("lateMinutes") || 0) || undefined,
+        earlyDismissal: isAbsent ? false : form.get("earlyDismissal") === "on",
+        dismissedEarlyMinutes: isAbsent ? undefined : Number(form.get("dismissedEarlyMinutes") || 0) || undefined,
+        topicIds: isAbsent ? [] : form.getAll("topicIds"),
+        previousTopicsRevisited: isAbsent ? false : form.get("previousTopicsRevisited") === "on",
         teachingAids: normalizedTeachingAids,
-        wasInteractive: form.get("wasInteractive"),
-        studentCount: Number(form.get("studentCount") || 0) || undefined,
+        wasInteractive: isAbsent ? undefined : form.get("wasInteractive"),
+        studentCount: isAbsent ? undefined : Number(form.get("studentCount") || 0) || undefined,
         additionalNotes: form.get("additionalNotes") || undefined
       })
     });
@@ -75,21 +77,29 @@ export function ReportForm({ course }: { course: CoursePayload }) {
       {!online ? <div className="sticky top-0 z-10 rounded-md bg-warning px-4 py-3 text-sm font-semibold">Offline. Reconnect before submitting.</div> : null}
       <Header course={course} />
       <Section title="Presence">
-        <Select name="lecturerPresent" options={["PRESENT", "ABSENT", "SUBSTITUTE"]} />
-        <Select name="arrivalStatus" options={["ON_TIME", "LATE"]} />
-        <NumberInput name="lateMinutes" label="Minutes late" />
-        <label className="flex min-h-12 items-center gap-3"><input type="checkbox" name="earlyDismissal" /> Class ended early</label>
-        <NumberInput name="dismissedEarlyMinutes" label="Minutes short" />
+        <Select name="lecturerPresent" options={["PRESENT", "ABSENT", "SUBSTITUTE"]} value={presence} onChange={setPresence} />
+        {isAbsent ? <p className="rounded-md bg-red-50 px-3 py-3 text-sm font-medium text-red-700">Only notes are needed when the lecturer is absent.</p> : (
+          <>
+            <Select name="arrivalStatus" options={["ON_TIME", "LATE"]} />
+            <NumberInput name="lateMinutes" label="Minutes late" />
+            <label className="flex min-h-12 items-center gap-3"><input type="checkbox" name="earlyDismissal" /> Class ended early</label>
+            <NumberInput name="dismissedEarlyMinutes" label="Minutes short" />
+          </>
+        )}
       </Section>
-      <Section title="Topic coverage">
-        {topics.map((topic) => <label key={topic.id} className="flex min-h-12 items-center gap-3 rounded-md border px-3"><input type="checkbox" name="topicIds" value={topic.id} />{topic.title}</label>)}
-        <label className="flex min-h-12 items-center gap-3"><input type="checkbox" name="previousTopicsRevisited" /> Previous topics revisited</label>
-      </Section>
-      <Section title="Teaching quality">
-        <div className="grid grid-cols-2 gap-2">{["SLIDES", "WHITEBOARD", "HANDOUTS", "VIDEO", "NONE", "OTHER"].map((aid) => <label key={aid} className="flex min-h-12 items-center gap-2 rounded-md border px-3"><input type="checkbox" name="teachingAids" value={aid} />{aid}</label>)}</div>
-        <Select name="wasInteractive" options={["YES", "SOMEWHAT", "NO"]} />
-        <NumberInput name="studentCount" label="Estimated attendance" />
-      </Section>
+      {!isAbsent ? (
+        <>
+          <Section title="Topic coverage">
+            {topics.map((topic) => <label key={topic.id} className="flex min-h-12 items-center gap-3 rounded-md border px-3"><input type="checkbox" name="topicIds" value={topic.id} />{topic.title}</label>)}
+            <label className="flex min-h-12 items-center gap-3"><input type="checkbox" name="previousTopicsRevisited" /> Previous topics revisited</label>
+          </Section>
+          <Section title="Teaching quality">
+            <div className="grid grid-cols-2 gap-2">{["SLIDES", "WHITEBOARD", "HANDOUTS", "VIDEO", "NONE", "OTHER"].map((aid) => <label key={aid} className="flex min-h-12 items-center gap-2 rounded-md border px-3"><input type="checkbox" name="teachingAids" value={aid} />{aid}</label>)}</div>
+            <Select name="wasInteractive" options={["YES", "SOMEWHAT", "NO"]} />
+            <NumberInput name="studentCount" label="Estimated attendance" />
+          </Section>
+        </>
+      ) : null}
       <Section title="Notes">
         <textarea name="additionalNotes" className="min-h-28 w-full rounded-md border p-3" maxLength={1200} />
       </Section>
@@ -108,8 +118,8 @@ function Section({ title, children }: { title: string; children: React.ReactNode
   return <section className="space-y-3 rounded-card border bg-white p-4 shadow-card"><h2 className="font-display text-lg font-bold">{title}</h2>{children}</section>;
 }
 
-function Select({ name, options }: { name: string; options: string[] }) {
-  return <select name={name} className="h-12 w-full rounded-md border px-3" required>{options.map((option) => <option key={option} value={option}>{option}</option>)}</select>;
+function Select({ name, options, value, onChange }: { name: string; options: string[]; value?: string; onChange?: (value: string) => void }) {
+  return <select name={name} value={value} onChange={(event) => onChange?.(event.target.value)} className="h-12 w-full rounded-md border px-3" required>{options.map((option) => <option key={option} value={option}>{option}</option>)}</select>;
 }
 
 function NumberInput({ name, label }: { name: string; label: string }) {
