@@ -1,8 +1,17 @@
 import { prisma } from "@/lib/prisma";
 import { StatusBadge } from "@/components/shared/StatusBadge";
+import { contestScope } from "@/lib/auth/scope";
+import { createClient } from "@/lib/supabase/server";
 
 export default async function ContestsPage() {
-  const contests = await prisma.contest.findMany({ include: { report: { include: { course: true } }, raisedBy: true }, orderBy: { raisedAt: "desc" } });
+  const supabase = await createClient();
+  const { data } = await supabase.auth.getUser();
+  const profile = data.user
+    ? await prisma.profile.findUnique({ where: { supabaseUid: data.user.id }, select: { id: true, role: true, universityId: true, departmentId: true } })
+    : null;
+  const contests = profile
+    ? await prisma.contest.findMany({ where: contestScope(profile), include: { report: { include: { course: true } }, raisedBy: true }, orderBy: { raisedAt: "desc" } })
+    : [];
   return (
     <section className="space-y-4">
       <h1 className="font-display text-2xl font-bold">Contests</h1>

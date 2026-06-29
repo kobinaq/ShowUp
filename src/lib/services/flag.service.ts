@@ -6,7 +6,7 @@ export class FlagService {
   async evaluateReport(reportId: string) {
     const report = await prisma.lectureReport.findUnique({
       where: { id: reportId },
-      include: { course: { include: { lecturer: true } } }
+      include: { schedule: true, course: { include: { lecturer: true } } }
     });
     if (!report || report.isVoided) return [];
 
@@ -16,7 +16,7 @@ export class FlagService {
       await notificationService.notifyLecturer(
         report.course.lecturer,
         "ShowUp absence report",
-        `You were reported absent for ${report.course.code} on ${report.lectureDate.toDateString()}. Contact your HOD if incorrect.`
+        `You were reported absent for your ${report.course.code} class today at ${formatClassTime(report.schedule.startTime)}. Contact your HOD if incorrect. Do not reply to this message.`
       );
     }
     if (report.arrivalStatus === ArrivalStatus.LATE && report.lateMinutes) {
@@ -41,3 +41,10 @@ export class FlagService {
 }
 
 export const flagService = new FlagService();
+
+function formatClassTime(time: string) {
+  const [hourText, minuteText] = time.split(":");
+  const date = new Date();
+  date.setHours(Number(hourText), Number(minuteText), 0, 0);
+  return date.toLocaleTimeString("en", { hour: "numeric", minute: Number(minuteText) ? "2-digit" : undefined, hour12: true }).toLowerCase().replace(" ", "");
+}

@@ -32,7 +32,7 @@ export class NotificationService {
     await this.sendEmail(to, "ShowUp contest resolved", this.wrapEmail("HOD", message));
   }
 
-  private async sendEmail(to: string, subject: string, html: string) {
+  async sendEmail(to: string, subject: string, html: string) {
     if (!this.resend) return "skipped";
     try {
       await this.resend.emails.send({
@@ -48,7 +48,7 @@ export class NotificationService {
     }
   }
 
-  private async sendSms(to: string, message: string) {
+  async sendSms(to: string, message: string) {
     if (!process.env.ARKESEL_API_KEY || !process.env.ARKESEL_SENDER_ID) return "skipped";
     try {
       const response = await fetch("https://sms.arkesel.com/api/v2/sms/send", {
@@ -64,7 +64,11 @@ export class NotificationService {
           recipients: [to]
         })
       });
-      if (!response.ok) return "failed";
+      if (!response.ok) {
+        const body = await response.text().catch(() => "");
+        console.error("Arkesel SMS failed", { status: response.status, body: body.slice(0, 300) });
+        return "failed";
+      }
       return "sent";
     } catch (error) {
       console.error(error);

@@ -26,7 +26,7 @@ export default async function CourseDetailPage({ params }: { params: Promise<{ i
       lecturer: true,
       schedule: true,
       outline: { include: { topics: { orderBy: { order: "asc" } } } },
-      reports: { include: { course: { include: { lecturer: true } }, flags: true, contest: true }, orderBy: { lectureDate: "desc" } },
+      reports: { include: { course: { include: { lecturer: true } }, flags: true, contest: true, latePing: true }, orderBy: { lectureDate: "desc" } },
       repAssignments: { include: { profile: true } }
     }
   });

@@ -8,6 +8,7 @@ type ReportRow = {
   arrivalStatus: string | null;
   flags: Array<{ id: string }>;
   contest: { status: string } | null;
+  latePing?: { acknowledgedAt: Date | null } | null;
   course: {
     code: string;
     title?: string;
@@ -28,6 +29,7 @@ export function ReportTable({ reports, showCourseTitle = false }: { reports: Rep
             <th>Lecturer</th>
             <th>Presence</th>
             <th>Flags</th>
+            <th>Ping</th>
             <th>Contest</th>
           </tr>
         </thead>
@@ -41,6 +43,7 @@ export function ReportTable({ reports, showCourseTitle = false }: { reports: Rep
                 <td><CellLink href={href}>{report.course.lecturer ? `${report.course.lecturer.firstName} ${report.course.lecturer.lastName}` : "-"}</CellLink></td>
                 <td><CellLink href={href}><StatusBadge tone={report.lecturerPresent === "ABSENT" ? "red" : report.arrivalStatus === "LATE" ? "amber" : "green"}>{report.lecturerPresent}</StatusBadge></CellLink></td>
                 <td><CellLink href={href}>{report.flags.length}</CellLink></td>
+                <td><CellLink href={href}>{report.latePing ? <span className={report.latePing.acknowledgedAt ? "text-green-600" : "text-amber-600"}>{report.latePing.acknowledgedAt ? "Alert acknowledged" : "Alert sent"}</span> : "-"}</CellLink></td>
                 <td><CellLink href={href}>{report.contest ? <StatusBadge tone="amber">{report.contest.status}</StatusBadge> : "-"}</CellLink></td>
               </tr>
             );

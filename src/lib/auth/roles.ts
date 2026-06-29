@@ -17,6 +17,7 @@ export const routeRoles: Array<{ pattern: RegExp; roles: Role[] }> = [
   { pattern: /^\/lecturers/, roles: [Role.SUPER_ADMIN, Role.VC, Role.QA_OFFICER, Role.HOD, Role.HOD_ASSISTANT] },
   { pattern: /^\/flags/, roles: [Role.SUPER_ADMIN, Role.QA_OFFICER] },
   { pattern: /^\/contests/, roles: [Role.SUPER_ADMIN, Role.QA_OFFICER, Role.HOD, Role.HOD_ASSISTANT] },
+  { pattern: /^\/settings/, roles: [Role.QA_OFFICER] },
   { pattern: /^\/rep/, roles: [Role.CLASS_REP] },
   { pattern: /^\/dashboard/, roles: [Role.SUPER_ADMIN, Role.QA_OFFICER, Role.HOD, Role.HOD_ASSISTANT] }
 ];

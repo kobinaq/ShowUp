@@ -30,6 +30,7 @@ export default async function ReportDetailPage({ params }: { params: Promise<{ i
       topicsCovered: { include: { topic: true } },
       teachingAids: true,
       flags: true,
+      latePing: true,
       contest: { include: { raisedBy: true, resolvedBy: true } }
     }
   });
@@ -46,6 +47,13 @@ export default async function ReportDetailPage({ params }: { params: Promise<{ i
           {report.contest ? <StatusBadge tone="amber">{report.contest.status}</StatusBadge> : null}
         </div>
       </header>
+      {report.latePing ? (
+        <section className={`rounded-card border p-5 shadow-card ${report.latePing.acknowledgedAt ? "border-green-200 bg-green-50" : "border-amber-200 bg-amber-50"}`}>
+          <h2 className="font-display text-lg font-bold">Late alert sent</h2>
+          <p className="mt-2 text-sm text-slate-700">Class rep sent a late alert at {report.latePing.createdAt.toLocaleTimeString([], { hour: "2-digit", minute: "2-digit" })} ({report.latePing.minutesLate} minutes after class start).</p>
+          <p className="mt-1 text-sm text-slate-700">Lecturer response: {report.latePing.acknowledgedAt ? <span className="font-semibold text-green-700">Acknowledged at {report.latePing.acknowledgedAt.toLocaleTimeString([], { hour: "2-digit", minute: "2-digit" })}</span> : <span className="font-semibold text-amber-700">No response</span>}</p>
+        </section>
+      ) : null}
       <section className="grid gap-4 md:grid-cols-2">
         <Card title="Session">
           <Detail label="Lecture date" value={report.lectureDate.toDateString()} />

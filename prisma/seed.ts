@@ -137,6 +137,17 @@ async function main() {
       universityId: university.id
     }
   });
+  await prisma.universitySettings.create({
+    data: {
+      id: "atu_settings",
+      universityId: university.id,
+      latePingThresholdMinutes: 30,
+      submissionWindowHours: 2,
+      flagCoverageWeek6: 60,
+      flagCoverageWeek10: 80,
+      flagRepeatThreshold: 3
+    }
+  });
 
   const adminUser = await createAuthUser("admin@atu.showup.demo", "ATU Super Admin");
   const vcUser = await createAuthUser("vc@atu.showup.demo", "ATU Vice Chancellor");

@@ -63,7 +63,8 @@ QA Officers, VCs, HODs, and HOD assistants get a floating `ShowUp AI` button in 
 
 - Supabase Auth is the source of session identity.
 - API routes call `withAuth` and enforce allowed roles.
-- Middleware blocks unauthenticated pages and redirects users away from pages outside their role.
+- Middleware blocks unauthenticated requests; protected server layouts redirect users away from pages outside their role.
+- All production data access must be scoped from the signed-in `Profile`: super admins are global, QA/VC users are university-scoped, HOD users are department-scoped, and reporters are limited to their active assignments.
 - Class rep real identities live only in `SealedRepIdentity` and are exposed through the audited identity lookup endpoint.
 - Cron rotation requires `Authorization: Bearer $CRON_SECRET`.
 - Enable Supabase RLS policies before production launch as defense in depth.
@@ -77,10 +78,15 @@ Default seed password for staff: `Password123!`
 ## Production Checklist
 
 - Create a Supabase project and set pooled/direct database URLs.
-- Run Prisma migrations against Supabase.
+- Use the pooled Supabase URL for `DATABASE_URL` and the direct/session Supabase URL for `DIRECT_URL`.
+- URL-encode special characters in database passwords before putting the URLs in `.env.production.local` or Vercel.
+- Run Prisma migrations against Supabase with `prisma migrate deploy`; never run `migrate dev` against production.
+- If a migration SQL file was applied manually in Supabase, verify the tables exist and reconcile Prisma state with `prisma migrate resolve --applied <migration_name>` before the next deploy.
+- Seed only against the intended database using an explicit env file, for example `npx -y -p dotenv-cli dotenv -e .env.production.local -- npx prisma db seed`.
 - Configure Supabase Auth redirect URLs for your Vercel domain.
 - Add Resend sender domain verification.
 - Configure Arkesel production SMS credentials.
+- Configure Gemini with `GEMINI_API_KEY` and optionally `GEMINI_MODEL`.
 - Set `CRON_SECRET` in Vercel and verify cron execution logs.
 - Add RLS policies for all Prisma tables.
 - Run `npm run test`, `npm run lint`, and `npm run build` before deployment.

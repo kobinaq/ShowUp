@@ -1,6 +1,7 @@
 import { createClient } from "@supabase/supabase-js";
 import { Role } from "@prisma/client";
 import { prisma } from "@/lib/prisma";
+import { andWhere, courseScope } from "@/lib/auth/scope";
 import { withAuth, json, badRequest } from "@/lib/middleware/withAuth";
 import { createRepSchema } from "@/lib/validators/rep";
 import { generateAlias, generatePassword } from "@/lib/utils/aliasGenerator";
@@ -9,8 +10,10 @@ import { rotationService } from "@/lib/services/rotation.service";
 
 type Params = { params: Promise<{ id: string }> };
 
-export const GET = withAuth<Params>(async (_request, { params }) => {
+export const GET = withAuth<Params>(async (_request, { params, profile }) => {
   const { id } = await params;
+  const course = await prisma.course.findFirst({ where: andWhere({ id }, courseScope(profile)), select: { id: true } });
+  if (!course) return json({ error: "Not found" }, { status: 404 });
   const reps = await prisma.repAssignment.findMany({
     where: { courseId: id },
     include: { profile: { select: { anonymousAlias: true, isActive: true, createdAt: true } } },
@@ -23,11 +26,19 @@ export const POST = withAuth<Params>(async (request, { params, profile }) => {
   const { id } = await params;
   const parsed = createRepSchema.safeParse({ ...(await request.json()), courseId: id });
   if (!parsed.success) return badRequest("Invalid rep payload", parsed.error.flatten());
+  const course = await prisma.course.findFirst({
+    where: andWhere({ id }, courseScope(profile)),
+    include: { semester: true }
+  });
+  if (!course) return json({ error: "Not found" }, { status: 404 });
   const alias = generateAlias();
   const password = generatePassword();
   const email = `${alias}@showup.internal`;
-  const supabaseUid = await createAuthUser(email, password);
-  const course = await prisma.course.findUniqueOrThrow({ where: { id }, include: { semester: true } });
+  const supabaseUid = await createAuthUser(email, password).catch((error) => {
+    console.error(error);
+    return null;
+  });
+  if (!supabaseUid) return json({ error: "Reporter auth account could not be created. Check Supabase admin credentials." }, { status: 503 });
   const saved = await prisma.$transaction(async (tx) => {
     await tx.repAssignment.updateMany({ where: { courseId: id, isActive: true }, data: { isActive: false, endDate: new Date() } });
     const repProfile = await tx.profile.create({
@@ -54,12 +65,16 @@ export const POST = withAuth<Params>(async (request, { params, profile }) => {
 
 export const PUT = withAuth<Params>(async (_request, { params, profile }) => {
   const { id } = await params;
+  const course = await prisma.course.findFirst({ where: andWhere({ id }, courseScope(profile)), select: { id: true } });
+  if (!course) return json({ error: "Not found" }, { status: 404 });
   const result = await rotationService.rotateCourse(id, profile.id);
   return json({ data: result });
 }, [Role.SUPER_ADMIN, Role.HOD, Role.HOD_ASSISTANT]);
 
 async function createAuthUser(email: string, password: string) {
-  if (!process.env.NEXT_PUBLIC_SUPABASE_URL || !process.env.SUPABASE_SERVICE_ROLE_KEY) return `local-${email}`;
+  if (!process.env.NEXT_PUBLIC_SUPABASE_URL || !process.env.SUPABASE_SERVICE_ROLE_KEY) {
+    throw new Error("Supabase admin credentials are required to create reporter accounts");
+  }
   const supabase = createClient(process.env.NEXT_PUBLIC_SUPABASE_URL, process.env.SUPABASE_SERVICE_ROLE_KEY);
   const { data, error } = await supabase.auth.admin.createUser({ email, password, email_confirm: true });
   if (error || !data.user) throw error ?? new Error("Supabase user creation failed");

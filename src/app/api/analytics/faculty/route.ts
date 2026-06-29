@@ -1,9 +1,11 @@
 import { prisma } from "@/lib/prisma";
+import { facultyScope, isDepartmentRole } from "@/lib/auth/scope";
 import { withAuth, json } from "@/lib/middleware/withAuth";
 
 export const GET = withAuth(async (_request, { profile }) => {
-  const departmentId = profile.role === "HOD" || profile.role === "HOD_ASSISTANT" ? profile.departmentId : undefined;
+  const departmentId = isDepartmentRole(profile.role) ? profile.departmentId : undefined;
   const faculties = await prisma.faculty.findMany({
+    where: facultyScope(profile),
     include: {
       departments: {
         where: departmentId ? { id: departmentId } : {},

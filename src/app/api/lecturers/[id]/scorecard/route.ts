@@ -1,12 +1,13 @@
 import { prisma } from "@/lib/prisma";
+import { andWhere, lecturerScope } from "@/lib/auth/scope";
 import { withAuth, json } from "@/lib/middleware/withAuth";
 
 type Params = { params: Promise<{ id: string }> };
 
-export const GET = withAuth<Params>(async (_request, { params }) => {
+export const GET = withAuth<Params>(async (_request, { params, profile }) => {
   const { id } = await params;
-  const lecturer = await prisma.lecturer.findUnique({
-    where: { id },
+  const lecturer = await prisma.lecturer.findFirst({
+    where: andWhere({ id }, lecturerScope(profile)),
     include: { courses: { include: { reports: true } }, flags: true, notifications: true }
   });
   if (!lecturer) return json({ error: "Not found" }, { status: 404 });

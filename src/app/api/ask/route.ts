@@ -34,7 +34,7 @@ export const POST = withAuth(async (request, { profile }) => {
 
     return json({ answer, data, plan });
   } catch (error) {
-    console.error(error);
+    console.error("ShowUp AI request failed", classifyAskError(error));
     return json(
       {
         error: "ShowUp AI is unavailable",
@@ -44,3 +44,12 @@ export const POST = withAuth(async (request, { profile }) => {
     );
   }
 }, [Role.SUPER_ADMIN, Role.QA_OFFICER, Role.VC, Role.HOD, Role.HOD_ASSISTANT]);
+
+function classifyAskError(error: unknown) {
+  const message = error instanceof Error ? error.message : String(error);
+  if (message.includes("GEMINI_API_KEY")) return { provider: "gemini", reason: "missing_api_key" };
+  if (/quota|rate|429/i.test(message)) return { provider: "gemini", reason: "quota_or_rate_limit", message };
+  if (/api key|permission|forbidden|401|403/i.test(message)) return { provider: "gemini", reason: "auth_or_permission", message };
+  if (/model|not found|404/i.test(message)) return { provider: "gemini", reason: "model_unavailable", message };
+  return { provider: "gemini", reason: "unknown", message };
+}

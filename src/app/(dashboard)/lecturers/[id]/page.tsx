@@ -26,7 +26,7 @@ export default async function LecturerPage({ params }: { params: Promise<{ id: s
     include: {
       courses: {
         include: {
-          reports: { include: { course: { include: { lecturer: true } }, flags: true, contest: true }, orderBy: { lectureDate: "desc" } }
+          reports: { include: { course: { include: { lecturer: true } }, flags: true, contest: true, latePing: true }, orderBy: { lectureDate: "desc" } }
         }
       },
       flags: true,
@@ -36,6 +36,11 @@ export default async function LecturerPage({ params }: { params: Promise<{ id: s
   if (!lecturer) notFound();
   const coverage = await Promise.all(lecturer.courses.map((course) => coverageService.calculate(course.id).then((summary) => [course.code, summary] as const)));
   const reports = lecturer.courses.flatMap((course) => course.reports).sort((first, second) => second.lectureDate.getTime() - first.lectureDate.getTime());
+  const pings = await prisma.latePing.findMany({
+    where: { course: { lecturerId: lecturer.id } },
+    include: { course: true, schedule: true },
+    orderBy: { createdAt: "desc" }
+  });
   return (
     <div className="space-y-6">
       <header>
@@ -56,6 +61,26 @@ export default async function LecturerPage({ params }: { params: Promise<{ id: s
       <section className="rounded-card bg-white p-5 shadow-card">
         <h2 className="font-display text-xl font-bold">Reports</h2>
         <ReportTable reports={reports} showCourseTitle />
+      </section>
+      <section className="rounded-card bg-white p-5 shadow-card">
+        <h2 className="font-display text-xl font-bold">Ping history</h2>
+        {pings.length ? (
+          <div className="mt-4 overflow-x-auto">
+            <table className="w-full min-w-[720px] text-left text-sm">
+              <thead className="text-muted"><tr><th className="py-2">Date</th><th>Course</th><th>Alert sent</th><th>Late</th><th>Acknowledged</th><th>HOD notified</th></tr></thead>
+              <tbody>{pings.map((ping) => (
+                <tr key={ping.id} className="border-t odd:bg-slate-50/70">
+                  <td className="py-3">{ping.lectureDate.toDateString()}</td>
+                  <td className="font-mono">{ping.course.code}</td>
+                  <td>{ping.createdAt.toLocaleTimeString([], { hour: "2-digit", minute: "2-digit" })}</td>
+                  <td>{ping.minutesLate} min</td>
+                  <td>{ping.acknowledgedAt ? ping.acknowledgedAt.toLocaleTimeString([], { hour: "2-digit", minute: "2-digit" }) : <span className="text-amber-600">No response</span>}</td>
+                  <td>{ping.hodNotified ? "Yes" : "-"}</td>
+                </tr>
+              ))}</tbody>
+            </table>
+          </div>
+        ) : <p className="mt-4 text-sm text-muted">No late pings recorded.</p>}
       </section>
     </div>
   );

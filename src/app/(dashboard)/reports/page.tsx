@@ -17,7 +17,7 @@ export default async function ReportsPage() {
       : isDepartmentScope
         ? { course: { departmentId: profile?.departmentId ?? "__none__" } }
         : { course: { department: { faculty: { universityId: profile?.universityId ?? "__none__" } } } },
-    include: { course: { include: { lecturer: true } }, flags: true, contest: true },
+    include: { course: { include: { lecturer: true } }, flags: true, contest: true, latePing: true },
     orderBy: { lectureDate: "desc" },
     take: 100
   });
