@@ -1,5 +1,4 @@
 import { NextResponse, type NextRequest } from "next/server";
-import { canAccessPath, roleHome } from "@/lib/auth/roles";
 import { updateSession } from "@/lib/supabase/middleware";
 
 const publicPaths = ["/login", "/api/auth/callback", "/manifest.json", "/sw.js", "/icon.svg"];
@@ -10,15 +9,9 @@ export async function middleware(request: NextRequest) {
     return NextResponse.next();
   }
 
-  const { response, user, supabase } = await updateSession(request);
+  const { response, user } = await updateSession(request);
   if (!user) return NextResponse.redirect(new URL("/login", request.url));
 
-  if (path.startsWith("/api")) return response;
-
-  const { data: profile } = await supabase.from("Profile").select("role").eq("supabaseUid", user.id).single();
-  if (!profile?.role) return NextResponse.redirect(new URL("/login", request.url));
-  const role = profile.role as keyof typeof roleHome;
-  if (!canAccessPath(role, path)) return NextResponse.redirect(new URL(roleHome[role], request.url));
   return response;
 }
 
