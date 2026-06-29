@@ -42,14 +42,22 @@ export const POST = withAuth(async (request, { profile }) => {
   }
   const windowHours = Number(process.env.SUBMISSION_WINDOW_HOURS ?? 2);
   const windowClosedAt = new Date(Date.now() + windowHours * 60 * 60 * 1000);
+  const isAbsent = parsed.data.lecturerPresent === "ABSENT";
   const { topicIds, teachingAids, ...data } = parsed.data;
   const report = await prisma.lectureReport.create({
     data: {
       ...data,
+      arrivalStatus: isAbsent ? undefined : data.arrivalStatus,
+      lateMinutes: isAbsent ? undefined : data.lateMinutes,
+      earlyDismissal: isAbsent ? false : data.earlyDismissal,
+      dismissedEarlyMinutes: isAbsent ? undefined : data.dismissedEarlyMinutes,
+      previousTopicsRevisited: isAbsent ? false : data.previousTopicsRevisited,
+      wasInteractive: isAbsent ? "NO" : data.wasInteractive!,
+      studentCount: isAbsent ? undefined : data.studentCount,
       submittedById: profile.id,
       windowClosedAt,
-      topicsCovered: { create: topicIds.map((topicId) => ({ topicId })) },
-      teachingAids: { create: teachingAids.map((type) => ({ type })) }
+      topicsCovered: { create: isAbsent ? [] : topicIds.map((topicId) => ({ topicId })) },
+      teachingAids: { create: (isAbsent ? ["NONE"] : teachingAids).map((type) => ({ type })) }
     },
     include: { topicsCovered: true, teachingAids: true }
   });

@@ -34,6 +34,8 @@ export function ReportForm({ course }: { course: CoursePayload }) {
     event.preventDefault();
     if (!confirm("Once submitted, this report cannot be edited.")) return;
     const form = new FormData(event.currentTarget);
+    const teachingAids = form.getAll("teachingAids");
+    const normalizedTeachingAids = teachingAids.length === 0 || teachingAids.includes("NONE") ? ["NONE"] : teachingAids;
     setSubmitting(true);
     const response = await fetch("/api/reports", {
       method: "POST",
@@ -49,14 +51,17 @@ export function ReportForm({ course }: { course: CoursePayload }) {
         dismissedEarlyMinutes: Number(form.get("dismissedEarlyMinutes") || 0) || undefined,
         topicIds: form.getAll("topicIds"),
         previousTopicsRevisited: form.get("previousTopicsRevisited") === "on",
-        teachingAids: form.getAll("teachingAids"),
+        teachingAids: normalizedTeachingAids,
         wasInteractive: form.get("wasInteractive"),
         studentCount: Number(form.get("studentCount") || 0) || undefined,
         additionalNotes: form.get("additionalNotes") || undefined
       })
     });
     setSubmitting(false);
-    if (!response.ok) return toast.error("Report could not be submitted");
+    if (!response.ok) {
+      const body = await response.json().catch(() => null);
+      return toast.error(reportErrorMessage(body));
+    }
     setSubmitted(true);
     toast.success("Report submitted");
   }
@@ -109,4 +114,16 @@ function Select({ name, options }: { name: string; options: string[] }) {
 
 function NumberInput({ name, label }: { name: string; label: string }) {
   return <input name={name} aria-label={label} type="number" min={0} className="h-12 w-full rounded-md border px-3" placeholder={label} />;
+}
+
+function reportErrorMessage(body: unknown) {
+  if (!body || typeof body !== "object") return "Report could not be submitted";
+  const error = "error" in body && typeof body.error === "string" ? body.error : "Report could not be submitted";
+  const details = "details" in body && body.details && typeof body.details === "object" ? body.details : null;
+  const fieldErrors = details && "fieldErrors" in details && details.fieldErrors && typeof details.fieldErrors === "object" ? details.fieldErrors : null;
+  if (!fieldErrors) return error;
+  const first = Object.entries(fieldErrors).find(([, messages]) => Array.isArray(messages) && messages.length > 0);
+  if (!first) return error;
+  const [field, messages] = first as [string, string[]];
+  return `${field}: ${messages[0]}`;
 }
