@@ -144,7 +144,7 @@ export function AskPanel() {
                   <Send className="h-4 w-4" aria-hidden />
                 </button>
               </div>
-              <p className="mt-2 text-center text-[10px] text-slate-400">Powered by Gemini. Data from ShowUp only.</p>
+              <p className="mt-2 text-center text-[10px] text-slate-400">Powered by Groq. Data from ShowUp only.</p>
             </footer>
           </aside>
         </div>

@@ -8,6 +8,7 @@ export const askQueryTypes = [
   "top_late",
   "coverage_lag",
   "department_summary",
+  "ping_history",
   "unsupported"
 ] as const;
 

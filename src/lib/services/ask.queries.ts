@@ -34,6 +34,8 @@ export async function executeQueryPlan(plan: QueryPlan, scope: QueryScope = {}) 
       return coverageLag({ ...params, semesterId }, scope);
     case "department_summary":
       return departmentSummary({ ...params, semesterId }, scope);
+    case "ping_history":
+      return pingHistory({ ...params, semesterId, limit }, scope);
   }
 }
 
@@ -180,7 +182,16 @@ async function departmentSummary(params: QueryPlan["params"] & { semesterId?: st
         where: { semesterId: params.semesterId },
         include: {
           lecturer: true,
-          reports: { where: { isVoided: false }, include: { flags: true } }
+          reports: {
+            where: { isVoided: false },
+            select: {
+              lecturerPresent: true,
+              arrivalStatus: true,
+              flags: { select: { id: true } },
+              topicsCovered: { select: { topicId: true } }
+            }
+          },
+          outline: { include: { topics: { select: { id: true } } } }
         }
       }
     }
@@ -191,6 +202,22 @@ async function departmentSummary(params: QueryPlan["params"] & { semesterId?: st
     const flags = reports.flatMap((report) => report.flags);
     const present = reports.filter((report) => report.lecturerPresent !== PresenceStatus.ABSENT).length;
     const late = reports.filter((report) => report.arrivalStatus === ArrivalStatus.LATE).length;
+    const courseSummaries = department.courses.map((course) => {
+      const courseReports = course.reports;
+      const coursePresent = courseReports.filter((report) => report.lecturerPresent !== PresenceStatus.ABSENT).length;
+      const taughtTopics = new Set(courseReports.flatMap((report) => report.topicsCovered.map((topic) => topic.topicId))).size;
+      const totalTopics = course.outline?.topics.length ?? 0;
+      return {
+        courseId: course.id,
+        course: course.code,
+        title: course.title,
+        lecturer: `${course.lecturer.firstName} ${course.lecturer.lastName}`,
+        reports: courseReports.length,
+        attendanceRate: courseReports.length ? Math.round((coursePresent / courseReports.length) * 100) : 0,
+        flagCount: courseReports.flatMap((report) => report.flags).length,
+        coveragePercent: totalTopics ? Math.round((taughtTopics / totalTopics) * 100) : 0
+      };
+    });
     return {
       departmentId: department.id,
       department: department.name,
@@ -200,9 +227,42 @@ async function departmentSummary(params: QueryPlan["params"] & { semesterId?: st
       absences: reports.length - present,
       late,
       flags: flags.length,
-      attendanceRate: reports.length ? Math.round((present / reports.length) * 100) : 0
+      attendanceRate: reports.length ? Math.round((present / reports.length) * 100) : 0,
+      coursesSummary: courseSummaries
     };
   });
+}
+
+async function pingHistory(params: QueryPlan["params"] & { semesterId?: string; limit: number }, scope: QueryScope) {
+  const pings = await prisma.latePing.findMany({
+    where: {
+      course: {
+        ...courseScope(params, scope),
+        semesterId: params.semesterId,
+        lecturerId: params.lecturerId
+      }
+    },
+    include: {
+      course: { include: { lecturer: true, department: true } },
+      schedule: true
+    },
+    orderBy: { createdAt: "desc" },
+    take: params.limit
+  });
+
+  return pings.map((ping) => ({
+    pingId: ping.id,
+    course: ping.course.code,
+    title: ping.course.title,
+    lecturer: `${ping.course.lecturer.firstName} ${ping.course.lecturer.lastName}`,
+    department: ping.course.department.name,
+    lectureDate: ping.lectureDate.toISOString(),
+    classTime: `${ping.schedule.startTime}-${ping.schedule.endTime}`,
+    minutesLate: ping.minutesLate,
+    acknowledged: Boolean(ping.acknowledgedAt),
+    acknowledgedAt: ping.acknowledgedAt?.toISOString() ?? null,
+    hodNotified: ping.hodNotified
+  }));
 }
 
 function courseScope(params: QueryPlan["params"], scope: QueryScope) {

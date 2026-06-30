@@ -1,6 +1,6 @@
 # ShowUp
 
-ShowUp is a production-oriented University Lecturer Quality Assurance Platform. It uses Next.js App Router, Supabase Auth, Prisma on Supabase Postgres, Vercel Cron, Resend, Arkesel, and Gemini.
+ShowUp is a production-oriented University Lecturer Quality Assurance Platform. It uses Next.js App Router, Supabase Auth, Prisma on Supabase Postgres, Vercel Cron, Resend, Arkesel, and Groq.
 
 ## Local Setup
 
@@ -24,7 +24,7 @@ All required variables are documented in `.env.local.example`.
 - `DIRECT_URL`: direct Postgres connection for Prisma migrations, usually port `5432`.
 - `RESEND_API_KEY` and `RESEND_FROM_EMAIL`: email delivery.
 - `ARKESEL_API_KEY`, `ARKESEL_SENDER_ID`: Arkesel SMS.
-- `GEMINI_API_KEY`, `GEMINI_MODEL`: Gemini access for the ShowUp AI analytics assistant.
+- `GROQ_API_KEY`: Groq API access for the ShowUp AI analytics assistant, using `qwen/qwen3.6-27b`.
 - `CRON_SECRET`: bearer token for `/api/cron/rotation`.
 
 ## Architecture
@@ -57,7 +57,7 @@ Vercel Cron
 
 ## ShowUp AI
 
-QA Officers, VCs, HODs, and HOD assistants get a floating `ShowUp AI` button in the dashboard. Questions are parsed by Gemini into a constrained query plan, executed against ShowUp data through Prisma, then summarized by Gemini in plain English. HOD and HOD assistant questions are forced to their own department before any query executes. The API is exposed at `POST /api/ask`.
+QA Officers, VCs, HODs, and HOD assistants get a floating `ShowUp AI` button in the dashboard. Questions are parsed by Groq's `qwen/qwen3.6-27b` model into a constrained query plan, executed against ShowUp data through Prisma, then summarized by Groq in plain English. HOD and HOD assistant questions are forced to their own department before any query executes. The API is exposed at `POST /api/ask`.
 
 ## Security Notes
 
@@ -86,7 +86,7 @@ Default seed password for staff: `Password123!`
 - Configure Supabase Auth redirect URLs for your Vercel domain.
 - Add Resend sender domain verification.
 - Configure Arkesel production SMS credentials.
-- Configure Gemini with `GEMINI_API_KEY` and optionally `GEMINI_MODEL`.
+- Configure Groq with `GROQ_API_KEY`.
 - Set `CRON_SECRET` in Vercel and verify cron execution logs.
 - Add RLS policies for all Prisma tables.
 - Run `npm run test`, `npm run lint`, and `npm run build` before deployment.

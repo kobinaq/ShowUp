@@ -35,10 +35,15 @@ export const POST = withAuth(async (request, { profile }) => {
     return json({ answer, data, plan });
   } catch (error) {
     console.error("ShowUp AI request failed", classifyAskError(error));
+    if (error instanceof Error && error.message === "RATE_LIMIT_EXCEEDED") {
+      return json({
+        answer: "ShowUp AI is handling a lot of questions right now. Please try again in a moment."
+      });
+    }
     return json(
       {
         error: "ShowUp AI is unavailable",
-        answer: "ShowUp AI could not answer that right now. Please check the Gemini API key and try again."
+        answer: "ShowUp AI could not answer that right now. Please check the Groq API key and try again."
       },
       { status: 503 }
     );
@@ -47,9 +52,9 @@ export const POST = withAuth(async (request, { profile }) => {
 
 function classifyAskError(error: unknown) {
   const message = error instanceof Error ? error.message : String(error);
-  if (message.includes("GEMINI_API_KEY")) return { provider: "gemini", reason: "missing_api_key" };
-  if (/quota|rate|429/i.test(message)) return { provider: "gemini", reason: "quota_or_rate_limit", message };
-  if (/api key|permission|forbidden|401|403/i.test(message)) return { provider: "gemini", reason: "auth_or_permission", message };
-  if (/model|not found|404/i.test(message)) return { provider: "gemini", reason: "model_unavailable", message };
-  return { provider: "gemini", reason: "unknown", message };
+  if (message.includes("GROQ_API_KEY")) return { provider: "groq", reason: "missing_api_key" };
+  if (message === "RATE_LIMIT_EXCEEDED" || /quota|rate|429/i.test(message)) return { provider: "groq", reason: "quota_or_rate_limit", message };
+  if (/api key|permission|forbidden|401|403/i.test(message)) return { provider: "groq", reason: "auth_or_permission", message };
+  if (/model|not found|404/i.test(message)) return { provider: "groq", reason: "model_unavailable", message };
+  return { provider: "groq", reason: "unknown", message };
 }
