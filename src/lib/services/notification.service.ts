@@ -3,13 +3,14 @@ import { Resend } from "resend";
 import { prisma } from "@/lib/prisma";
 
 type MessageTarget = Pick<Lecturer, "id" | "firstName" | "lastName" | "email" | "phone">;
+type ChannelOptions = { emailEnabled?: boolean; smsEnabled?: boolean };
 
 export class NotificationService {
   private resend = process.env.RESEND_API_KEY ? new Resend(process.env.RESEND_API_KEY) : null;
 
-  async notifyLecturer(target: MessageTarget, subject: string, message: string) {
-    const email = await this.sendEmail(target.email, subject, this.wrapEmail(target.firstName, message));
-    const sms = await this.sendSms(target.phone, message);
+  async notifyLecturer(target: MessageTarget, subject: string, message: string, options: ChannelOptions = {}) {
+    const email = options.emailEnabled === false ? "skipped" : await this.sendEmail(target.email, subject, this.wrapEmail(target.firstName, message));
+    const sms = options.smsEnabled === false ? "skipped" : await this.sendSms(target.phone, message);
     await prisma.lecturerNotification.createMany({
       data: [
         { lecturerId: target.id, channel: NotificationChannel.EMAIL, message, status: email },

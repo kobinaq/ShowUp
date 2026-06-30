@@ -30,6 +30,12 @@ model UniversitySettings {
   flagCoverageWeek6        Int        @default(60)
   flagCoverageWeek10       Int        @default(80)
   flagRepeatThreshold      Int        @default(3)
+  lecturerAbsenceSmsEnabled   Boolean @default(true)
+  lecturerAbsenceEmailEnabled Boolean @default(true)
+  latePingSmsEnabled          Boolean @default(true)
+  latePingEmailEnabled        Boolean @default(true)
+  qaLatePingEmailEnabled      Boolean @default(true)
+  showUpAiEnabled             Boolean @default(true)
   updatedById              String?
   updatedAt                DateTime   @updatedAt
 }

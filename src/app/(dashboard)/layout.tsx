@@ -19,7 +19,7 @@ export default async function DashboardLayout({ children }: { children: React.Re
         select: {
           role: true,
           isActive: true,
-          university: { select: { name: true } },
+          university: { select: { name: true, settings: { select: { showUpAiEnabled: true } } } },
           department: { select: { name: true } }
         }
       })
@@ -33,6 +33,7 @@ export default async function DashboardLayout({ children }: { children: React.Re
     profile?.role === "VC" ||
     profile?.role === "HOD" ||
     profile?.role === "HOD_ASSISTANT";
+  const showAskPanel = canAsk && profile.university.settings?.showUpAiEnabled !== false;
 
   return (
     <div className="flex h-screen overflow-hidden bg-[#f7f8fb]">
@@ -44,7 +45,7 @@ export default async function DashboardLayout({ children }: { children: React.Re
         </main>
       </div>
       <MobileNav role={profile.role} />
-      {canAsk ? <AskPanel universityName={profile?.university?.name} /> : null}
+      {showAskPanel ? <AskPanel universityName={profile?.university?.name} /> : null}
     </div>
   );
 }

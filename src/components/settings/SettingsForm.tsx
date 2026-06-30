@@ -2,9 +2,38 @@
 
 import { useState } from "react";
 import toast from "react-hot-toast";
+import { Bot, CheckCircle2, Clock, Mail, MessageSquare, Settings2 } from "lucide-react";
+import { SectionPanel } from "@/components/shared/Panels";
 
-export function SettingsForm({ initialThreshold }: { initialThreshold: number }) {
-  const [threshold, setThreshold] = useState(initialThreshold);
+type SettingsIcon = React.ComponentType<{ className?: string; "aria-hidden"?: boolean }>;
+
+type SettingsState = {
+  latePingThresholdMinutes: number;
+  submissionWindowHours: number;
+  flagCoverageWeek6: number;
+  flagCoverageWeek10: number;
+  flagRepeatThreshold: number;
+  lecturerAbsenceSmsEnabled: boolean;
+  lecturerAbsenceEmailEnabled: boolean;
+  latePingSmsEnabled: boolean;
+  latePingEmailEnabled: boolean;
+  qaLatePingEmailEnabled: boolean;
+  showUpAiEnabled: boolean;
+  activeSemesterId: string | null;
+};
+
+type Props = {
+  initialSettings: SettingsState;
+  semesters: Array<{ id: string; name: string }>;
+  providerStatus: {
+    groqConfigured: boolean;
+    arkeselConfigured: boolean;
+    resendConfigured: boolean;
+  };
+};
+
+export function SettingsForm({ initialSettings, semesters, providerStatus }: Props) {
+  const [settings, setSettings] = useState(initialSettings);
   const [loading, setLoading] = useState(false);
 
   async function save() {
@@ -12,7 +41,7 @@ export function SettingsForm({ initialThreshold }: { initialThreshold: number })
     const response = await fetch("/api/settings", {
       method: "PUT",
       headers: { "content-type": "application/json" },
-      body: JSON.stringify({ latePingThresholdMinutes: threshold })
+      body: JSON.stringify(settings)
     });
     setLoading(false);
     if (!response.ok) {
@@ -23,21 +52,193 @@ export function SettingsForm({ initialThreshold }: { initialThreshold: number })
     toast.success("Settings saved");
   }
 
+  function update<K extends keyof SettingsState>(key: K, value: SettingsState[K]) {
+    setSettings((current) => ({ ...current, [key]: value }));
+  }
+
   return (
-    <section className="rounded-card bg-white p-5 shadow-card">
-      <h2 className="font-display text-xl font-bold">Late Ping threshold</h2>
-      <p className="mt-1 text-sm text-muted">How many minutes after class start the reporter can ping the lecturer.</p>
-      <div className="mt-5">
-        <input type="range" min={15} max={60} step={5} value={threshold} onChange={(event) => setThreshold(Number(event.target.value))} className="w-full accent-amber-500" />
-        <div className="mt-2 flex justify-between text-xs text-muted">
-          <span>15 min</span>
-          <span className="font-semibold text-navy">{threshold} min</span>
-          <span>60 min</span>
+    <div className="space-y-5">
+      <SectionPanel
+        title="Reporting"
+        description="Control report timing and the active academic period for this university."
+        action={<SaveButton loading={loading} onClick={() => void save()} />}
+      >
+        <div className="grid gap-4 lg:grid-cols-2">
+          <NumberField
+            label="Submission window"
+            helper="Reports close this many hours after the scheduled class end time."
+            value={settings.submissionWindowHours}
+            min={1}
+            max={6}
+            suffix="hours"
+            onChange={(value) => update("submissionWindowHours", value)}
+          />
+          <label className="space-y-2 text-sm font-semibold">
+            <span>Active semester</span>
+            <select
+              value={settings.activeSemesterId ?? ""}
+              onChange={(event) => update("activeSemesterId", event.target.value || null)}
+              className="h-11 w-full rounded-lg border border-slate-200 bg-white px-3 text-sm text-slate-700 focus:border-accent"
+            >
+              <option value="">No active semester</option>
+              {semesters.map((semester) => (
+                <option key={semester.id} value={semester.id}>
+                  {semester.name}
+                </option>
+              ))}
+            </select>
+            <span className="block text-xs font-normal leading-5 text-muted">Only one semester can be active for a university.</span>
+          </label>
+          <ReadOnlySetting icon={CheckCircle2} title="Absent report shortcut" description="Enabled. Reporters can submit an absence without teaching details." />
+          <ReadOnlySetting icon={Clock} title="Duplicate report policy" description="One report is allowed per schedule and class date." />
         </div>
+      </SectionPanel>
+
+      <SectionPanel title="Late Ping" description="Control when reporters can alert lecturers and which follow-up messages are sent.">
+        <div className="grid gap-4 lg:grid-cols-2">
+          <NumberField
+            label="Late ping threshold"
+            helper="Reporter can ping this many minutes after class starts."
+            value={settings.latePingThresholdMinutes}
+            min={15}
+            max={60}
+            step={5}
+            suffix="minutes"
+            onChange={(value) => update("latePingThresholdMinutes", value)}
+          />
+          <div className="grid gap-3">
+            <Toggle label="Send lecturer SMS for late pings" checked={settings.latePingSmsEnabled} onChange={(value) => update("latePingSmsEnabled", value)} />
+            <Toggle label="Send lecturer email for late pings" checked={settings.latePingEmailEnabled} onChange={(value) => update("latePingEmailEnabled", value)} />
+            <Toggle label="Email QA after late ping" checked={settings.qaLatePingEmailEnabled} onChange={(value) => update("qaLatePingEmailEnabled", value)} />
+          </div>
+        </div>
+      </SectionPanel>
+
+      <SectionPanel title="Notifications" description="Control absence notices and preview the read-only lecturer message.">
+        <div className="grid gap-4 lg:grid-cols-2">
+          <div className="grid gap-3">
+            <Toggle label="Send lecturer SMS for absences" checked={settings.lecturerAbsenceSmsEnabled} onChange={(value) => update("lecturerAbsenceSmsEnabled", value)} />
+            <Toggle label="Send lecturer email for absences" checked={settings.lecturerAbsenceEmailEnabled} onChange={(value) => update("lecturerAbsenceEmailEnabled", value)} />
+          </div>
+          <div className="rounded-lg border border-slate-200 bg-slate-50 p-4 text-sm leading-6 text-slate-700">
+            <p className="font-bold text-navy">Absence message preview</p>
+            <p className="mt-2">
+              You were reported absent for your CENG301 class today at 3pm. Contact your HOD if incorrect. Do not reply to this message.
+            </p>
+          </div>
+        </div>
+      </SectionPanel>
+
+      <SectionPanel title="Quality Rules" description="Thresholds used when ShowUp flags repeat issues and topic coverage risk.">
+        <div className="grid gap-4 md:grid-cols-3">
+          <NumberField label="Repeat issue threshold" helper="Repeated absence/lateness flag count." value={settings.flagRepeatThreshold} min={2} max={10} onChange={(value) => update("flagRepeatThreshold", value)} />
+          <NumberField label="Week 6 coverage" helper="Minimum topic coverage by week 6." value={settings.flagCoverageWeek6} min={0} max={100} suffix="%" onChange={(value) => update("flagCoverageWeek6", value)} />
+          <NumberField label="Week 10 coverage" helper="Minimum topic coverage by week 10." value={settings.flagCoverageWeek10} min={0} max={100} suffix="%" onChange={(value) => update("flagCoverageWeek10", value)} />
+        </div>
+      </SectionPanel>
+
+      <SectionPanel title="ShowUp AI" description="Control database-only assistant access for this university.">
+        <div className="grid gap-4 lg:grid-cols-2">
+          <Toggle label="Enable ShowUp AI" checked={settings.showUpAiEnabled} onChange={(value) => update("showUpAiEnabled", value)} />
+          <div className="grid gap-2 text-sm">
+            <ProviderRow icon={Bot} label="Groq" configured={providerStatus.groqConfigured} />
+            <ProviderRow icon={MessageSquare} label="Arkesel SMS" configured={providerStatus.arkeselConfigured} />
+            <ProviderRow icon={Mail} label="Resend email" configured={providerStatus.resendConfigured} />
+          </div>
+        </div>
+      </SectionPanel>
+
+      <div className="sticky bottom-20 z-10 flex justify-end md:bottom-4">
+        <SaveButton loading={loading} onClick={() => void save()} />
       </div>
-      <button type="button" onClick={() => void save()} disabled={loading} className="mt-5 h-11 rounded-md bg-accent px-4 text-sm font-semibold text-navy disabled:opacity-60">
-        {loading ? "Saving..." : "Save settings"}
-      </button>
-    </section>
+    </div>
+  );
+}
+
+function SaveButton({ loading, onClick }: { loading: boolean; onClick: () => void }) {
+  return (
+    <button type="button" onClick={onClick} disabled={loading} className="inline-flex h-11 items-center gap-2 rounded-lg bg-primary px-4 text-sm font-semibold text-primary-foreground shadow-card disabled:opacity-60">
+      <Settings2 className="h-4 w-4" aria-hidden />
+      {loading ? "Saving..." : "Save settings"}
+    </button>
+  );
+}
+
+function NumberField({
+  label,
+  helper,
+  value,
+  min,
+  max,
+  step = 1,
+  suffix,
+  onChange
+}: {
+  label: string;
+  helper: string;
+  value: number;
+  min: number;
+  max: number;
+  step?: number;
+  suffix?: string;
+  onChange: (value: number) => void;
+}) {
+  return (
+    <label className="space-y-2 text-sm font-semibold">
+      <span>{label}</span>
+      <div className="flex items-center gap-3">
+        <input type="range" min={min} max={max} step={step} value={value} onChange={(event) => onChange(Number(event.target.value))} className="w-full accent-primary" />
+        <span className="min-w-20 rounded-lg border border-slate-200 bg-white px-3 py-2 text-center font-mono text-sm text-navy">
+          {value}{suffix ? ` ${suffix}` : ""}
+        </span>
+      </div>
+      <input
+        type="number"
+        min={min}
+        max={max}
+        step={step}
+        value={value}
+        onChange={(event) => onChange(Number(event.target.value))}
+        className="h-10 w-32 rounded-lg border border-slate-200 bg-white px-3 text-sm text-slate-700 focus:border-accent"
+      />
+      <span className="block text-xs font-normal leading-5 text-muted">{helper}</span>
+    </label>
+  );
+}
+
+function Toggle({ label, checked, onChange }: { label: string; checked: boolean; onChange: (value: boolean) => void }) {
+  return (
+    <button type="button" onClick={() => onChange(!checked)} className="flex min-h-12 items-center justify-between gap-4 rounded-lg border border-slate-200 bg-white px-3 text-left text-sm font-semibold transition hover:border-primary">
+      <span>{label}</span>
+      <span className={`flex h-6 w-11 items-center rounded-full p-1 transition ${checked ? "bg-primary" : "bg-slate-300"}`} aria-hidden>
+        <span className={`h-4 w-4 rounded-full bg-white transition ${checked ? "translate-x-5" : ""}`} />
+      </span>
+    </button>
+  );
+}
+
+function ReadOnlySetting({ icon: Icon, title, description }: { icon: SettingsIcon; title: string; description: string }) {
+  return (
+    <div className="flex gap-3 rounded-lg border border-slate-200 bg-slate-50 p-4">
+      <Icon className="mt-0.5 h-5 w-5 text-primary" aria-hidden />
+      <div>
+        <p className="text-sm font-bold text-navy">{title}</p>
+        <p className="mt-1 text-sm leading-6 text-muted">{description}</p>
+      </div>
+    </div>
+  );
+}
+
+function ProviderRow({ icon: Icon, label, configured }: { icon: SettingsIcon; label: string; configured: boolean }) {
+  return (
+    <div className="flex items-center justify-between rounded-lg border border-slate-200 bg-white px-3 py-2">
+      <span className="flex items-center gap-2 font-semibold text-navy">
+        <Icon className="h-4 w-4 text-primary" aria-hidden />
+        {label}
+      </span>
+      <span className={`rounded-full px-2 py-1 text-xs font-bold ${configured ? "bg-emerald-50 text-emerald-700" : "bg-amber-50 text-amber-700"}`}>
+        {configured ? "Configured" : "Missing"}
+      </span>
+    </div>
   );
 }

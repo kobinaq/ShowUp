@@ -39,11 +39,12 @@ export class CoverageService {
 
   async recalculateAndFlag(courseId: string, now = new Date()) {
     const summary = await this.calculate(courseId, now);
-    const course = await prisma.course.findUnique({ where: { id: courseId }, include: { semester: true, lecturer: true } });
+    const course = await prisma.course.findUnique({ where: { id: courseId }, include: { semester: true, lecturer: true, department: { include: { faculty: true } } } });
     if (!course) return summary;
     const week = getSemesterWeek(course.semester.startDate, now);
-    const week6 = Number(process.env.FLAG_COVERAGE_THRESHOLD_WEEK6 ?? 60);
-    const week10 = Number(process.env.FLAG_COVERAGE_THRESHOLD_WEEK10 ?? 80);
+    const settings = await prisma.universitySettings.findUnique({ where: { universityId: course.department.faculty.universityId } });
+    const week6 = settings?.flagCoverageWeek6 ?? Number(process.env.FLAG_COVERAGE_THRESHOLD_WEEK6 ?? 60);
+    const week10 = settings?.flagCoverageWeek10 ?? Number(process.env.FLAG_COVERAGE_THRESHOLD_WEEK10 ?? 80);
     const shouldFlag = (week >= 6 && summary.coveragePercent < week6) || (week >= 10 && summary.coveragePercent < week10);
     if (shouldFlag) {
       const existing = await prisma.flag.findFirst({

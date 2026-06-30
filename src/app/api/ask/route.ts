@@ -1,6 +1,7 @@
 import { Role } from "@prisma/client";
 import { z } from "zod";
 import { forbidden, withAuth, badRequest, json } from "@/lib/middleware/withAuth";
+import { prisma } from "@/lib/prisma";
 import { executeQueryPlan } from "@/lib/services/ask.queries";
 import { formatAnswer, parseQuestion } from "@/lib/services/ask.service";
 
@@ -11,6 +12,12 @@ const askSchema = z.object({
 export const POST = withAuth(async (request, { profile }) => {
   const parsed = askSchema.safeParse(await request.json().catch(() => ({})));
   if (!parsed.success) return badRequest("Question too short", parsed.error.flatten());
+  const settings = await prisma.universitySettings.findUnique({ where: { universityId: profile.universityId }, select: { showUpAiEnabled: true } });
+  if (settings?.showUpAiEnabled === false) {
+    return json({
+      answer: "ShowUp AI is currently disabled for this university."
+    });
+  }
 
   try {
     const plan = await parseQuestion(parsed.data.question);

@@ -163,7 +163,13 @@ async function main() {
       submissionWindowHours: 2,
       flagCoverageWeek6: 60,
       flagCoverageWeek10: 80,
-      flagRepeatThreshold: 3
+      flagRepeatThreshold: 3,
+      lecturerAbsenceSmsEnabled: true,
+      lecturerAbsenceEmailEnabled: true,
+      latePingSmsEnabled: true,
+      latePingEmailEnabled: true,
+      qaLatePingEmailEnabled: true,
+      showUpAiEnabled: true
     }
   });
 

@@ -60,40 +60,46 @@ export async function sendLatePing(courseId: string, scheduleId: string, sentByI
   });
 
   const lecturerName = `${course.lecturer.firstName} ${course.lecturer.lastName}`;
-  const smsStatus = await notificationService.sendSms(
-    course.lecturer.phone,
-    `ShowUp alert: you are ${threshold} minutes late for your ${course.code} class today at ${formatClassTime(schedule.startTime)}. Venue: ${schedule.venue ?? "scheduled venue"}. Please check your email. Do not reply to this message.`
-  );
-  const lecturerEmailStatus = await notificationService.sendEmail(
-    course.lecturer.email,
-    `ShowUp late alert - ${course.code}`,
-    buildPingEmailHtml({
-      lecturerName,
-      courseCode: course.code,
-      courseTitle: course.title,
-      minutesLate: threshold,
-      venue: schedule.venue ?? "your scheduled venue",
-      acknowledgeUrl: `${appUrl}/api/pings/${acknowledgeToken}/acknowledge`
-    })
-  );
+  const smsStatus = settings?.latePingSmsEnabled === false
+    ? "skipped"
+    : await notificationService.sendSms(
+        course.lecturer.phone,
+        `ShowUp alert: you are ${threshold} minutes late for your ${course.code} class today at ${formatClassTime(schedule.startTime)}. Venue: ${schedule.venue ?? "scheduled venue"}. Please check your email. Do not reply to this message.`
+      );
+  const lecturerEmailStatus = settings?.latePingEmailEnabled === false
+    ? "skipped"
+    : await notificationService.sendEmail(
+        course.lecturer.email,
+        `ShowUp late alert - ${course.code}`,
+        buildPingEmailHtml({
+          lecturerName,
+          courseCode: course.code,
+          courseTitle: course.title,
+          minutesLate: threshold,
+          venue: schedule.venue ?? "your scheduled venue",
+          acknowledgeUrl: `${appUrl}/api/pings/${acknowledgeToken}/acknowledge`
+        })
+      );
 
   const qaOfficers = await prisma.profile.findMany({ where: { role: Role.QA_OFFICER, universityId, email: { not: null } } });
-  await Promise.all(
-    qaOfficers.map((qa) =>
-      notificationService.sendEmail(
-        qa.email!,
-        `ShowUp late alert - ${course.code}`,
-        `<p>A late alert was sent to ${lecturerName} for <strong>${course.code}</strong> at ${formatClassTime(schedule.startTime)} on ${lectureDate.toDateString()}.</p>`
+  if (settings?.qaLatePingEmailEnabled !== false) {
+    await Promise.all(
+      qaOfficers.map((qa) =>
+        notificationService.sendEmail(
+          qa.email!,
+          `ShowUp late alert - ${course.code}`,
+          `<p>A late alert was sent to ${lecturerName} for <strong>${course.code}</strong> at ${formatClassTime(schedule.startTime)} on ${lectureDate.toDateString()}.</p>`
+        )
       )
-    )
-  );
+    );
+  }
 
   const updated = await prisma.latePing.update({
     where: { id: ping.id },
     data: {
       lecturerSmsStatus: smsStatus,
       lecturerEmailStatus,
-      qaNotified: qaOfficers.length > 0
+      qaNotified: settings?.qaLatePingEmailEnabled !== false && qaOfficers.length > 0
     }
   });
   return { success: true, ping: updated };
