@@ -2,6 +2,8 @@ import { Role } from "@prisma/client";
 import { prisma } from "@/lib/prisma";
 import { ReportTable } from "@/components/reports/ReportTable";
 import { createClient } from "@/lib/supabase/server";
+import { PageHeader } from "@/components/shared/PageHeader";
+import { SectionPanel } from "@/components/shared/Panels";
 
 export default async function ReportsPage() {
   const supabase = await createClient();
@@ -22,9 +24,11 @@ export default async function ReportsPage() {
     take: 100
   });
   return (
-    <section className="rounded-card bg-white p-5 shadow-card">
-      <h1 className="font-display text-2xl font-bold">Reports</h1>
-      <ReportTable reports={reports} />
-    </section>
+    <div className="space-y-6">
+      <PageHeader title="Reports" eyebrow="Attendance records" description="Search, filter, and open submitted class reports from your role scope." />
+      <SectionPanel title="Submitted reports" description={`${reports.length} reports currently visible.`}>
+        <ReportTable reports={reports} exportHref="/api/export/reports" />
+      </SectionPanel>
+    </div>
   );
 }

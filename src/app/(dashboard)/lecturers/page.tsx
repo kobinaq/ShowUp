@@ -1,7 +1,9 @@
-import Link from "next/link";
 import { Role } from "@prisma/client";
 import { prisma } from "@/lib/prisma";
 import { createClient } from "@/lib/supabase/server";
+import { PageHeader } from "@/components/shared/PageHeader";
+import { SectionPanel } from "@/components/shared/Panels";
+import { LecturerDirectory, type LecturerDirectoryItem } from "@/components/lecturers/LecturerDirectory";
 
 export default async function LecturersPage() {
   const supabase = await createClient();
@@ -20,18 +22,22 @@ export default async function LecturersPage() {
     include: { department: true, courses: true, flags: true },
     orderBy: { lastName: "asc" }
   });
+  const directoryItems: LecturerDirectoryItem[] = lecturers.map((lecturer) => ({
+    id: lecturer.id,
+    href: `/lecturers/${lecturer.id}`,
+    name: `${lecturer.firstName} ${lecturer.lastName}`,
+    department: lecturer.department.name,
+    email: lecturer.email,
+    courseCount: lecturer.courses.length,
+    flagCount: lecturer.flags.length,
+    courses: lecturer.courses.map((course) => ({ id: course.id, code: course.code, title: course.title }))
+  }));
   return (
-    <section className="grid gap-4 md:grid-cols-2 xl:grid-cols-3">
-      {lecturers.map((lecturer) => (
-        <Link key={lecturer.id} href={`/lecturers/${lecturer.id}`} className="rounded-card bg-white p-5 shadow-card hover:ring-2 hover:ring-accent">
-          <h2 className="font-display text-xl font-bold">{lecturer.firstName} {lecturer.lastName}</h2>
-          <p className="text-sm text-muted">{lecturer.department.name}</p>
-          <div className="mt-4 flex gap-4 font-mono text-sm">
-            <span>{lecturer.courses.length} courses</span>
-            <span>{lecturer.flags.length} flags</span>
-          </div>
-        </Link>
-      ))}
-    </section>
+    <div className="space-y-6">
+      <PageHeader title="Lecturers" eyebrow="People records" description="Monitor teaching performance, flags, pings, and report history for lecturers in your scope." />
+      <SectionPanel title="Lecturer directory" description={`${lecturers.length} lecturers currently visible.`}>
+        <LecturerDirectory lecturers={directoryItems} />
+      </SectionPanel>
+    </div>
   );
 }

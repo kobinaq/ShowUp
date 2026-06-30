@@ -1,5 +1,4 @@
-import Link from "next/link";
-import { StatusBadge } from "@/components/shared/StatusBadge";
+import { DataTable, type DataTableColumn, type DataTableRow } from "@/components/shared/DataTable";
 
 type ReportRow = {
   id: string;
@@ -16,44 +15,52 @@ type ReportRow = {
   };
 };
 
-export function ReportTable({ reports, showCourseTitle = false }: { reports: ReportRow[]; showCourseTitle?: boolean }) {
-  if (!reports.length) return <p className="mt-4 text-sm text-muted">No reports found.</p>;
+const columns: DataTableColumn[] = [
+  { key: "date", label: "Date" },
+  { key: "course", label: "Course", mono: true },
+  { key: "lecturer", label: "Lecturer" },
+  { key: "presence", label: "Presence", badge: { PRESENT: "green", ABSENT: "red", SUBSTITUTE: "blue" } },
+  { key: "flags", label: "Flags" },
+  { key: "ping", label: "Ping", badge: { "Alert acknowledged": "green", "Alert sent": "amber", "-": "grey" } },
+  { key: "contest", label: "Contest", badge: { PENDING: "amber", ACCEPTED: "red", DISMISSED: "green", "-": "grey" } }
+];
+
+export function ReportTable({ reports, showCourseTitle = false, exportHref }: { reports: ReportRow[]; showCourseTitle?: boolean; exportHref?: string }) {
+  const rows: DataTableRow[] = reports.map((report) => {
+    const lecturer = report.course.lecturer ? `${report.course.lecturer.firstName} ${report.course.lecturer.lastName}` : "-";
+    const course = showCourseTitle && report.course.title ? `${report.course.code} ${report.course.title}` : report.course.code;
+    const ping = report.latePing ? (report.latePing.acknowledgedAt ? "Alert acknowledged" : "Alert sent") : "-";
+    const contest = report.contest?.status ?? "-";
+    return {
+      id: report.id,
+      href: `/reports/${report.id}`,
+      searchText: `${report.lectureDate.toDateString()} ${course} ${lecturer} ${report.lecturerPresent} ${report.arrivalStatus ?? ""} ${contest}`,
+      filters: [report.lecturerPresent, report.arrivalStatus ?? "", report.flags.length ? "FLAGGED" : "", contest].filter(Boolean),
+      cells: {
+        date: report.lectureDate.toLocaleDateString(undefined, { year: "numeric", month: "short", day: "numeric" }),
+        course,
+        lecturer,
+        presence: report.lecturerPresent,
+        flags: report.flags.length,
+        ping,
+        contest
+      }
+    };
+  });
 
   return (
-    <div className="mt-4 overflow-x-auto">
-      <table className="w-full min-w-[760px] text-left text-sm">
-        <thead className="text-muted">
-          <tr>
-            <th className="py-2">Date</th>
-            <th>Course</th>
-            <th>Lecturer</th>
-            <th>Presence</th>
-            <th>Flags</th>
-            <th>Ping</th>
-            <th>Contest</th>
-          </tr>
-        </thead>
-        <tbody>
-          {reports.map((report) => {
-            const href = `/reports/${report.id}`;
-            return (
-              <tr key={report.id} className="group border-t odd:bg-slate-50/70 hover:bg-accent/10 focus-within:bg-accent/10">
-                <td><CellLink href={href} className="font-semibold">{report.lectureDate.toDateString()}</CellLink></td>
-                <td><CellLink href={href} className="font-mono">{report.course.code}{showCourseTitle && report.course.title ? <span className="ml-2 font-sans text-muted">{report.course.title}</span> : null}</CellLink></td>
-                <td><CellLink href={href}>{report.course.lecturer ? `${report.course.lecturer.firstName} ${report.course.lecturer.lastName}` : "-"}</CellLink></td>
-                <td><CellLink href={href}><StatusBadge tone={report.lecturerPresent === "ABSENT" ? "red" : report.arrivalStatus === "LATE" ? "amber" : "green"}>{report.lecturerPresent}</StatusBadge></CellLink></td>
-                <td><CellLink href={href}>{report.flags.length}</CellLink></td>
-                <td><CellLink href={href}>{report.latePing ? <span className={report.latePing.acknowledgedAt ? "text-green-600" : "text-amber-600"}>{report.latePing.acknowledgedAt ? "Alert acknowledged" : "Alert sent"}</span> : "-"}</CellLink></td>
-                <td><CellLink href={href}>{report.contest ? <StatusBadge tone="amber">{report.contest.status}</StatusBadge> : "-"}</CellLink></td>
-              </tr>
-            );
-          })}
-        </tbody>
-      </table>
-    </div>
+    <DataTable
+      columns={columns}
+      rows={rows}
+      exportHref={exportHref}
+      searchPlaceholder="Search reports by course, lecturer, date..."
+      emptyTitle="No reports match this view."
+      filters={[
+        { label: "Absent", value: "ABSENT" },
+        { label: "Late", value: "LATE" },
+        { label: "Flagged", value: "FLAGGED" },
+        { label: "Contested", value: "PENDING" }
+      ]}
+    />
   );
-}
-
-function CellLink({ href, className, children }: { href: string; className?: string; children: React.ReactNode }) {
-  return <Link href={href} className={`block min-h-12 px-2 py-3 outline-none group-hover:text-navy group-focus-within:text-navy ${className ?? ""}`}>{children}</Link>;
 }

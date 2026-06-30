@@ -1,7 +1,18 @@
 import { prisma } from "@/lib/prisma";
-import { StatusBadge } from "@/components/shared/StatusBadge";
 import { contestScope } from "@/lib/auth/scope";
 import { createClient } from "@/lib/supabase/server";
+import { displayText } from "@/lib/utils/displayText";
+import { PageHeader } from "@/components/shared/PageHeader";
+import { SectionPanel } from "@/components/shared/Panels";
+import { DataTable, type DataTableColumn, type DataTableRow } from "@/components/shared/DataTable";
+
+const columns: DataTableColumn[] = [
+  { key: "course", label: "Course", mono: true },
+  { key: "reason", label: "Reason" },
+  { key: "status", label: "Status", badge: { PENDING: "amber", ACCEPTED: "red", DISMISSED: "green" } },
+  { key: "raisedBy", label: "Raised by" },
+  { key: "date", label: "Raised" }
+];
 
 export default async function ContestsPage() {
   const supabase = await createClient();
@@ -12,21 +23,35 @@ export default async function ContestsPage() {
   const contests = profile
     ? await prisma.contest.findMany({ where: contestScope(profile), include: { report: { include: { course: true } }, raisedBy: true }, orderBy: { raisedAt: "desc" } })
     : [];
+  const rows: DataTableRow[] = contests.map((contest) => ({
+    id: contest.id,
+    href: `/reports/${contest.reportId}`,
+    searchText: `${contest.report.course.code} ${contest.reason} ${contest.status} ${contest.raisedBy.displayName ?? contest.raisedBy.email ?? ""}`,
+    filters: [contest.status],
+    cells: {
+      course: contest.report.course.code,
+      reason: displayText(contest.reason),
+      status: contest.status,
+      raisedBy: contest.raisedBy.displayName ?? contest.raisedBy.email ?? "-",
+      date: contest.raisedAt.toLocaleDateString(undefined, { month: "short", day: "numeric", year: "numeric" })
+    }
+  }));
   return (
-    <section className="space-y-4">
-      <h1 className="font-display text-2xl font-bold">Contests</h1>
-      {contests.map((contest) => (
-        <article key={contest.id} className="rounded-card bg-white p-5 shadow-card">
-          <div className="flex flex-wrap items-center justify-between gap-3">
-            <div>
-              <p className="font-mono text-sm">{contest.report.course.code}</p>
-              <h2 className="font-display text-xl font-bold">{contest.reason}</h2>
-            </div>
-            <StatusBadge tone={contest.status === "PENDING" ? "amber" : "green"}>{contest.status}</StatusBadge>
-          </div>
-          {contest.resolutionNote ? <p className="mt-3 text-sm text-muted">{contest.resolutionNote}</p> : null}
-        </article>
-      ))}
-    </section>
+    <div className="space-y-6">
+      <PageHeader title="Contests" eyebrow="Governance" description="Review challenged reports and open individual reports for full evidence and resolution context." />
+      <SectionPanel title="Contested reports" description={`${contests.filter((contest) => contest.status === "PENDING").length} contests are pending.`}>
+        <DataTable
+          columns={columns}
+          rows={rows}
+          searchPlaceholder="Search contests by course, reason, status..."
+          emptyTitle="No contests match this view."
+          filters={[
+            { label: "Pending", value: "PENDING" },
+            { label: "Accepted", value: "ACCEPTED" },
+            { label: "Dismissed", value: "DISMISSED" }
+          ]}
+        />
+      </SectionPanel>
+    </div>
   );
 }

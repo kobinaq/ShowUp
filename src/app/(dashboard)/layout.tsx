@@ -16,7 +16,12 @@ export default async function DashboardLayout({ children }: { children: React.Re
   const profile = data.user
     ? await prisma.profile.findUnique({
         where: { supabaseUid: data.user.id },
-        select: { role: true, isActive: true }
+        select: {
+          role: true,
+          isActive: true,
+          university: { select: { name: true } },
+          department: { select: { name: true } }
+        }
       })
     : null;
   if (!profile?.isActive) redirect("/login");
@@ -30,14 +35,16 @@ export default async function DashboardLayout({ children }: { children: React.Re
     profile?.role === "HOD_ASSISTANT";
 
   return (
-    <div className="flex min-h-screen">
+    <div className="flex h-screen overflow-hidden bg-[#f7f8fb]">
       <Sidebar role={profile?.role} />
-      <div className="min-w-0 flex-1 pb-20 md:pb-0">
-        <TopBar role={profile?.role} email={data.user?.email} />
-        <main className="mx-auto w-full max-w-7xl px-4 py-6 md:px-8">{children}</main>
+      <div className="flex min-w-0 flex-1 flex-col pb-20 md:pb-0">
+        <TopBar role={profile?.role} email={data.user?.email} university={profile?.university?.name} department={profile?.department?.name} />
+        <main className="min-h-0 flex-1 overflow-y-auto">
+          <div className="mx-auto w-full max-w-7xl px-4 py-6 md:px-8">{children}</div>
+        </main>
       </div>
-      <MobileNav />
-      {canAsk ? <AskPanel /> : null}
+      <MobileNav role={profile.role} />
+      {canAsk ? <AskPanel universityName={profile?.university?.name} /> : null}
     </div>
   );
 }

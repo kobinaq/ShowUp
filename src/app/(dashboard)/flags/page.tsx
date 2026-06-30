@@ -1,8 +1,19 @@
 import { Role } from "@prisma/client";
 import { prisma } from "@/lib/prisma";
-import { StatusBadge } from "@/components/shared/StatusBadge";
 import { createClient } from "@/lib/supabase/server";
 import { displayText } from "@/lib/utils/displayText";
+import { PageHeader } from "@/components/shared/PageHeader";
+import { SectionPanel } from "@/components/shared/Panels";
+import { DataTable, type DataTableColumn, type DataTableRow } from "@/components/shared/DataTable";
+
+const columns: DataTableColumn[] = [
+  { key: "type", label: "Type", mono: true },
+  { key: "lecturer", label: "Lecturer" },
+  { key: "course", label: "Course", mono: true },
+  { key: "status", label: "Status", badge: { Open: "amber", Reviewed: "green" } },
+  { key: "message", label: "Message" },
+  { key: "date", label: "Date" }
+];
 
 export default async function FlagsPage() {
   const supabase = await createClient();
@@ -21,23 +32,38 @@ export default async function FlagsPage() {
     include: { lecturer: true, report: { include: { course: true } } },
     orderBy: { createdAt: "desc" }
   });
+  const rows: DataTableRow[] = flags.map((flag) => ({
+    id: flag.id,
+    href: flag.reportId ? `/reports/${flag.reportId}` : undefined,
+    searchText: `${flag.type} ${flag.lecturer.firstName} ${flag.lecturer.lastName} ${flag.report?.course.code ?? ""} ${flag.message}`,
+    filters: [flag.type, flag.isResolved ? "Reviewed" : "Open"],
+    cells: {
+      type: flag.type,
+      lecturer: `${flag.lecturer.firstName} ${flag.lecturer.lastName}`,
+      course: flag.report?.course.code ?? "-",
+      status: flag.isResolved ? "Reviewed" : "Open",
+      message: displayText(flag.message),
+      date: flag.createdAt.toLocaleDateString(undefined, { month: "short", day: "numeric", year: "numeric" })
+    }
+  }));
   return (
-    <section className="rounded-card bg-white p-5 shadow-card">
-      <h1 className="font-display text-2xl font-bold">Flags</h1>
-      <div className="mt-4 overflow-x-auto">
-        <table className="w-full min-w-[720px] text-left text-sm">
-          <thead className="text-muted"><tr><th className="py-2">Type</th><th>Lecturer</th><th>Course</th><th>Status</th><th>Message</th></tr></thead>
-          <tbody>{flags.map((flag) => (
-            <tr key={flag.id} className="border-t odd:bg-slate-50/70">
-              <td className="py-3 font-mono">{flag.type}</td>
-              <td>{flag.lecturer.firstName} {flag.lecturer.lastName}</td>
-              <td>{flag.report?.course.code ?? "-"}</td>
-              <td><StatusBadge tone={flag.isResolved ? "green" : "amber"}>{flag.isResolved ? "Reviewed" : "Open"}</StatusBadge></td>
-              <td>{displayText(flag.message)}</td>
-            </tr>
-          ))}</tbody>
-        </table>
-      </div>
-    </section>
+    <div className="space-y-6">
+      <PageHeader title="Flags" eyebrow="Governance" description="Review attendance, lateness, early dismissal, and coverage issues raised by ShowUp." />
+      <SectionPanel title="Quality flags" description={`${flags.filter((flag) => !flag.isResolved).length} open flags need review.`}>
+        <DataTable
+          columns={columns}
+          rows={rows}
+          searchPlaceholder="Search flags by type, lecturer, course..."
+          emptyTitle="No flags match this view."
+          filters={[
+            { label: "Open", value: "Open" },
+            { label: "Reviewed", value: "Reviewed" },
+            { label: "Absence", value: "ABSENCE" },
+            { label: "Lateness", value: "LATENESS" },
+            { label: "Coverage", value: "COVERAGE_LAG" }
+          ]}
+        />
+      </SectionPanel>
+    </div>
   );
 }

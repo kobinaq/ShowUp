@@ -1,8 +1,19 @@
 import Link from "next/link";
 import { Role } from "@prisma/client";
 import { prisma } from "@/lib/prisma";
-import { EmptyState } from "@/components/shared/EmptyState";
 import { createClient } from "@/lib/supabase/server";
+import { PageHeader } from "@/components/shared/PageHeader";
+import { SectionPanel } from "@/components/shared/Panels";
+import { DataTable, type DataTableColumn, type DataTableRow } from "@/components/shared/DataTable";
+
+const columns: DataTableColumn[] = [
+  { key: "code", label: "Code", mono: true },
+  { key: "title", label: "Course" },
+  { key: "department", label: "Department" },
+  { key: "lecturer", label: "Lecturer" },
+  { key: "schedule", label: "Schedule" },
+  { key: "topics", label: "Topics" }
+];
 
 export default async function CoursesPage() {
   const supabase = await createClient();
@@ -21,28 +32,32 @@ export default async function CoursesPage() {
     include: { lecturer: true, department: true, schedule: true, outline: { include: { topics: true } } },
     orderBy: { code: "asc" }
   });
+  const rows: DataTableRow[] = courses.map((course) => ({
+    id: course.id,
+    href: `/courses/${course.id}`,
+    searchText: `${course.code} ${course.title} ${course.department.name} ${course.lecturer.firstName} ${course.lecturer.lastName}`,
+    filters: [course.department.name],
+    cells: {
+      code: course.code,
+      title: course.title,
+      department: course.department.name,
+      lecturer: `${course.lecturer.firstName} ${course.lecturer.lastName}`,
+      schedule: course.schedule.map((item) => `${item.startTime}-${item.endTime}`).join(", ") || "-",
+      topics: course.outline?.topics.length ?? 0
+    }
+  }));
+  const departments = Array.from(new Set(courses.map((course) => course.department.name))).map((name) => ({ label: name, value: name }));
   return (
-    <section className="space-y-4">
-      <div className="flex items-center justify-between">
-        <h1 className="font-display text-2xl font-bold">Courses</h1>
-        <Link href="/admin" className="rounded-md bg-accent px-4 py-2 text-sm font-semibold text-navy">Manage setup</Link>
-      </div>
-      {courses.length === 0 ? <EmptyState title="No courses have been created yet." /> : (
-        <div className="grid gap-4 lg:grid-cols-2">
-          {courses.map((course) => (
-            <Link key={course.id} href={`/courses/${course.id}`} className="rounded-card bg-white p-5 shadow-card hover:ring-2 hover:ring-accent">
-              <div className="flex items-start justify-between gap-3">
-                <div>
-                  <p className="font-mono text-sm text-muted">{course.code}</p>
-                  <h2 className="font-display text-xl font-bold">{course.title}</h2>
-                  <p className="mt-2 text-sm text-muted">{course.department.name} - {course.lecturer.firstName} {course.lecturer.lastName}</p>
-                </div>
-                <p className="font-mono text-sm">{course.outline?.topics.length ?? 0} topics</p>
-              </div>
-            </Link>
-          ))}
-        </div>
-      )}
-    </section>
+    <div className="space-y-6">
+      <PageHeader
+        title="Courses"
+        eyebrow="Academic records"
+        description="Review course schedules, lecturers, outline coverage, and report history."
+        actions={<Link href="/admin" className="rounded-lg bg-accent px-4 py-2 text-sm font-semibold text-navy">Manage setup</Link>}
+      />
+      <SectionPanel title="Course catalog" description={`${courses.length} courses in your current scope.`}>
+        <DataTable columns={columns} rows={rows} filters={departments} searchPlaceholder="Search courses, lecturers, departments..." emptyTitle="No courses match this view." />
+      </SectionPanel>
+    </div>
   );
 }

@@ -10,7 +10,24 @@ export const metadata: Metadata = {
 
 export default function RootLayout({ children }: { children: React.ReactNode }) {
   return (
-    <html lang="en">
+    <html lang="en" suppressHydrationWarning>
+      <head>
+        <script
+          dangerouslySetInnerHTML={{
+            __html: `
+              (function () {
+                try {
+                  var stored = localStorage.getItem("showup-theme") || "system";
+                  var prefersDark = window.matchMedia("(prefers-color-scheme: dark)").matches;
+                  var dark = stored === "dark" || (stored === "system" && prefersDark);
+                  document.documentElement.classList.toggle("dark", dark);
+                  document.documentElement.dataset.theme = stored;
+                } catch (error) {}
+              })();
+            `
+          }}
+        />
+      </head>
       <body>
         {children}
         <Toaster position="top-right" />

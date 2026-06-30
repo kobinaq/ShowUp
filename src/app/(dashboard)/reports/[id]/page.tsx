@@ -4,6 +4,8 @@ import { prisma } from "@/lib/prisma";
 import { StatusBadge } from "@/components/shared/StatusBadge";
 import { displayText } from "@/lib/utils/displayText";
 import { createClient } from "@/lib/supabase/server";
+import { PageHeader } from "@/components/shared/PageHeader";
+import { SectionPanel } from "@/components/shared/Panels";
 
 export default async function ReportDetailPage({ params }: { params: Promise<{ id: string }> }) {
   const { id } = await params;
@@ -37,16 +39,19 @@ export default async function ReportDetailPage({ params }: { params: Promise<{ i
   if (!report) notFound();
   return (
     <article className="space-y-6">
-      <header className="rounded-card bg-white p-5 shadow-card">
-        <p className="font-mono text-sm text-muted">{report.course.code}</p>
-        <h1 className="font-display text-2xl font-bold">{report.course.title}</h1>
-        <p className="mt-1 text-sm text-muted">{report.course.lecturer.firstName} {report.course.lecturer.lastName} - {report.lectureDate.toDateString()}</p>
+      <PageHeader
+        breadcrumbs={[{ label: "Reports", href: "/reports" }, { label: report.course.code }]}
+        eyebrow={report.lectureDate.toLocaleDateString(undefined, { month: "short", day: "numeric", year: "numeric" })}
+        title={`${report.course.code} · ${report.course.title}`}
+        description={`${report.course.lecturer.firstName} ${report.course.lecturer.lastName} · ${report.schedule.startTime}-${report.schedule.endTime}`}
+      />
+      <section className="rounded-lg border border-slate-200 bg-white p-5 shadow-card">
         <div className="mt-3 flex flex-wrap gap-2">
           <StatusBadge tone={report.lecturerPresent === "ABSENT" ? "red" : report.arrivalStatus === "LATE" ? "amber" : "green"}>{report.lecturerPresent}</StatusBadge>
           {report.arrivalStatus ? <StatusBadge tone={report.arrivalStatus === "LATE" ? "amber" : "green"}>{report.arrivalStatus}</StatusBadge> : null}
           {report.contest ? <StatusBadge tone="amber">{report.contest.status}</StatusBadge> : null}
         </div>
-      </header>
+      </section>
       {report.latePing ? (
         <section className={`rounded-card border p-5 shadow-card ${report.latePing.acknowledgedAt ? "border-green-200 bg-green-50" : "border-amber-200 bg-amber-50"}`}>
           <h2 className="font-display text-lg font-bold">Late alert sent</h2>
@@ -100,7 +105,7 @@ export default async function ReportDetailPage({ params }: { params: Promise<{ i
 }
 
 function Card({ title, children }: { title: string; children: React.ReactNode }) {
-  return <div className="rounded-card bg-white p-5 shadow-card"><h2 className="font-display text-lg font-bold">{title}</h2><div className="mt-3 space-y-2 text-sm">{children}</div></div>;
+  return <SectionPanel title={title}><div className="space-y-2 text-sm">{children}</div></SectionPanel>;
 }
 
 function Detail({ label, value }: { label: string; value: string }) {

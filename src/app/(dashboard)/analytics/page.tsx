@@ -5,6 +5,8 @@ import { SimpleBarChart } from "@/components/charts/SimpleBarChart";
 import { createClient } from "@/lib/supabase/server";
 import { coverageService } from "@/lib/services/coverage.service";
 import { displayText } from "@/lib/utils/displayText";
+import { PageHeader } from "@/components/shared/PageHeader";
+import { MetricCard, SectionPanel } from "@/components/shared/Panels";
 
 export default async function AnalyticsPage() {
   const supabase = await createClient();
@@ -39,7 +41,8 @@ export default async function AnalyticsPage() {
       lecturer: true,
       department: { include: { faculty: true } },
       reports: { where: { isVoided: false }, include: { flags: true, contest: true } },
-      outline: { include: { topics: true } }
+      outline: { include: { topics: true } },
+      latePings: true
     },
     orderBy: { code: "asc" }
   });
@@ -47,17 +50,20 @@ export default async function AnalyticsPage() {
   const reports = courses.flatMap((course) => course.reports.map((report) => ({ ...report, course })));
   const flags = reports.flatMap((report) => report.flags.map((flag) => ({ ...flag, report })));
   const contests = reports.flatMap((report) => report.contest ? [{ ...report.contest, report }] : []);
+  const pings = courses.flatMap((course) => course.latePings);
   const present = reports.filter((report) => report.lecturerPresent !== "ABSENT").length;
   const absences = reports.filter((report) => report.lecturerPresent === "ABSENT").length;
   const lateness = reports.filter((report) => report.arrivalStatus === "LATE").length;
   const unresolvedFlags = flags.filter((flag) => !flag.isResolved).length;
   const openContests = contests.filter((contest) => contest.status === "PENDING").length;
+  const acknowledgedPings = pings.filter((ping) => ping.acknowledgedAt).length;
 
   const coverage = await Promise.all(courses.map(async (course) => ({ course, ...(await coverageService.calculate(course.id)) })));
   const averageCoverage = coverage.length ? Math.round(coverage.reduce((sum, item) => sum + item.coveragePercent, 0) / coverage.length) : 0;
   const attendanceRate = reports.length ? Math.round((present / reports.length) * 100) : 0;
+  const pingAcknowledgementRate = pings.length ? Math.round((acknowledgedPings / pings.length) * 100) : 0;
   const attendanceChart = buildAttendanceChart(courses, isSuperAdmin, isDepartmentScope);
-  const flagChart = Object.entries(groupByCount(flags, (flag) => flag.type)).map(([name, count]) => ({ name, count }));
+  const flagChart = Object.entries(groupByCount(flags, (flag) => displayText(flag.type))).map(([name, count]) => ({ name, count }));
   const coverageChart = Object.entries(groupByCount(coverage, (item) => item.pacingStatus)).map(([name, count]) => ({ name, count }));
   const topFlaggedLecturers = Object.entries(groupByCount(flags, (flag) => `${flag.report.course.lecturer.firstName} ${flag.report.course.lecturer.lastName}`))
     .map(([name, count]) => ({ name, count }))
@@ -72,29 +78,26 @@ export default async function AnalyticsPage() {
 
   return (
     <div className="space-y-6">
-      <header>
-        <p className="text-sm font-semibold uppercase tracking-wide text-muted">{scopeTitle}</p>
-        <h1 className="font-display text-2xl font-bold">Analytics</h1>
-      </header>
-      <section className="grid gap-4 md:grid-cols-4">
-        <Metric label="Attendance rate" value={`${attendanceRate}%`} />
-        <Metric label="Reports" value={reports.length.toString()} />
-        <Metric label="Absences" value={absences.toString()} />
-        <Metric label="Lateness" value={lateness.toString()} />
-        <Metric label="Open flags" value={unresolvedFlags.toString()} />
-        <Metric label="Open contests" value={openContests.toString()} />
-        <Metric label="Average coverage" value={`${averageCoverage}%`} />
-        <Metric label="Courses" value={courses.length.toString()} />
+      <PageHeader eyebrow={scopeTitle} title="Analytics" description="Executive indicators for attendance, topic coverage, late alerts, flags, and contested reports." />
+      <section className="grid gap-4 md:grid-cols-2 xl:grid-cols-4">
+        <MetricCard label="Attendance rate" value={`${attendanceRate}%`} helper={`${reports.length} reports analyzed`} tone={attendanceRate >= 85 ? "green" : attendanceRate >= 70 ? "amber" : "red"} />
+        <MetricCard label="Average coverage" value={`${averageCoverage}%`} helper={`${courses.length} courses in scope`} tone={averageCoverage >= 80 ? "green" : averageCoverage >= 60 ? "amber" : "red"} />
+        <MetricCard label="Absences" value={absences} helper="Total absence reports" tone={absences ? "red" : "green"} />
+        <MetricCard label="Lateness" value={lateness} helper="Total late reports" tone={lateness ? "amber" : "green"} />
+        <MetricCard label="Open flags" value={unresolvedFlags} helper={`${flags.length} total flags`} tone={unresolvedFlags ? "amber" : "green"} />
+        <MetricCard label="Open contests" value={openContests} helper="Pending challenge reviews" tone={openContests ? "red" : "green"} />
+        <MetricCard label="Ping acknowledgement" value={`${pingAcknowledgementRate}%`} helper={`${acknowledgedPings}/${pings.length} late pings acknowledged`} tone={pingAcknowledgementRate >= 80 ? "green" : pings.length ? "amber" : "grey"} />
+        <MetricCard label="Courses" value={courses.length} helper="Course records in scope" tone="grey" />
       </section>
       <section className="grid gap-4 xl:grid-cols-3">
-        <ChartPanel title={isDepartmentScope ? "Attendance by lecturer" : isSuperAdmin ? "Attendance by faculty" : "Attendance by department"}>
-          <SimpleBarChart data={attendanceChart} dataKey="attendance" />
+        <ChartPanel title={isDepartmentScope ? "Attendance by lecturer" : isSuperAdmin ? "Attendance by faculty" : "Attendance by department"} note="Higher bars indicate stronger reported attendance.">
+          <SimpleBarChart data={attendanceChart} dataKey="attendance" color="var(--primary)" />
         </ChartPanel>
-        <ChartPanel title="Flag type distribution">
-          <SimpleBarChart data={flagChart} dataKey="count" color="#F59E0B" />
+        <ChartPanel title="Flag type distribution" note="Flag volume shows the dominant quality issues.">
+          <SimpleBarChart data={flagChart} dataKey="count" color="var(--chart-2)" />
         </ChartPanel>
-        <ChartPanel title="Coverage status">
-          <SimpleBarChart data={coverageChart} dataKey="count" color="#2563EB" />
+        <ChartPanel title="Coverage status" note="Behind courses should be reviewed first.">
+          <SimpleBarChart data={coverageChart} dataKey="count" color="var(--chart-5)" />
         </ChartPanel>
       </section>
       <section className="grid gap-4 xl:grid-cols-3">
@@ -142,24 +145,24 @@ function groupByCount<T>(items: T[], getKey: (item: T) => string) {
   }, {});
 }
 
-function Metric({ label, value }: { label: string; value: string }) {
-  return <div className="rounded-card bg-white p-5 shadow-card"><p className="text-sm text-muted">{label}</p><p className="mt-2 font-mono text-3xl font-bold">{value}</p></div>;
-}
-
-function ChartPanel({ title, children }: { title: string; children: React.ReactNode }) {
-  return <section className="h-80 rounded-card bg-white p-5 shadow-card"><h2 className="font-display text-xl font-bold">{title}</h2>{children}</section>;
+function ChartPanel({ title, note, children }: { title: string; note: string; children: React.ReactNode }) {
+  return (
+    <SectionPanel title={title} description={note}>
+      <div className="h-64 min-h-64">{children}</div>
+    </SectionPanel>
+  );
 }
 
 function ListPanel({ title, children }: { title: string; children: React.ReactNode }) {
-  return <section className="rounded-card bg-white p-5 shadow-card"><h2 className="font-display text-xl font-bold">{title}</h2><div className="mt-4 space-y-3">{children}</div></section>;
+  return <SectionPanel title={title}>{children}</SectionPanel>;
 }
 
 function Row({ label, value, href }: { label: string; value: string; href?: string }) {
   const content = <><span className="truncate text-sm font-medium">{label}</span><span className="shrink-0 font-mono text-sm text-muted">{value}</span></>;
-  if (href) return <Link href={href} className="flex items-center justify-between gap-3 rounded-md border px-3 py-2 hover:border-accent hover:bg-accent/10">{content}</Link>;
-  return <div className="flex items-center justify-between gap-3 rounded-md border px-3 py-2">{content}</div>;
+  if (href) return <Link href={href} className="flex items-center justify-between gap-3 rounded-lg border border-slate-200 px-3 py-2 hover:border-accent hover:bg-accent/10">{content}</Link>;
+  return <div className="flex items-center justify-between gap-3 rounded-lg border border-slate-200 px-3 py-2">{content}</div>;
 }
 
 function Empty() {
-  return <p className="text-sm text-muted">No records found.</p>;
+  return <p className="text-sm text-muted">No records in this category.</p>;
 }

@@ -2,7 +2,7 @@
 
 import { useEffect, useMemo, useState } from "react";
 import toast from "react-hot-toast";
-import { Send } from "lucide-react";
+import { CheckCircle2, Send } from "lucide-react";
 import { PingCard } from "@/components/reports/PingCard";
 
 type SchedulePayload = {
@@ -63,6 +63,9 @@ export function ReportForm({ assignments, pingThresholdMinutes }: { assignments:
   const isAbsent = presence === "ABSENT";
   const alreadySubmitted = Boolean(selectedSchedule?.submittedToday) || submitted;
   const [pendingPayload, setPendingPayload] = useState<ReportPayload | null>(null);
+  const [step, setStep] = useState(0);
+  const steps = isAbsent ? ["Session", "Presence", "Notes", "Review"] : ["Session", "Presence", "Teaching", "Notes", "Review"];
+  const reviewStep = steps.length - 1;
 
   useEffect(() => {
     if (typeof window === "undefined") return;
@@ -81,6 +84,14 @@ export function ReportForm({ assignments, pingThresholdMinutes }: { assignments:
     const nextSchedule = nextCourse?.schedule.find((schedule) => schedule.dayOfWeek === todayDay) ?? nextCourse?.schedule[0];
     setSelectedCourseId(courseId);
     setSelectedScheduleId(nextSchedule?.id ?? "");
+  }
+
+  function goNext() {
+    setStep((current) => Math.min(reviewStep, current + 1));
+  }
+
+  function goBack() {
+    setStep((current) => Math.max(0, current - 1));
   }
 
   function prepareSubmit(event: React.FormEvent<HTMLFormElement>) {
@@ -126,6 +137,18 @@ export function ReportForm({ assignments, pingThresholdMinutes }: { assignments:
     toast.success("Report submitted");
   }
 
+  if (submitted) {
+    return (
+      <div className="rounded-lg border border-emerald-200 bg-white p-6 text-center shadow-card">
+        <div className="mx-auto flex h-12 w-12 items-center justify-center rounded-full bg-emerald-50 text-emerald-700">
+          <CheckCircle2 className="h-6 w-6" aria-hidden />
+        </div>
+        <h1 className="mt-4 font-display text-2xl font-bold">Report recorded</h1>
+        <p className="mt-2 text-sm leading-6 text-muted">Your submission has been recorded anonymously for this class session.</p>
+      </div>
+    );
+  }
+
   if (!selectedCourse || !selectedSchedule) {
     return <div className="rounded-card border bg-white p-6 text-center shadow-card"><h1 className="font-display text-2xl font-bold">No class sessions available</h1><p className="mt-2 text-muted">Your active assignment does not have a class schedule yet.</p></div>;
   }
@@ -135,11 +158,14 @@ export function ReportForm({ assignments, pingThresholdMinutes }: { assignments:
       <form onSubmit={prepareSubmit} className="space-y-4 pb-24">
         {!online ? <div className="sticky top-0 z-10 rounded-md bg-warning px-4 py-3 text-sm font-semibold">Offline. Reconnect before submitting.</div> : null}
         <Header course={selectedCourse} schedule={selectedSchedule} />
+        <Stepper steps={steps} activeStep={step} />
+        <div className={step === 0 ? "space-y-4" : "hidden"}>
         <Section title="Class session">
           <Select name="course" options={assignments.map((assignment) => assignment.course.id)} labels={Object.fromEntries(assignments.map((assignment) => [assignment.course.id, `${assignment.course.code} - ${assignment.course.title}`]))} value={selectedCourse.id} onChange={handleCourseChange} />
           <Select name="schedule" options={selectedCourse.schedule.map((schedule) => schedule.id)} labels={Object.fromEntries(selectedCourse.schedule.map((schedule) => [schedule.id, `${dayName(schedule.dayOfWeek)} ${schedule.startTime}-${schedule.endTime}${schedule.venue ? `, ${schedule.venue}` : ""}`]))} value={selectedSchedule.id} onChange={setSelectedScheduleId} />
           {selectedSchedule.dayOfWeek !== todayDay ? <p className="rounded-md bg-amber-50 px-3 py-3 text-sm font-medium text-amber-700">This session is not scheduled for today.</p> : null}
           {alreadySubmitted ? <p className="rounded-md bg-green-50 px-3 py-3 text-sm font-medium text-green-700">A report has already been submitted for this session.</p> : null}
+          <p className="rounded-md bg-blue-50 px-3 py-3 text-sm font-medium text-blue-700">Submission opens at class start and closes after the configured post-class window.</p>
         </Section>
         <PingCard
           courseId={selectedCourse.id}
@@ -151,6 +177,8 @@ export function ReportForm({ assignments, pingThresholdMinutes }: { assignments:
           initialPingSent={Boolean(selectedSchedule.ping)}
           initialPingSentAt={selectedSchedule.ping ? new Date(selectedSchedule.ping.createdAt).toLocaleTimeString([], { hour: "2-digit", minute: "2-digit" }) : undefined}
         />
+        </div>
+        <div className={step === 1 ? "space-y-4" : "hidden"}>
         <Section title="Presence">
           <Select name="lecturerPresent" options={["PRESENT", "ABSENT", "SUBSTITUTE"]} value={presence} onChange={setPresence} />
           {isAbsent ? <p className="rounded-md bg-red-50 px-3 py-3 text-sm font-medium text-red-700">Only notes are needed when the lecturer is absent.</p> : (
@@ -162,6 +190,8 @@ export function ReportForm({ assignments, pingThresholdMinutes }: { assignments:
             </>
           )}
         </Section>
+        </div>
+        <div className={!isAbsent && step === 2 ? "space-y-4" : "hidden"}>
         {!isAbsent ? (
           <>
             <Section title="Topic coverage">
@@ -175,12 +205,32 @@ export function ReportForm({ assignments, pingThresholdMinutes }: { assignments:
             </Section>
           </>
         ) : null}
+        </div>
+        <div className={step === (isAbsent ? 2 : 3) ? "space-y-4" : "hidden"}>
         <Section title="Notes">
           <textarea name="additionalNotes" className="min-h-28 w-full rounded-md border p-3" maxLength={1200} />
         </Section>
-        <button disabled={submitting || !online || alreadySubmitted} className="fixed inset-x-4 bottom-4 flex h-14 items-center justify-center gap-2 rounded-md bg-accent font-semibold text-navy shadow-card disabled:opacity-60">
-          <Send className="h-5 w-5" aria-hidden /> {submitting ? "Submitting..." : alreadySubmitted ? "Already submitted" : "Submit report"}
-        </button>
+        </div>
+        <div className={step === reviewStep ? "space-y-4" : "hidden"}>
+          <Section title="Review">
+            <div className="space-y-2 text-sm">
+              <p><span className="font-semibold">Course:</span> {selectedCourse.code} - {selectedCourse.title}</p>
+              <p><span className="font-semibold">Session:</span> {dayName(selectedSchedule.dayOfWeek)} {selectedSchedule.startTime}-{selectedSchedule.endTime}</p>
+              <p><span className="font-semibold">Presence:</span> {presence}</p>
+              <p className="rounded-md bg-slate-50 px-3 py-3 text-muted">Review your entries, then submit. Once submitted, this report cannot be edited.</p>
+            </div>
+          </Section>
+        </div>
+        <div className="fixed inset-x-4 bottom-4 z-20 flex gap-3 rounded-lg border border-slate-200 bg-white p-2 shadow-card">
+          <button type="button" onClick={goBack} disabled={step === 0 || submitting} className="h-12 flex-1 rounded-md border border-slate-200 px-4 font-semibold text-slate-600 disabled:opacity-50">Back</button>
+          {step < reviewStep ? (
+            <button type="button" onClick={goNext} disabled={alreadySubmitted} className="h-12 flex-1 rounded-md bg-navy px-4 font-semibold text-white disabled:opacity-60">Next</button>
+          ) : (
+            <button disabled={submitting || !online || alreadySubmitted} className="flex h-12 flex-1 items-center justify-center gap-2 rounded-md bg-accent px-4 font-semibold text-navy disabled:opacity-60">
+              <Send className="h-5 w-5" aria-hidden /> {submitting ? "Submitting..." : alreadySubmitted ? "Already submitted" : "Submit"}
+            </button>
+          )}
+        </div>
       </form>
       {pendingPayload ? (
         <div className="fixed inset-0 z-50 flex items-end bg-navy/40 p-4 sm:items-center sm:justify-center">
@@ -199,11 +249,26 @@ export function ReportForm({ assignments, pingThresholdMinutes }: { assignments:
 }
 
 function Header({ course, schedule }: { course: CoursePayload; schedule: SchedulePayload }) {
-  return <div className="rounded-card bg-navy p-5 text-white shadow-card"><p className="font-mono text-sm text-white/70">{course.code}</p><h1 className="font-display text-2xl font-bold">{course.title}</h1><p className="mt-2 text-sm text-white/70">{dayName(schedule.dayOfWeek)} {schedule.startTime}-{schedule.endTime}{schedule.venue ? `, ${schedule.venue}` : ""}</p></div>;
+  return <div className="rounded-lg bg-navy p-5 text-white shadow-card"><p className="font-mono text-sm text-white/70">{course.code}</p><h1 className="font-display text-2xl font-bold">{course.title}</h1><p className="mt-2 text-sm text-white/70">{dayName(schedule.dayOfWeek)} {schedule.startTime}-{schedule.endTime}{schedule.venue ? `, ${schedule.venue}` : ""}</p></div>;
 }
 
 function Section({ title, children }: { title: string; children: React.ReactNode }) {
-  return <section className="space-y-3 rounded-card border bg-white p-4 shadow-card"><h2 className="font-display text-lg font-bold">{title}</h2>{children}</section>;
+  return <section className="space-y-3 rounded-lg border border-slate-200 bg-white p-4 shadow-card"><h2 className="font-display text-lg font-bold">{title}</h2>{children}</section>;
+}
+
+function Stepper({ steps, activeStep }: { steps: string[]; activeStep: number }) {
+  return (
+    <div className="rounded-lg border border-slate-200 bg-white p-3 shadow-card">
+      <div className="flex gap-2 overflow-x-auto">
+        {steps.map((item, index) => (
+          <div key={item} className={`flex min-h-10 shrink-0 items-center gap-2 rounded-full px-3 text-xs font-semibold ${index === activeStep ? "bg-navy text-white" : index < activeStep ? "bg-accent/20 text-navy" : "bg-slate-50 text-muted"}`}>
+            <span className="flex h-5 w-5 items-center justify-center rounded-full bg-white/20 font-mono">{index + 1}</span>
+            {item}
+          </div>
+        ))}
+      </div>
+    </div>
+  );
 }
 
 function Select({ name, options, labels, value, onChange }: { name: string; options: string[]; labels?: Record<string, string>; value?: string; onChange?: (value: string) => void }) {

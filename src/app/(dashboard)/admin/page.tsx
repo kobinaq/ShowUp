@@ -59,7 +59,7 @@ export default async function AdminPage() {
   return (
     <div className="space-y-6">
       <header>
-        <p className="text-sm font-semibold uppercase tracking-wide text-muted">{adminLabel(role)}</p>
+        <p className="text-sm font-bold text-muted">{adminLabel(role)}</p>
         <h1 className="font-display text-2xl font-bold">Admin</h1>
         <p className="mt-1 text-sm text-muted">Managing {scopeLabel}.</p>
       </header>

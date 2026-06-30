@@ -1,7 +1,7 @@
 "use client";
 
 import { useState } from "react";
-import { Loader2, MessageSquare, Send, X } from "lucide-react";
+import { Bot, Loader2, MessageSquare, Send, Sparkles, X } from "lucide-react";
 
 type Message = {
   q: string;
@@ -9,17 +9,19 @@ type Message = {
 };
 
 const exampleQuestions = [
+  "Summarize the biggest risks in my scope",
+  "Show unresolved flags",
   "Which lecturers missed the most classes this semester?",
-  "What is the topic coverage for the Computer Science department?",
   "Who has been late more than 3 times?",
   "Which courses are behind on their outline?"
 ];
 
-export function AskPanel() {
+export function AskPanel({ universityName }: { universityName?: string | null }) {
   const [isOpen, setIsOpen] = useState(false);
   const [question, setQuestion] = useState("");
   const [messages, setMessages] = useState<Message[]>([]);
   const [loading, setLoading] = useState(false);
+  const databaseLabel = universityName ? `${universityName}'s database` : "your selected university database";
 
   async function handleSubmit() {
     if (!question.trim() || loading) return;
@@ -56,7 +58,7 @@ export function AskPanel() {
       <button
         type="button"
         onClick={() => setIsOpen(true)}
-        className="fixed bottom-20 right-5 z-40 flex h-14 w-14 items-center justify-center rounded-full bg-accent text-navy shadow-2xl shadow-navy/20 transition hover:scale-105 hover:bg-accent/90 focus:outline-none focus:ring-4 focus:ring-accent/30 md:bottom-6 md:right-6"
+        className="fixed bottom-24 right-5 z-40 flex h-14 w-14 items-center justify-center rounded-full bg-navy text-white shadow-2xl shadow-navy/20 transition duration-200 hover:-translate-y-1 hover:scale-105 hover:bg-navy/90 focus:outline-none focus:ring-4 focus:ring-accent/30 md:bottom-6 md:right-6"
         aria-label="Open ShowUp AI"
         title="ShowUp AI"
       >
@@ -67,15 +69,23 @@ export function AskPanel() {
         <div className="fixed inset-0 z-50">
           <button
             type="button"
-            className="absolute inset-0 bg-navy/30"
+            className="absolute inset-0 bg-navy/25 backdrop-blur-[1px]"
             aria-label="Close ShowUp AI"
             onClick={() => setIsOpen(false)}
           />
-          <aside className="absolute inset-y-0 right-0 flex w-full max-w-[420px] flex-col border-l border-slate-100 bg-white shadow-2xl">
-            <header className="flex items-center justify-between border-b border-slate-100 px-5 py-4">
-              <div>
-                <h2 className="font-display text-lg font-bold text-navy">ShowUp AI</h2>
-                <p className="mt-0.5 text-xs text-muted">Ask about lecturer performance</p>
+          <aside className="absolute bottom-24 right-3 flex h-[80vh] max-h-[760px] w-[calc(100%-1.5rem)] max-w-[460px] animate-[showup-panel-in_180ms_ease-out] flex-col rounded-2xl border border-slate-200 bg-white shadow-2xl md:bottom-6 md:right-6">
+            <span className="absolute -top-7 right-6 flex h-14 w-14 items-center justify-center rounded-full border-4 border-white bg-navy text-white shadow-xl shadow-navy/20">
+              <Bot className="h-6 w-6" aria-hidden />
+            </span>
+            <header className="flex items-center justify-between rounded-t-2xl border-b border-slate-100 px-5 py-4 pr-24">
+              <div className="flex items-center gap-3">
+                <span className="flex h-10 w-10 items-center justify-center rounded-full bg-accent/15 text-navy">
+                  <Bot className="h-5 w-5" aria-hidden />
+                </span>
+                <div>
+                  <h2 className="font-display text-lg font-bold text-navy">ShowUp AI</h2>
+                  <p className="mt-0.5 text-xs text-muted">Answers from your scoped database</p>
+                </div>
               </div>
               <button
                 type="button"
@@ -89,14 +99,21 @@ export function AskPanel() {
 
             <div className="flex-1 space-y-4 overflow-y-auto px-5 py-4">
               {messages.length === 0 ? (
-                <div className="space-y-2">
-                  <p className="text-xs font-semibold uppercase text-muted">Try asking</p>
+                <div className="space-y-3">
+                  <div className="rounded-lg border border-blue-100 bg-blue-50/60 p-3 text-sm leading-6 text-blue-900">
+                    <div className="mb-1 flex items-center gap-2 font-semibold">
+                      <Sparkles className="h-4 w-4" aria-hidden />
+                      Ask about ShowUp data
+                    </div>
+                    Ask me questions only related to {databaseLabel}.
+                  </div>
+                  <p className="text-xs font-bold text-muted">Suggested prompts</p>
                   {exampleQuestions.map((example) => (
                     <button
                       type="button"
                       key={example}
                       onClick={() => setQuestion(example)}
-                      className="block w-full rounded-md bg-slate-50 px-3 py-3 text-left text-sm text-slate-700 transition-colors hover:bg-slate-100"
+                      className="block w-full rounded-lg border border-slate-200 bg-white px-3 py-3 text-left text-sm text-slate-700 transition-colors hover:border-accent hover:bg-accent/10"
                     >
                       {example}
                     </button>
@@ -106,10 +123,10 @@ export function AskPanel() {
 
               {messages.map((message, index) => (
                 <div key={`${message.q}-${index}`} className="space-y-2">
-                  <div className="ml-8 rounded-2xl rounded-tr-sm bg-navy px-4 py-2.5 text-sm text-white">
+                  <div className="ml-8 rounded-2xl rounded-tr-sm bg-navy px-4 py-2.5 text-sm leading-6 text-white">
                     {message.q}
                   </div>
-                  <div className="mr-8 rounded-2xl rounded-tl-sm bg-slate-50 px-4 py-2.5 text-sm leading-relaxed text-slate-700">
+                  <div className="mr-8 rounded-2xl rounded-tl-sm border border-slate-100 bg-slate-50 px-4 py-2.5 text-sm leading-relaxed text-slate-700">
                     {message.a}
                   </div>
                 </div>
@@ -124,7 +141,7 @@ export function AskPanel() {
             </div>
 
             <footer className="border-t border-slate-100 px-5 py-4">
-              <div className="flex items-center gap-2 rounded-xl bg-slate-50 px-4 py-2">
+              <div className="flex items-center gap-2 rounded-xl border border-slate-200 bg-slate-50 px-4 py-2 focus-within:border-accent">
                 <input
                   value={question}
                   onChange={(event) => setQuestion(event.target.value)}

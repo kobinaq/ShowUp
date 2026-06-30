@@ -6,6 +6,95 @@
   --font-space: "Space Grotesk";
   --font-inter: Inter;
   --font-mono: "JetBrains Mono";
+  --card: #f5f8fa;
+  --ring: #4288c9;
+  --input: #a7adb4;
+  --muted: #dee6ed;
+  --accent: #dce3e9;
+  --border: #d4dadb;
+  --radius: 0.5rem;
+  --chart-1: #3065b0;
+  --chart-2: #87a7f5;
+  --chart-3: #c4ced8;
+  --chart-4: #d3def0;
+  --chart-5: #2d5bb4;
+  --popover: #ffffff;
+  --primary: #4288c9;
+  --sidebar: #eef2f5;
+  --spacing: 0.25rem;
+  --font-sans: Inter, sans-serif;
+  --secondary: #dce3e9;
+  --background: #f1f1f1;
+  --font-serif: Georgia, serif;
+  --foreground: #29323d;
+  --destructive: #131514;
+  --shadow-blur: 4px;
+  --shadow-color: #000000;
+  --sidebar-ring: #b5b5b5;
+  --shadow-spread: 0px;
+  --letter-spacing: 0;
+  --shadow-opacity: 0.1;
+  --sidebar-accent: #dce3e9;
+  --sidebar-border: #ebebeb;
+  --card-foreground: #131814;
+  --shadow-offset-x: 0px;
+  --shadow-offset-y: 2px;
+  --sidebar-primary: #4288c9;
+  --muted-foreground: #7d8283;
+  --accent-foreground: #1b2328;
+  --popover-foreground: #1b2328;
+  --primary-foreground: #ffffff;
+  --sidebar-foreground: #3a3d3d;
+  --secondary-foreground: #464e53;
+  --destructive-foreground: #ffffff;
+  --sidebar-accent-foreground: #343434;
+  --sidebar-primary-foreground: #fbfbfb;
+}
+
+.dark {
+  --card: #242526;
+  --ring: #5795d9;
+  --input: #4a4e52;
+  --muted: #191a1b;
+  --accent: #15171a;
+  --border: #383b3e;
+  --radius: 0.5rem;
+  --chart-1: #3065b0;
+  --chart-2: #87a7f5;
+  --chart-3: #15171a;
+  --chart-4: #2b3848;
+  --chart-5: #2d5bb4;
+  --popover: #2e2f30;
+  --primary: #5795d9;
+  --sidebar: #1d1e1f;
+  --spacing: 0.25rem;
+  --font-sans: Inter, sans-serif;
+  --secondary: #f5f8fa;
+  --background: #111111;
+  --font-serif: Georgia, serif;
+  --foreground: #b6bbc3;
+  --destructive: #ef4444;
+  --shadow-blur: 8px;
+  --shadow-color: #000000;
+  --sidebar-ring: #b5b5b5;
+  --shadow-spread: 0px;
+  --letter-spacing: 0;
+  --shadow-opacity: 0.3;
+  --sidebar-accent: #0e0f0f;
+  --sidebar-border: #383b3e;
+  --card-foreground: #f5f7fa;
+  --shadow-offset-x: 0px;
+  --shadow-offset-y: 4px;
+  --sidebar-primary: #343434;
+  --muted-foreground: #a9b1b7;
+  --accent-foreground: #eef2f5;
+  --popover-foreground: #e2e4e5;
+  --primary-foreground: #ffffff;
+  --sidebar-foreground: #b6bbc3;
+  --secondary-foreground: #2e2f30;
+  --destructive-foreground: #ffffff;
+  --sidebar-accent-foreground: #b6bbc3;
+  --sidebar-primary-foreground: #fbfbfb;
 }
 
 html,
@@ -13,12 +102,123 @@ body {
   min-height: 100%;
 }
 
+html {
+  color-scheme: light;
+}
+
+html.dark {
+  color-scheme: dark;
+}
+
 body {
-  background: #f4f6f9;
-  color: #0d1f3c;
+  background: var(--background);
+  color: var(--foreground);
+  letter-spacing: var(--letter-spacing);
 }
 
 *:focus-visible {
-  outline: 3px solid #00c48c;
+  outline: 3px solid var(--ring);
   outline-offset: 2px;
+}
+
+::selection {
+  background: color-mix(in srgb, var(--primary) 24%, transparent);
+}
+
+.dark .bg-white,
+.dark .bg-slate-50 {
+  background-color: var(--card);
+}
+
+.dark .bg-white\/90,
+.dark .bg-white\/95 {
+  background-color: color-mix(in srgb, var(--card) 92%, transparent);
+}
+
+.dark .bg-\[\#f7f8fb\],
+.dark .bg-app {
+  background-color: var(--background);
+}
+
+.dark .border,
+.dark .border-slate-100,
+.dark .border-slate-200,
+.dark .border-slate-300 {
+  border-color: var(--border);
+}
+
+.dark .divide-slate-100 > :not([hidden]) ~ :not([hidden]) {
+  border-color: var(--border);
+}
+
+.dark .text-slate-400,
+.dark .text-slate-500,
+.dark .text-slate-600,
+.dark .text-slate-700,
+.dark .text-slate-800,
+.dark .text-slate-900,
+.dark .text-navy {
+  color: var(--foreground);
+}
+
+.dark .text-blue-700,
+.dark .text-blue-800,
+.dark .text-blue-900,
+.dark .text-green-700,
+.dark .text-emerald-700,
+.dark .text-amber-700,
+.dark .text-red-600,
+.dark .text-red-700 {
+  color: var(--foreground);
+}
+
+.dark .bg-blue-50,
+.dark .bg-blue-50\/50,
+.dark .bg-blue-50\/60,
+.dark .bg-emerald-50,
+.dark .bg-emerald-50\/60,
+.dark .bg-amber-50,
+.dark .bg-amber-50\/70,
+.dark .bg-red-50,
+.dark .bg-red-50\/70 {
+  background-color: var(--accent);
+}
+
+.dark .text-muted {
+  color: var(--muted-foreground);
+}
+
+.dark .placeholder\:text-muted::placeholder {
+  color: var(--muted-foreground);
+}
+
+.dark .hover\:bg-slate-50:hover,
+.dark .hover\:bg-slate-100:hover {
+  background-color: var(--accent);
+}
+
+.dark .shadow-card {
+  box-shadow: var(--shadow-offset-x) var(--shadow-offset-y) var(--shadow-blur) var(--shadow-spread) color-mix(in srgb, var(--shadow-color) calc(var(--shadow-opacity) * 100%), transparent);
+}
+
+@keyframes showup-panel-in {
+  from {
+    opacity: 0;
+    transform: translateY(16px) scale(0.98);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0) scale(1);
+  }
+}
+
+@keyframes showup-row-in {
+  from {
+    opacity: 0;
+    transform: translateY(6px);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0);
+  }
 }
