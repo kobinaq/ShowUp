@@ -10,9 +10,12 @@ import { EmptyState } from "@/components/shared/EmptyState";
 import { ReportTable } from "@/components/reports/ReportTable";
 import { displayText } from "@/lib/utils/displayText";
 
-export default async function DashboardPage() {
+type DashboardPeriod = "week" | "month" | "semester" | "year";
+
+export default async function DashboardPage({ searchParams }: { searchParams?: Promise<{ period?: string }> }) {
   const supabase = await createClient();
   const { data } = await supabase.auth.getUser();
+  const params = await searchParams;
   const profile = data.user
     ? await prisma.profile.findUnique({
         where: { supabaseUid: data.user.id },
@@ -37,33 +40,40 @@ export default async function DashboardPage() {
       ? { departmentId: profile?.departmentId ?? "__none__" }
       : { department: { faculty: { universityId: profile?.universityId ?? "__none__" } } };
 
-  const weekStart = new Date();
-  weekStart.setDate(weekStart.getDate() - 7);
+  const requestedPeriod = params?.period;
+  const period: DashboardPeriod = requestedPeriod === "month" || requestedPeriod === "semester" || requestedPeriod === "year" ? requestedPeriod : "week";
+  const activeSemester = await prisma.semester.findFirst({
+    where: isSuperAdmin ? { isActive: true } : { isActive: true, universityId: profile?.universityId ?? "__none__" },
+    orderBy: { startDate: "desc" }
+  });
+  const periodRange = getPeriodRange(period, activeSemester);
+  const periodReportScope = { ...reportScope, lectureDate: { gte: periodRange.start, lte: periodRange.end } };
+  const periodLabel = periodRange.label;
   const [reports, insightReports, reportsThisWeek, absences, lateness, flags, contests, pings, courses] = await Promise.all([
     prisma.lectureReport.findMany({
-      where: reportScope,
+      where: periodReportScope,
       take: 8,
       orderBy: { lectureDate: "desc" },
       include: { course: { include: { lecturer: true } }, flags: true, contest: true, latePing: true }
     }),
     prisma.lectureReport.findMany({
-      where: reportScope,
+      where: periodReportScope,
       take: 200,
       orderBy: [{ lectureDate: "desc" }, { submittedAt: "desc" }],
       include: { course: { include: { lecturer: true, department: true } }, flags: true }
     }),
-    prisma.lectureReport.count({ where: { ...reportScope, submittedAt: { gte: weekStart } } }),
-    prisma.lectureReport.count({ where: { ...reportScope, lecturerPresent: "ABSENT" } }),
-    prisma.lectureReport.count({ where: { ...reportScope, arrivalStatus: "LATE" } }),
-    prisma.flag.findMany({ where: { isResolved: false, ...lecturerScope }, include: { lecturer: true, report: { include: { course: true } } }, orderBy: { createdAt: "desc" }, take: 6 }),
-    prisma.contest.findMany({ where: { status: "PENDING", report: reportScope }, include: { report: { include: { course: true } } }, orderBy: { raisedAt: "desc" }, take: 6 }),
-    prisma.latePing.findMany({ where: { course: courseScope }, include: { course: true }, orderBy: { createdAt: "desc" }, take: 6 }),
+    prisma.lectureReport.count({ where: periodReportScope }),
+    prisma.lectureReport.count({ where: { ...periodReportScope, lecturerPresent: "ABSENT" } }),
+    prisma.lectureReport.count({ where: { ...periodReportScope, arrivalStatus: "LATE" } }),
+    prisma.flag.findMany({ where: { isResolved: false, createdAt: { gte: periodRange.start, lte: periodRange.end }, ...lecturerScope }, include: { lecturer: true, report: { include: { course: true } } }, orderBy: { createdAt: "desc" }, take: 6 }),
+    prisma.contest.findMany({ where: { status: "PENDING", raisedAt: { gte: periodRange.start, lte: periodRange.end }, report: reportScope }, include: { report: { include: { course: true } } }, orderBy: { raisedAt: "desc" }, take: 6 }),
+    prisma.latePing.findMany({ where: { lectureDate: { gte: periodRange.start, lte: periodRange.end }, course: courseScope }, include: { course: true }, orderBy: { createdAt: "desc" }, take: 6 }),
     prisma.course.count({ where: courseScope })
   ]);
   const present = reports.filter((report) => report.lecturerPresent !== "ABSENT").length;
   const attendanceRate = reports.length ? Math.round((present / reports.length) * 100) : 0;
   const scopeName = isSuperAdmin ? "All universities" : isDepartmentScope ? profile?.department?.name ?? "Your department" : profile?.university?.name ?? "Your university";
-  const insights = buildInsights(insightReports, flags, contests, weekStart, scopeName);
+  const insights = buildInsights(insightReports, flags, contests, periodRange.start, scopeName, periodLabel);
   const needsAttention = [
     ...flags.map((flag) => ({
       id: `flag-${flag.id}`,
@@ -105,22 +115,40 @@ export default async function DashboardPage() {
             </a>
           ))}
         </nav>
-        <Link href="/analytics" className="inline-flex min-h-10 items-center justify-center gap-2 rounded-md border border-slate-200 bg-white px-3 text-sm font-semibold text-navy transition hover:border-primary">
-          Open analytics <ArrowRight className="h-4 w-4" aria-hidden />
-        </Link>
+        <div className="flex flex-wrap items-center gap-2">
+          <div className="flex rounded-md border border-slate-200 bg-white p-1">
+            {[
+              ["week", "Week"],
+              ["month", "Month"],
+              ["semester", "Semester"],
+              ["year", "Academic year"]
+            ].map(([value, label]) => (
+              <Link
+                key={value}
+                href={`/dashboard?period=${value}`}
+                className={`rounded px-2.5 py-1.5 text-sm font-semibold transition ${period === value ? "bg-primary text-primary-foreground" : "text-muted hover:bg-accent hover:text-navy"}`}
+              >
+                {label}
+              </Link>
+            ))}
+          </div>
+          <Link href="/analytics" className="inline-flex min-h-10 items-center justify-center gap-2 rounded-md border border-slate-200 bg-white px-3 text-sm font-semibold text-navy transition hover:border-primary">
+            Open analytics <ArrowRight className="h-4 w-4" aria-hidden />
+          </Link>
+        </div>
       </div>
       <section id="overview" className="grid gap-4 md:grid-cols-2 xl:grid-cols-4">
-        <MetricCard label="Attendance rate" value={`${attendanceRate}%`} badge={`${attendanceRate}%`} footerTitle={attendanceRate >= 85 ? "Attendance is healthy" : "Attendance needs review"} helper="Based on latest scoped reports" tone={attendanceRate >= 85 ? "green" : attendanceRate >= 70 ? "amber" : "red"} trend={attendanceRate >= 85 ? "up" : "down"} href="/reports" />
-        <MetricCard label="Reports this week" value={reportsThisWeek} badge="This week" footerTitle="Reporting activity" helper={`${courses} courses in scope`} tone="blue" trend="up" href="/reports" />
-        <MetricCard label="Absences" value={absences} badge={absences ? "Review" : "Clear"} footerTitle={absences ? "Absence reports need attention" : "No absence pressure"} helper="All recorded absence reports" tone={absences ? "red" : "green"} trend={absences ? "down" : "up"} href="/reports" />
-        <MetricCard label="Lateness" value={lateness} badge={lateness ? "Watch" : "Clear"} footerTitle={lateness ? "Late arrivals are present" : "No lateness pressure"} helper="Reports marked late" tone={lateness ? "amber" : "green"} trend={lateness ? "down" : "up"} href="/reports" />
-        <MetricCard label="Open flags" value={flags.length} badge={flags.length ? "Open" : "Clear"} footerTitle={flags.length ? "Quality flags need review" : "No unresolved flags"} helper="Unresolved quality flags" tone={flags.length ? "amber" : "green"} trend={flags.length ? "down" : "up"} href="/flags" />
-        <MetricCard label="Pending contests" value={contests.length} badge={contests.length ? "Pending" : "Clear"} footerTitle={contests.length ? "Contest decisions pending" : "No pending contests"} helper="Awaiting QA decision" tone={contests.length ? "red" : "green"} trend={contests.length ? "down" : "up"} href="/contests" />
-        <MetricCard label="Late pings" value={pings.length} badge="Recent" footerTitle={pings.length ? "Recent lecturer alerts" : "No late alerts recorded"} helper="Most recent alerts in scope" tone={pings.length ? "amber" : "green"} trend={pings.length ? "down" : "up"} href="/analytics" />
-        <MetricCard label="Courses" value={courses} badge="Scoped" footerTitle="Active course records" helper="Active records in scope" tone="grey" trend="neutral" href="/courses" />
+        <MetricCard label="Attendance rate" value={`${attendanceRate}%`} badge={`${attendanceRate}%`} footerTitle={attendanceRate >= 85 ? `Attendance is healthy ${periodLabel}` : `Attendance needs review ${periodLabel}`} helper={`Based on ${reports.length} reports ${periodLabel}`} tone={attendanceRate >= 85 ? "green" : attendanceRate >= 70 ? "amber" : "red"} trend={attendanceRate >= 85 ? "up" : "down"} href="/reports" />
+        <MetricCard label={`Reports ${periodLabel}`} value={reportsThisWeek} badge={periodRange.shortLabel} footerTitle="Reporting activity" helper={`${courses} courses in scope`} tone="blue" trend="up" href="/reports" />
+        <MetricCard label="Absences" value={absences} badge={absences ? "Review" : "Clear"} footerTitle={absences ? `Absence reports ${periodLabel}` : `No absence pressure ${periodLabel}`} helper={`Absence reports ${periodLabel}`} tone={absences ? "red" : "green"} trend={absences ? "down" : "up"} href="/reports" />
+        <MetricCard label="Lateness" value={lateness} badge={lateness ? "Watch" : "Clear"} footerTitle={lateness ? `Late arrivals ${periodLabel}` : `No lateness pressure ${periodLabel}`} helper={`Reports marked late ${periodLabel}`} tone={lateness ? "amber" : "green"} trend={lateness ? "down" : "up"} href="/reports" />
+        <MetricCard label="Open flags" value={flags.length} badge={flags.length ? "Open" : "Clear"} footerTitle={flags.length ? `Quality flags ${periodLabel}` : `No unresolved flags ${periodLabel}`} helper={`Unresolved flags raised ${periodLabel}`} tone={flags.length ? "amber" : "green"} trend={flags.length ? "down" : "up"} href="/flags" />
+        <MetricCard label="Pending contests" value={contests.length} badge={contests.length ? "Pending" : "Clear"} footerTitle={contests.length ? `Contest decisions ${periodLabel}` : `No pending contests ${periodLabel}`} helper={`Awaiting QA decision ${periodLabel}`} tone={contests.length ? "red" : "green"} trend={contests.length ? "down" : "up"} href="/contests" />
+        <MetricCard label="Late pings" value={pings.length} badge={null} footerTitle={pings.length ? `Lecturer alerts ${periodLabel}` : `No late alerts ${periodLabel}`} helper={`Alerts recorded ${periodLabel}`} tone={pings.length ? "amber" : "green"} trend={pings.length ? "down" : "up"} href="/analytics" />
+        <MetricCard label="Courses" value={courses} badge={null} footerTitle="Active course records" helper="Active records in scope" tone="grey" trend="neutral" href="/courses" />
       </section>
       <section id="attention" className="grid gap-4 xl:grid-cols-[1fr_1.2fr]">
-        <SectionPanel title="Needs attention" description="Highest-signal items from flags and contests.">
+        <SectionPanel title="Needs attention" description={`Highest-signal items from flags and contests ${periodLabel}.`}>
           {needsAttention.length ? (
             <div className="space-y-3">
               {needsAttention.map((item) => (
@@ -144,7 +172,7 @@ export default async function DashboardPage() {
         </SectionPanel>
         <SectionPanel
           title="Workspace insight"
-          description="A deterministic summary from the scoped data, without calling ShowUp AI."
+          description={`A deterministic summary from scoped data ${periodLabel}, without calling ShowUp AI.`}
           action={<Link href="/analytics" className="inline-flex items-center gap-2 text-sm font-semibold text-navy">Open analytics <ArrowRight className="h-4 w-4" aria-hidden /></Link>}
         >
           <div className="space-y-3">
@@ -170,7 +198,7 @@ export default async function DashboardPage() {
           </div>
         </SectionPanel>
       </section>
-      <SectionPanel id="latest-reports" title="Latest reports" description="Recent submissions from class reps and staff within your scope.">
+      <SectionPanel id="latest-reports" title="Latest reports" description={`Recent submissions from class reps and staff ${periodLabel}.`}>
         <ReportTable reports={reports} exportHref="/api/export/reports" />
       </SectionPanel>
     </div>
@@ -200,17 +228,17 @@ type InsightContest = {
   report: { course: { code: string } };
 };
 
-function buildInsights(reports: InsightReport[], flags: InsightFlag[], contests: InsightContest[], weekStart: Date, scopeName: string) {
+function buildInsights(reports: InsightReport[], flags: InsightFlag[], contests: InsightContest[], periodStart: Date, scopeName: string, periodLabel: string) {
   if (!reports.length) return [];
   const insights: string[] = [];
   const weeklyLateByDepartment = new Map<string, number>();
   for (const report of reports) {
-    if (report.lectureDate >= weekStart && report.arrivalStatus === "LATE") {
+    if (report.lectureDate >= periodStart && report.arrivalStatus === "LATE") {
       weeklyLateByDepartment.set(report.course.department.name, (weeklyLateByDepartment.get(report.course.department.name) ?? 0) + 1);
     }
   }
   const topDepartment = Array.from(weeklyLateByDepartment.entries()).sort((a, b) => b[1] - a[1])[0];
-  if (topDepartment) insights.push(`${topDepartment[0]} has the highest lateness this week with ${topDepartment[1]} late report${topDepartment[1] === 1 ? "" : "s"}.`);
+  if (topDepartment) insights.push(`${topDepartment[0]} has the highest lateness ${periodLabel} with ${topDepartment[1]} late report${topDepartment[1] === 1 ? "" : "s"}.`);
 
   const absenceStreak = longestAbsenceStreak(reports);
   if (absenceStreak.count > 1) insights.push(`${absenceStreak.lecturer} has missed ${absenceStreak.count} straight reported class sessions.`);
@@ -226,6 +254,46 @@ function buildInsights(reports: InsightReport[], flags: InsightFlag[], contests:
   if (topRisk) insights.push(topRisk);
 
   return insights.length ? insights.slice(0, 4) : [`${scopeName} has reports available, but no standout risk pattern is visible yet.`];
+}
+
+function getPeriodRange(period: DashboardPeriod, activeSemester: { startDate: Date; endDate: Date; name: string } | null) {
+  const now = new Date();
+  const end = new Date(now);
+  end.setHours(23, 59, 59, 999);
+
+  if (period === "month") {
+    const start = new Date(now.getFullYear(), now.getMonth(), 1);
+    start.setHours(0, 0, 0, 0);
+    return { start, end, label: "this month", shortLabel: "Month" };
+  }
+
+  if (period === "semester") {
+    if (activeSemester) {
+      return {
+        start: activeSemester.startDate,
+        end: activeSemester.endDate,
+        label: activeSemester.name ? `in ${activeSemester.name}` : "this semester",
+        shortLabel: "Semester"
+      };
+    }
+    const start = new Date(now.getFullYear(), now.getMonth(), 1);
+    start.setHours(0, 0, 0, 0);
+    return { start, end, label: "this semester", shortLabel: "Semester" };
+  }
+
+  if (period === "year") {
+    const academicYearStart = now.getMonth() >= 7 ? now.getFullYear() : now.getFullYear() - 1;
+    const start = new Date(academicYearStart, 7, 1);
+    const academicEnd = new Date(academicYearStart + 1, 6, 31, 23, 59, 59, 999);
+    return { start, end: academicEnd, label: "this academic year", shortLabel: "Academic year" };
+  }
+
+  const start = new Date(now);
+  const day = now.getDay();
+  const diff = day === 0 ? 6 : day - 1;
+  start.setDate(now.getDate() - diff);
+  start.setHours(0, 0, 0, 0);
+  return { start, end, label: "this week", shortLabel: "Week" };
 }
 
 function longestAbsenceStreak(reports: InsightReport[]) {

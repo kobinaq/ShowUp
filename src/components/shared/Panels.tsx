@@ -48,7 +48,7 @@ export function MetricCard({
   helper?: string;
   tone?: "blue" | "green" | "amber" | "red" | "grey";
   href?: string;
-  badge?: string;
+  badge?: string | null;
   trend?: "up" | "down" | "neutral";
   footerTitle?: string;
 }) {
@@ -61,16 +61,18 @@ export function MetricCard({
   };
   const trendValue = trend ?? (tone === "red" || tone === "amber" ? "down" : tone === "grey" ? "neutral" : "up");
   const TrendIcon = trendValue === "up" ? TrendingUp : trendValue === "down" ? TrendingDown : Minus;
-  const badgeText = badge ?? (trendValue === "up" ? "Healthy" : trendValue === "down" ? "Review" : "Scoped");
+  const badgeText = badge === null ? null : badge ?? (trendValue === "up" ? "Healthy" : trendValue === "down" ? "Review" : null);
   const body = (
     <>
       <div className="space-y-2 p-5">
         <div className="flex items-start justify-between gap-3">
           <p className="text-sm font-medium text-muted">{label}</p>
-          <span className={cn("inline-flex shrink-0 items-center gap-1 rounded-full border border-slate-200 bg-white/70 px-2 py-1 text-xs font-semibold shadow-sm", tones[tone])}>
-            <TrendIcon className="h-3.5 w-3.5" aria-hidden />
-            {badgeText}
-          </span>
+          {badgeText ? (
+            <span className={cn("inline-flex shrink-0 items-center gap-1 rounded-full border border-slate-200 bg-white/70 px-2 py-1 text-xs font-semibold shadow-sm", tones[tone])}>
+              <TrendIcon className="h-3.5 w-3.5" aria-hidden />
+              {badgeText}
+            </span>
+          ) : null}
         </div>
         <p className="font-mono text-2xl font-semibold tabular-nums tracking-tight text-navy sm:text-3xl">{value}</p>
       </div>

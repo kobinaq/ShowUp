@@ -5,11 +5,15 @@ import { Bar, BarChart, CartesianGrid, ResponsiveContainer, Tooltip, XAxis, YAxi
 export function SimpleBarChart({
   data,
   dataKey,
-  color = "#00C48C"
+  color = "#00C48C",
+  xAxisLabel,
+  hideCategoryTicks = false
 }: {
   data: Array<Record<string, string | number>>;
   dataKey: string;
   color?: string;
+  xAxisLabel?: string;
+  hideCategoryTicks?: boolean;
 }) {
   if (!data.length) {
     return (
@@ -23,7 +27,14 @@ export function SimpleBarChart({
     <ResponsiveContainer width="100%" height="100%">
       <BarChart data={data}>
         <CartesianGrid strokeDasharray="3 3" stroke="var(--border)" />
-        <XAxis dataKey="name" tick={{ fill: "var(--muted-foreground)", fontSize: 12 }} axisLine={{ stroke: "var(--border)" }} tickLine={{ stroke: "var(--border)" }} />
+        <XAxis
+          dataKey="name"
+          tick={hideCategoryTicks ? false : { fill: "var(--muted-foreground)", fontSize: 12 }}
+          axisLine={{ stroke: "var(--border)" }}
+          tickLine={hideCategoryTicks ? false : { stroke: "var(--border)" }}
+          height={xAxisLabel ? 36 : undefined}
+          label={xAxisLabel ? { value: xAxisLabel, position: "insideBottom", offset: -4, fill: "var(--muted-foreground)", fontSize: 12 } : undefined}
+        />
         <YAxis tick={{ fill: "var(--muted-foreground)", fontSize: 12 }} axisLine={{ stroke: "var(--border)" }} tickLine={{ stroke: "var(--border)" }} />
         <Tooltip
           cursor={{ fill: "color-mix(in srgb, var(--primary) 10%, transparent)" }}

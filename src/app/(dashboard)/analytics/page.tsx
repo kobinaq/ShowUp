@@ -91,7 +91,7 @@ export default async function AnalyticsPage() {
       </section>
       <section className="grid gap-4 xl:grid-cols-3">
         <ChartPanel title={isDepartmentScope ? "Attendance by lecturer" : isSuperAdmin ? "Attendance by faculty" : "Attendance by department"} note="Higher bars indicate stronger reported attendance.">
-          <SimpleBarChart data={attendanceChart} dataKey="attendance" color="var(--primary)" />
+          <SimpleBarChart data={attendanceChart} dataKey="attendance" color="var(--primary)" xAxisLabel="Courses" hideCategoryTicks />
         </ChartPanel>
         <ChartPanel title="Flag type distribution" note="Flag volume shows the dominant quality issues.">
           <SimpleBarChart data={flagChart} dataKey="count" color="var(--chart-2)" />

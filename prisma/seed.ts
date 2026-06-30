@@ -18,6 +18,11 @@ const serviceKey = process.env.SUPABASE_SERVICE_ROLE_KEY;
 const universityId = "atu_university";
 const password = process.env.SEED_USER_PASSWORD ?? "Password123!";
 
+async function refreshPrismaConnection() {
+  await prisma.$disconnect().catch(() => undefined);
+  await prisma.$connect();
+}
+
 const faculties = [
   {
     id: "atu_fac_eng",
@@ -136,6 +141,7 @@ async function cleanupDemoData() {
 
 async function main() {
   await cleanupDemoData();
+  await refreshPrismaConnection();
 
   const university = await prisma.university.create({
     data: {
@@ -319,8 +325,10 @@ async function main() {
     });
   }
 
+  await refreshPrismaConnection();
   const reps = await prisma.profile.findMany({ where: { anonymousAlias: { startsWith: "reporter_ATU_" } } });
   for (const [courseIndex, course] of allCourses.entries()) {
+    if (courseIndex > 0 && courseIndex % 4 === 0) await refreshPrismaConnection();
     const rep = reps[courseIndex % reps.length];
     for (let week = 1; week <= 8; week++) {
       const report = await prisma.lectureReport.create({

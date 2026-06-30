@@ -46,7 +46,15 @@ type ReportPayload = {
   additionalNotes?: FormDataEntryValue | null;
 };
 
-export function ReportForm({ assignments, pingThresholdMinutes }: { assignments: AssignmentPayload[]; pingThresholdMinutes: number }) {
+export function ReportForm({
+  assignments,
+  pingThresholdMinutes,
+  submissionWindowHours
+}: {
+  assignments: AssignmentPayload[];
+  pingThresholdMinutes: number;
+  submissionWindowHours: number;
+}) {
   const [online, setOnline] = useState(typeof navigator === "undefined" ? true : navigator.onLine);
   const [submitting, setSubmitting] = useState(false);
   const [submitted, setSubmitted] = useState(false);
@@ -166,7 +174,10 @@ export function ReportForm({ assignments, pingThresholdMinutes }: { assignments:
           <Select name="schedule" options={selectedCourse.schedule.map((schedule) => schedule.id)} labels={Object.fromEntries(selectedCourse.schedule.map((schedule) => [schedule.id, `${dayName(schedule.dayOfWeek)} ${schedule.startTime}-${schedule.endTime}${schedule.venue ? `, ${schedule.venue}` : ""}`]))} value={selectedSchedule.id} onChange={setSelectedScheduleId} />
           {selectedSchedule.dayOfWeek !== todayDay ? <p className="rounded-md bg-amber-50 px-3 py-3 text-sm font-medium text-amber-700">This session is not scheduled for today.</p> : null}
           {alreadySubmitted ? <p className="rounded-md bg-green-50 px-3 py-3 text-sm font-medium text-green-700">A report has already been submitted for this session.</p> : null}
-          <p className="rounded-md bg-blue-50 px-3 py-3 text-sm font-medium text-blue-700">Submission opens at class start and closes after the configured post-class window.</p>
+          <p className="rounded-md bg-blue-50 px-3 py-3 text-sm font-medium text-blue-700">
+            Submission opens at class start and closes {formatWindowDuration(submissionWindowHours)} after class ends
+            {formatClosingTime(selectedSchedule.endTime, submissionWindowHours) ? `, around ${formatClosingTime(selectedSchedule.endTime, submissionWindowHours)}` : ""}.
+          </p>
         </Section>
         <PingCard
           courseId={selectedCourse.id}
@@ -282,6 +293,19 @@ function NumberInput({ name, label }: { name: string; label: string }) {
 
 function dayName(day: number) {
   return ["Sunday", "Monday", "Tuesday", "Wednesday", "Thursday", "Friday", "Saturday"][day] ?? "Scheduled day";
+}
+
+function formatWindowDuration(hours: number) {
+  if (hours === 1) return "1 hour";
+  return `${hours} hours`;
+}
+
+function formatClosingTime(endTime: string, windowHours: number) {
+  const [hour, minute] = endTime.split(":").map(Number);
+  if (!Number.isFinite(hour) || !Number.isFinite(minute)) return null;
+  const close = new Date();
+  close.setHours(hour + windowHours, minute, 0, 0);
+  return close.toLocaleTimeString([], { hour: "numeric", minute: "2-digit" });
 }
 
 function reportErrorMessage(body: unknown) {
