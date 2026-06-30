@@ -204,7 +204,7 @@ async function main() {
 
   const firstNames = ["Akua", "Kwame", "Ama", "Kofi", "Esi", "Yaw", "Abena", "Kojo", "Efua", "Kwesi", "Adjoa", "Fiifi"];
   const lastNames = ["Mensah", "Boateng", "Asante", "Owusu", "Addo", "Darko", "Nyarko", "Appiah", "Agyemang", "Ofori", "Sarpong", "Quartey"];
-  const allCourses: Array<{ id: string; scheduleId: string; topicIds: string[]; lecturerId: string }> = [];
+  const allCourses: Array<{ id: string; scheduleId: string; scheduleEndTime: string; topicIds: string[]; lecturerId: string }> = [];
 
   for (const [deptIndex, dept] of departmentRecords.entries()) {
     const lecturers = [];
@@ -268,7 +268,7 @@ async function main() {
           order: topicIndex + 1
         }))
       });
-      allCourses.push({ id: course.id, scheduleId: course.schedule[0].id, topicIds, lecturerId: lecturer.id });
+      allCourses.push({ id: course.id, scheduleId: course.schedule[0].id, scheduleEndTime: course.schedule[0].endTime, topicIds, lecturerId: lecturer.id });
     }
   }
 
@@ -329,7 +329,7 @@ async function main() {
           wasInteractive: week % 3 === 0 ? InteractiveLevel.SOMEWHAT : InteractiveLevel.YES,
           studentCount: 42 + ((courseIndex + week) % 55),
           additionalNotes: week % 5 === 0 ? "Students requested more lab time for the topic." : null,
-          windowClosedAt: new Date(Date.UTC(2026, 7, 17 + week * 7 + (courseIndex % 5), 17)),
+          windowClosedAt: seedWindowClosedAt(2026, 7, 17 + week * 7 + (courseIndex % 5), course.scheduleEndTime, 2),
           topicsCovered: {
             create: course.topicIds.slice(Math.max(0, week - 2), Math.min(course.topicIds.length, week + 1)).map((topicId) => ({ topicId }))
           },
@@ -380,3 +380,8 @@ main()
     await prisma.$disconnect();
     process.exit(1);
   });
+
+function seedWindowClosedAt(year: number, month: number, day: number, classEndTime: string, extraHours: number) {
+  const [hour, minute] = classEndTime.split(":").map(Number);
+  return new Date(Date.UTC(year, month, day, hour + extraHours, minute));
+}

@@ -52,7 +52,8 @@ export const POST = withAuth(async (request, { profile }) => {
   const settings = await prisma.universitySettings.findUnique({ where: { universityId: course.department.faculty.universityId } });
   const windowHours = settings?.submissionWindowHours ?? Number(process.env.SUBMISSION_WINDOW_HOURS ?? 2);
   const classStartAt = timeOnSessionDate(lectureDate, schedule.startTime);
-  const windowClosedAt = new Date(classStartAt.getTime() + windowHours * 60 * 60 * 1000);
+  const classEndAt = timeOnSessionDate(lectureDate, schedule.endTime);
+  const windowClosedAt = new Date(classEndAt.getTime() + windowHours * 60 * 60 * 1000);
   const now = new Date();
   if (profile.role === Role.CLASS_REP) {
     if (now < classStartAt) return badRequest("Reports can only be submitted after class starts");
