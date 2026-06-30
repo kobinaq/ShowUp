@@ -1,4 +1,4 @@
-import { createClient } from "@supabase/supabase-js";
+import { createClient, type SupabaseClient } from "@supabase/supabase-js";
 import {
   AidType,
   ArrivalStatus,
@@ -68,11 +68,10 @@ async function createAuthUser(email: string, displayName: string) {
     email_confirm: true,
     user_metadata: { displayName }
   });
-  if (error && !error.message.includes("already registered")) throw error;
+  if (error && !isExistingEmailError(error)) throw error;
   if (data.user) return data.user;
 
-  const { data: users } = await supabase.auth.admin.listUsers();
-  const existing = users.users.find((user) => user.email === email);
+  const existing = await findAuthUserByEmail(supabase, email);
   if (!existing) throw new Error(`Could not find Supabase user for ${email}`);
   const { error: updateError } = await supabase.auth.admin.updateUserById(existing.id, {
     password,
@@ -81,6 +80,25 @@ async function createAuthUser(email: string, displayName: string) {
   });
   if (updateError) throw updateError;
   return existing;
+}
+
+function isExistingEmailError(error: { message?: string; code?: string; status?: number }) {
+  return (
+    error.code === "email_exists" ||
+    error.status === 422 ||
+    /already.*registered|already.*exists/i.test(error.message ?? "")
+  );
+}
+
+async function findAuthUserByEmail(supabase: SupabaseClient, email: string) {
+  let page = 1;
+  while (true) {
+    const { data, error } = await supabase.auth.admin.listUsers({ page, perPage: 1000 });
+    if (error) throw error;
+    const existing = data.users.find((user) => user.email?.toLowerCase() === email.toLowerCase());
+    if (existing || data.users.length < 1000) return existing ?? null;
+    page += 1;
+  }
 }
 
 async function cleanupDemoData() {
