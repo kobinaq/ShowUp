@@ -1,11 +1,13 @@
 import type { Metadata } from "next";
 import { Footer } from "@/components/landing/Footer";
 import { Hero } from "@/components/landing/Hero";
+import { LandingMotion } from "@/components/landing/LandingMotion";
 import { LeadForm } from "@/components/landing/LeadForm";
 import { ModuleGrid } from "@/components/landing/ModuleGrid";
 import { Nav } from "@/components/landing/Nav";
-import { Pillars } from "@/components/landing/Pillars";
-import { StatsStrip } from "@/components/landing/StatsStrip";
+import { RolePreview } from "@/components/landing/RolePreview";
+import { Workflow } from "@/components/landing/Workflow";
+import { EvolutionDevice } from "@/components/landing/EvolutionDevice";
 
 export const metadata: Metadata = {
   title: "ShowUp | University Quality Assurance Platform",
@@ -21,12 +23,15 @@ export const metadata: Metadata = {
 
 export default function LandingPage() {
   return (
-    <main className="min-h-screen bg-[#F4F6F9] font-sans">
+    <main className="showup-landing min-h-screen overflow-hidden bg-[#f7f9f8] font-sans text-[#101828]">
+      <LandingMotion />
+      <div className="showup-noise" aria-hidden />
       <Nav />
       <Hero />
-      <Pillars />
+      <EvolutionDevice />
       <ModuleGrid />
-      <StatsStrip />
+      <RolePreview />
+      <Workflow />
       <LeadForm />
       <Footer />
     </main>
