@@ -5,6 +5,7 @@ import { AdminSetupPanel } from "@/components/admin/AdminSetupPanel";
 import { displayText } from "@/lib/utils/displayText";
 import { SectionPanel } from "@/components/shared/Panels";
 import { SupportTicketList, type SupportTicketListItem } from "@/components/support/SupportTicketList";
+import { UserLifecyclePanel, type UserLifecycleItem } from "@/components/admin/UserLifecyclePanel";
 
 export default async function AdminPage() {
   const supabase = await createClient();
@@ -55,7 +56,7 @@ export default async function AdminPage() {
     prisma.department.findMany({ where: departmentWhere, orderBy: { name: "asc" } }),
     prisma.lecturer.findMany({ where: lecturerWhere, orderBy: { lastName: "asc" } }),
     prisma.semester.findMany({ where: semesterWhere, orderBy: { startDate: "desc" } }),
-    prisma.profile.findMany({ where: profileWhere, orderBy: { createdAt: "desc" }, take: 20 }),
+    prisma.profile.findMany({ where: profileWhere, orderBy: { createdAt: "desc" } }),
     prisma.activityLog.findMany({ where: logWhere, orderBy: { createdAt: "desc" }, take: 20 }),
     prisma.course.findMany({
       where: isSuperAdmin ? {} : { department: { faculty: { universityId } } },
@@ -91,6 +92,13 @@ export default async function AdminPage() {
     createdAt: ticket.createdAt.toISOString(),
     requester: ticket.requester,
     assignedTo: ticket.assignedTo
+  }));
+  const userPayload: UserLifecycleItem[] = profiles.map((item) => ({
+    id: item.id,
+    displayName: item.displayName,
+    email: item.email,
+    role: item.role,
+    isActive: item.isActive
   }));
 
   return (
@@ -128,6 +136,9 @@ export default async function AdminPage() {
           </SectionPanel>
           <SectionPanel title="Recent IT requests" description="Latest support tickets for this university.">
             <SupportTicketList tickets={ticketPayload} canManage />
+          </SectionPanel>
+          <SectionPanel title="User lifecycle" description="Activate or deactivate university accounts." className="xl:col-span-2">
+            <UserLifecyclePanel users={userPayload} />
           </SectionPanel>
         </section>
       ) : null}

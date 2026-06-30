@@ -44,7 +44,7 @@ export function AdminSetupPanel({ role, scopeLabel, universities, faculties, dep
       <section className="rounded-card bg-white p-5 shadow-card">
         <h2 className="font-display text-xl font-bold">University administration</h2>
         <p className="mt-2 max-w-2xl text-sm text-muted">
-          Leadership access is scoped to {scopeLabel}. Operational setup actions are handled by QA and department administrators.
+          Leadership access is scoped to {scopeLabel}. Operational setup actions are handled by IT.
         </p>
       </section>
     );

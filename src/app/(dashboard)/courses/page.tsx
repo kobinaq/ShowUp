@@ -13,6 +13,7 @@ export default async function CoursesPage() {
     ? await prisma.profile.findUnique({ where: { supabaseUid: data.user.id }, select: { role: true, universityId: true, departmentId: true } })
     : null;
   const isSuperAdmin = profile?.role === Role.SUPER_ADMIN;
+  const canManageSetup = profile?.role === Role.SUPER_ADMIN || profile?.role === Role.IT;
   const isDepartmentScope = profile?.role === Role.HOD || profile?.role === Role.HOD_ASSISTANT;
   const courses = await prisma.course.findMany({
     where: isSuperAdmin
@@ -40,7 +41,7 @@ export default async function CoursesPage() {
         title="Courses"
         eyebrow="Academic records"
         description="Review course schedules, lecturers, outline coverage, and report history."
-        actions={<Link href="/admin" className="rounded-lg bg-accent px-4 py-2 text-sm font-semibold text-navy">Manage setup</Link>}
+        actions={canManageSetup ? <Link href="/admin" className="rounded-lg bg-accent px-4 py-2 text-sm font-semibold text-navy">Manage setup</Link> : null}
       />
       <SectionPanel title="Course catalog" description={`${courses.length} courses in your current scope.`}>
         <CourseDirectory courses={directoryItems} />

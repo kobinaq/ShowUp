@@ -179,7 +179,11 @@ export const POST = withAuth(async (request, { profile }): Promise<Response> => 
       departmentId = department.id;
     }
     const password = generatePassword();
-    const supabaseUid = await createAuthUser(data.email, password);
+    const supabaseUid = await createAuthUser(data.email, password).catch((error) => {
+      console.error(error);
+      return null;
+    });
+    if (!supabaseUid) return json({ error: "Staff auth account could not be created. Check Supabase admin credentials." }, { status: 503 });
     const created = await prisma.profile.create({
       data: {
         supabaseUid,
