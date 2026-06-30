@@ -41,6 +41,10 @@ export default async function CourseDetailPage({ params }: { params: Promise<{ i
   const coverage = await coverageService.calculate(course.id);
   const presentReports = course.reports.filter((report) => report.lecturerPresent !== "ABSENT").length;
   const attendanceRate = course.reports.length ? Math.round((presentReports / course.reports.length) * 100) : 0;
+  const studentCountReports = course.classSize ? course.reports.filter((report) => typeof report.studentCount === "number") : [];
+  const studentAttendanceRate = course.classSize && studentCountReports.length
+    ? Math.round((studentCountReports.reduce((sum, report) => sum + (report.studentCount ?? 0), 0) / (studentCountReports.length * course.classSize)) * 100)
+    : null;
   const activeRep = course.repAssignments.find((item) => item.isActive);
 
   return (
@@ -54,6 +58,7 @@ export default async function CourseDetailPage({ params }: { params: Promise<{ i
       <section className="grid gap-4 md:grid-cols-2 xl:grid-cols-4">
         <MetricCard label="Reports" value={course.reports.length} helper="Submitted sessions" tone="blue" />
         <MetricCard label="Attendance" value={`${attendanceRate}%`} helper="Non-absence reports" tone={attendanceRate >= 85 ? "green" : attendanceRate >= 70 ? "amber" : "red"} />
+        <MetricCard label="Student attendance" value={studentAttendanceRate === null ? "-" : `${studentAttendanceRate}%`} helper={course.classSize ? `Against class size of ${course.classSize}` : "Class size not set"} tone={studentAttendanceRate === null ? "grey" : studentAttendanceRate >= 80 ? "green" : studentAttendanceRate >= 60 ? "amber" : "red"} />
         <MetricCard label="Coverage" value={`${coverage.coveragePercent}%`} helper={coverage.pacingStatus} tone={coverage.pacingStatus === "Behind" ? "amber" : "green"} />
         <MetricCard label="Late pings" value={course.latePings.length} helper="Alerts sent for this course" tone={course.latePings.length ? "amber" : "green"} />
       </section>
@@ -70,6 +75,7 @@ export default async function CourseDetailPage({ params }: { params: Promise<{ i
             <Detail label="Department" value={course.department.name} />
             <Detail label="Lecturer" value={`${course.lecturer.firstName} ${course.lecturer.lastName}`} />
             <Detail label="Credit hours" value={course.creditHours.toString()} />
+            <Detail label="Class size" value={course.classSize?.toString() ?? "Not set"} />
             <Detail label="Topics uploaded" value={(course.outline?.topics.length ?? 0).toString()} />
           </div>
         </SectionPanel>

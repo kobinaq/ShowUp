@@ -13,6 +13,7 @@ export type CourseDirectoryItem = {
   department: string;
   lecturer: { id: string; name: string };
   schedule: string;
+  classSize: number | null;
   topicCount: number;
 };
 
@@ -114,11 +115,12 @@ export function CourseDirectory({ courses }: { courses: CourseDirectoryItem[] })
       </div>
 
       <div className="overflow-hidden rounded-lg border border-slate-200">
-        <div className="grid grid-cols-[0.7fr_minmax(0,1.5fr)_minmax(0,1fr)_minmax(0,1fr)_0.6fr] bg-slate-50 px-4 py-3 text-sm font-bold text-muted max-lg:hidden">
+        <div className="grid grid-cols-[0.7fr_minmax(0,1.5fr)_minmax(0,1fr)_minmax(0,1fr)_0.6fr_0.6fr] bg-slate-50 px-4 py-3 text-sm font-bold text-muted max-lg:hidden">
           <span>Code</span>
           <span>Course</span>
           <span>Department</span>
           <span>Lecturer</span>
+          <span>Class size</span>
           <span>Topics</span>
         </div>
         <div className="divide-y divide-slate-100">
@@ -126,7 +128,7 @@ export function CourseDirectory({ courses }: { courses: CourseDirectoryItem[] })
             <Link
               key={course.id}
               href={course.href}
-              className="grid gap-3 px-4 py-4 text-sm transition duration-200 hover:bg-accent/5 focus:bg-accent/5 lg:grid-cols-[0.7fr_minmax(0,1.5fr)_minmax(0,1fr)_minmax(0,1fr)_0.6fr]"
+              className="grid gap-3 px-4 py-4 text-sm transition duration-200 hover:bg-accent/5 focus:bg-accent/5 lg:grid-cols-[0.7fr_minmax(0,1.5fr)_minmax(0,1fr)_minmax(0,1fr)_0.6fr_0.6fr]"
               style={{ animationDelay: `${Math.min(index, 8) * 24}ms` }}
             >
               <span className="animate-[showup-row-in_220ms_ease-out_both] font-mono font-semibold text-navy">{course.code}</span>
@@ -136,6 +138,7 @@ export function CourseDirectory({ courses }: { courses: CourseDirectoryItem[] })
               </span>
               <span className="animate-[showup-row-in_220ms_ease-out_both] text-slate-700">{course.department}</span>
               <span className="animate-[showup-row-in_220ms_ease-out_both] text-slate-700">{course.lecturer.name}</span>
+              <span className="animate-[showup-row-in_220ms_ease-out_both] font-mono font-semibold text-slate-700">{course.classSize ?? "-"}</span>
               <span className="animate-[showup-row-in_220ms_ease-out_both] font-mono font-semibold text-slate-700">{course.topicCount}</span>
             </Link>
           ))}

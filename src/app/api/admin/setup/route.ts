@@ -44,6 +44,7 @@ const payloadSchema = z.discriminatedUnion("type", [
     semesterId: z.string().min(3),
     lecturerId: z.string().min(3),
     creditHours: z.coerce.number().int().min(1).max(6),
+    classSize: z.coerce.number().int().min(1).max(2000),
     dayOfWeek: z.coerce.number().int().min(0).max(6),
     startTime: z.string().regex(/^\d{2}:\d{2}$/),
     endTime: z.string().regex(/^\d{2}:\d{2}$/),
@@ -136,6 +137,7 @@ export const POST = withAuth(async (request, { profile }): Promise<Response> => 
         semesterId: semester.id,
         lecturerId: lecturer.id,
         creditHours: data.creditHours,
+        classSize: data.classSize,
         schedule: {
           create: {
             dayOfWeek: data.dayOfWeek,

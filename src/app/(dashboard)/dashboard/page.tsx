@@ -8,6 +8,7 @@ import { MetricCard, SectionPanel } from "@/components/shared/Panels";
 import { StatusBadge } from "@/components/shared/StatusBadge";
 import { EmptyState } from "@/components/shared/EmptyState";
 import { ReportTable } from "@/components/reports/ReportTable";
+import { DashboardPeriodSelect } from "@/components/dashboard/DashboardPeriodSelect";
 import { displayText } from "@/lib/utils/displayText";
 
 type DashboardPeriod = "week" | "month" | "semester" | "year";
@@ -116,22 +117,7 @@ export default async function DashboardPage({ searchParams }: { searchParams?: P
           ))}
         </nav>
         <div className="flex flex-wrap items-center gap-2">
-          <div className="flex rounded-md border border-slate-200 bg-white p-1">
-            {[
-              ["week", "Week"],
-              ["month", "Month"],
-              ["semester", "Semester"],
-              ["year", "Academic year"]
-            ].map(([value, label]) => (
-              <Link
-                key={value}
-                href={`/dashboard?period=${value}`}
-                className={`rounded px-2.5 py-1.5 text-sm font-semibold transition ${period === value ? "bg-primary text-primary-foreground" : "text-muted hover:bg-accent hover:text-navy"}`}
-              >
-                {label}
-              </Link>
-            ))}
-          </div>
+          <DashboardPeriodSelect value={period} />
           <Link href="/analytics" className="inline-flex min-h-10 items-center justify-center gap-2 rounded-md border border-slate-200 bg-white px-3 text-sm font-semibold text-navy transition hover:border-primary">
             Open analytics <ArrowRight className="h-4 w-4" aria-hidden />
           </Link>

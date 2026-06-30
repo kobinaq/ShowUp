@@ -14,6 +14,7 @@ export const createCourseSchema = z.object({
   semesterId: z.string().min(8),
   lecturerId: z.string().min(8),
   creditHours: z.number().int().min(1).max(6),
+  classSize: z.number().int().min(1).max(2000).optional(),
   schedule: scheduleSchema.array().min(1)
 });
 

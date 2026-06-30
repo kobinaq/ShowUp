@@ -2,6 +2,7 @@ import Link from "next/link";
 import { Role } from "@prisma/client";
 import { prisma } from "@/lib/prisma";
 import { SimpleBarChart } from "@/components/charts/SimpleBarChart";
+import { SimpleLineChart } from "@/components/charts/SimpleLineChart";
 import { createClient } from "@/lib/supabase/server";
 import { coverageService } from "@/lib/services/coverage.service";
 import { displayText } from "@/lib/utils/displayText";
@@ -57,12 +58,15 @@ export default async function AnalyticsPage() {
   const unresolvedFlags = flags.filter((flag) => !flag.isResolved).length;
   const openContests = contests.filter((contest) => contest.status === "PENDING").length;
   const acknowledgedPings = pings.filter((ping) => ping.acknowledgedAt).length;
+  const studentAttendance = buildStudentAttendance(courses);
 
   const coverage = await Promise.all(courses.map(async (course) => ({ course, ...(await coverageService.calculate(course.id)) })));
   const averageCoverage = coverage.length ? Math.round(coverage.reduce((sum, item) => sum + item.coveragePercent, 0) / coverage.length) : 0;
   const attendanceRate = reports.length ? Math.round((present / reports.length) * 100) : 0;
   const pingAcknowledgementRate = pings.length ? Math.round((acknowledgedPings / pings.length) * 100) : 0;
   const attendanceChart = buildAttendanceChart(courses, isSuperAdmin, isDepartmentScope);
+  const studentAttendanceChart = studentAttendance.byCourse.slice(0, 12);
+  const studentAttendanceTrend = buildStudentAttendanceTrend(reports);
   const flagChart = Object.entries(groupByCount(flags, (flag) => displayText(flag.type))).map(([name, count]) => ({ name, count }));
   const coverageChart = Object.entries(groupByCount(coverage, (item) => item.pacingStatus)).map(([name, count]) => ({ name, count }));
   const topFlaggedLecturers = Object.entries(groupByCount(flags, (flag) => `${flag.report.course.lecturer.firstName} ${flag.report.course.lecturer.lastName}`))
@@ -87,6 +91,7 @@ export default async function AnalyticsPage() {
         <MetricCard label="Open flags" value={unresolvedFlags} helper={`${flags.length} total flags`} tone={unresolvedFlags ? "amber" : "green"} />
         <MetricCard label="Open contests" value={openContests} helper="Pending challenge reviews" tone={openContests ? "red" : "green"} />
         <MetricCard label="Ping acknowledgement" value={`${pingAcknowledgementRate}%`} helper={`${acknowledgedPings}/${pings.length} late pings acknowledged`} tone={pingAcknowledgementRate >= 80 ? "green" : pings.length ? "amber" : "grey"} />
+        <MetricCard label="Student attendance" value={studentAttendance.rate === null ? "-" : `${studentAttendance.rate}%`} helper={studentAttendance.ratedReports ? `${studentAttendance.ratedReports} sessions with class size` : "Add class sizes to compare"} tone={studentAttendance.rate === null ? "grey" : studentAttendance.rate >= 80 ? "green" : studentAttendance.rate >= 60 ? "amber" : "red"} />
         <MetricCard label="Courses" value={courses.length} helper="Course records in scope" tone="grey" />
       </section>
       <section className="grid gap-4 xl:grid-cols-3">
@@ -98,6 +103,14 @@ export default async function AnalyticsPage() {
         </ChartPanel>
         <ChartPanel title="Coverage status" note="Behind courses should be reviewed first.">
           <SimpleBarChart data={coverageChart} dataKey="count" color="var(--chart-5)" />
+        </ChartPanel>
+      </section>
+      <section className="grid gap-4 xl:grid-cols-2">
+        <ChartPanel title="Student attendance by course" note="Reporter headcounts compared with HOD-entered class sizes.">
+          <SimpleBarChart data={studentAttendanceChart} dataKey="attendance" color="var(--chart-1)" />
+        </ChartPanel>
+        <ChartPanel title="Student attendance trend" note="Average reported student attendance across recent sessions.">
+          <SimpleLineChart data={studentAttendanceTrend} dataKey="attendance" yAxisLabel="Attendance %" />
         </ChartPanel>
       </section>
       <section className="grid gap-4 xl:grid-cols-3">
@@ -116,9 +129,11 @@ export default async function AnalyticsPage() {
 }
 
 type AttendanceCourse = {
+  code: string;
+  classSize: number | null;
   lecturer: { firstName: string; lastName: string };
   department: { name: string; faculty: { name: string } };
-  reports: Array<{ lecturerPresent: string }>;
+  reports: Array<{ lecturerPresent: string; studentCount: number | null; lectureDate: Date }>;
 };
 
 function buildAttendanceChart(courses: AttendanceCourse[], isSuperAdmin: boolean, isDepartmentScope: boolean) {
@@ -135,6 +150,51 @@ function buildAttendanceChart(courses: AttendanceCourse[], isSuperAdmin: boolean
     groups.set(name, current);
   }
   return Array.from(groups.entries()).map(([name, item]) => ({ name, attendance: item.reports ? Math.round((item.present / item.reports) * 100) : 0 }));
+}
+
+function buildStudentAttendance(courses: AttendanceCourse[]) {
+  let attended = 0;
+  let expected = 0;
+  let ratedReports = 0;
+  const byCourse = courses
+    .map((course) => {
+      if (!course.classSize) return null;
+      const countedReports = course.reports.filter((report) => typeof report.studentCount === "number");
+      if (!countedReports.length) return null;
+      const courseAttended = countedReports.reduce((sum, report) => sum + (report.studentCount ?? 0), 0);
+      const courseExpected = countedReports.length * course.classSize;
+      attended += courseAttended;
+      expected += courseExpected;
+      ratedReports += countedReports.length;
+      return {
+        name: course.code,
+        attendance: courseExpected ? Math.round((courseAttended / courseExpected) * 100) : 0
+      };
+    })
+    .filter((item): item is { name: string; attendance: number } => Boolean(item))
+    .sort((a, b) => a.attendance - b.attendance);
+
+  return {
+    rate: expected ? Math.round((attended / expected) * 100) : null,
+    ratedReports,
+    byCourse
+  };
+}
+
+function buildStudentAttendanceTrend(reports: Array<{ lectureDate: Date; studentCount: number | null; course: { classSize: number | null } }>) {
+  const groups = new Map<string, { attended: number; expected: number }>();
+  for (const report of reports) {
+    if (!report.course.classSize || typeof report.studentCount !== "number") continue;
+    const key = report.lectureDate.toLocaleDateString([], { month: "short", day: "numeric" });
+    const current = groups.get(key) ?? { attended: 0, expected: 0 };
+    current.attended += report.studentCount;
+    current.expected += report.course.classSize;
+    groups.set(key, current);
+  }
+  return Array.from(groups.entries()).map(([name, item]) => ({
+    name,
+    attendance: item.expected ? Math.round((item.attended / item.expected) * 100) : 0
+  }));
 }
 
 function groupByCount<T>(items: T[], getKey: (item: T) => string) {

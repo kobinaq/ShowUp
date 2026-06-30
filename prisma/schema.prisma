@@ -146,6 +146,7 @@ model Course {
   latePings      LatePing[]
   repAssignments RepAssignment[]
   creditHours    Int
+  classSize      Int?
   createdAt      DateTime        @default(now())
 
   @@unique([code, semesterId])

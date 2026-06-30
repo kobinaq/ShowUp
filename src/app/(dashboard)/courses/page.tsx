@@ -31,6 +31,7 @@ export default async function CoursesPage() {
     department: course.department.name,
     lecturer: { id: course.lecturer.id, name: `${course.lecturer.firstName} ${course.lecturer.lastName}` },
     schedule: course.schedule.map((item) => `${item.startTime}-${item.endTime}`).join(", ") || "No schedule",
+    classSize: course.classSize,
     topicCount: course.outline?.topics.length ?? 0
   }));
   return (

@@ -251,10 +251,11 @@ async function main() {
           semesterId: semester.id,
           lecturerId: lecturer.id,
           creditHours: i === 0 ? 3 : 2,
+          classSize: 55 + ((deptIndex + i) % 5) * 10,
           schedule: {
             create: {
               id: `atu_schedule_${dept.code.toLowerCase()}_${i + 1}`,
-              dayOfWeek: (deptIndex + i) % 5,
+              dayOfWeek: ((deptIndex + i) % 5) + 1,
               startTime: i === 0 ? "08:00" : "13:00",
               endTime: i === 0 ? "10:00" : "15:00",
               venue: `${dept.code} Lab ${i + 1}`
