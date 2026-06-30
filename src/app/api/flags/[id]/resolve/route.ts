@@ -16,4 +16,4 @@ export const PUT = withAuth<Params>(async (request, { params, profile }) => {
   if (!existing) return json({ error: "Not found" }, { status: 404 });
   const flag = await flagService.resolve(id, parsed.data.internalNotes);
   return json({ data: flag });
-}, [Role.SUPER_ADMIN, Role.QA_OFFICER]);
+}, [Role.SUPER_ADMIN, Role.QA_OFFICER, Role.QA_ASSISTANT]);

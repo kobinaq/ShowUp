@@ -27,4 +27,4 @@ export const PUT = withAuth<Params>(async (request, { params, profile }) => {
   });
   await coverageService.recalculateAndFlag(contest.report.courseId);
   return json({ data: contest });
-}, [Role.SUPER_ADMIN, Role.QA_OFFICER]);
+}, [Role.SUPER_ADMIN, Role.QA_OFFICER, Role.QA_ASSISTANT]);

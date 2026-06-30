@@ -17,11 +17,11 @@ export default function RootLayout({ children }: { children: React.ReactNode }) 
             __html: `
               (function () {
                 try {
-                  var stored = localStorage.getItem("showup-theme") || "system";
+                  var stored = localStorage.getItem("showup-theme");
                   var prefersDark = window.matchMedia("(prefers-color-scheme: dark)").matches;
-                  var dark = stored === "dark" || (stored === "system" && prefersDark);
+                  var dark = stored ? stored === "dark" : prefersDark;
                   document.documentElement.classList.toggle("dark", dark);
-                  document.documentElement.dataset.theme = stored;
+                  document.documentElement.dataset.theme = dark ? "dark" : "light";
                 } catch (error) {}
               })();
             `

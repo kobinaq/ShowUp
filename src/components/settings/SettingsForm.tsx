@@ -1,11 +1,13 @@
 "use client";
 
 import { useState } from "react";
+import { useRouter } from "next/navigation";
 import toast from "react-hot-toast";
-import { Bot, CheckCircle2, Clock, Mail, MessageSquare, Settings2 } from "lucide-react";
+import { CheckCircle2, Clock, Settings2 } from "lucide-react";
 import { SectionPanel } from "@/components/shared/Panels";
 
 type SettingsIcon = React.ComponentType<{ className?: string; "aria-hidden"?: boolean }>;
+type NewSemesterState = { name: string; startDate: string; endDate: string; makeActive: boolean };
 
 type SettingsState = {
   latePingThresholdMinutes: number;
@@ -25,23 +27,23 @@ type SettingsState = {
 type Props = {
   initialSettings: SettingsState;
   semesters: Array<{ id: string; name: string }>;
-  providerStatus: {
-    groqConfigured: boolean;
-    arkeselConfigured: boolean;
-    resendConfigured: boolean;
-  };
 };
 
-export function SettingsForm({ initialSettings, semesters, providerStatus }: Props) {
+export function SettingsForm({ initialSettings, semesters }: Props) {
+  const router = useRouter();
   const [settings, setSettings] = useState(initialSettings);
+  const [newSemester, setNewSemester] = useState<NewSemesterState>({ name: "", startDate: "", endDate: "", makeActive: true });
   const [loading, setLoading] = useState(false);
 
   async function save() {
+    const semesterPayload = newSemester.name.trim() || newSemester.startDate || newSemester.endDate
+      ? { newSemester: { ...newSemester, name: newSemester.name.trim() } }
+      : {};
     setLoading(true);
     const response = await fetch("/api/settings", {
       method: "PUT",
       headers: { "content-type": "application/json" },
-      body: JSON.stringify(settings)
+      body: JSON.stringify({ ...settings, ...semesterPayload })
     });
     setLoading(false);
     if (!response.ok) {
@@ -49,7 +51,9 @@ export function SettingsForm({ initialSettings, semesters, providerStatus }: Pro
       toast.error(body.error ?? "Could not save settings");
       return;
     }
+    setNewSemester({ name: "", startDate: "", endDate: "", makeActive: true });
     toast.success("Settings saved");
+    router.refresh();
   }
 
   function update<K extends keyof SettingsState>(key: K, value: SettingsState[K]) {
@@ -89,6 +93,18 @@ export function SettingsForm({ initialSettings, semesters, providerStatus }: Pro
             </select>
             <span className="block text-xs font-normal leading-5 text-muted">Only one semester can be active for a university.</span>
           </label>
+          <div className="space-y-3 rounded-lg border border-slate-200 bg-slate-50 p-4 lg:col-span-2">
+            <p className="text-sm font-bold text-navy">Add semester</p>
+            <div className="grid gap-3 md:grid-cols-3">
+              <input value={newSemester.name} onChange={(event) => setNewSemester((current) => ({ ...current, name: event.target.value }))} placeholder="2026/2027 Second Semester" className="h-11 rounded-lg border border-slate-200 bg-white px-3 text-sm text-slate-700" />
+              <input type="date" value={newSemester.startDate} onChange={(event) => setNewSemester((current) => ({ ...current, startDate: event.target.value }))} className="h-11 rounded-lg border border-slate-200 bg-white px-3 text-sm text-slate-700" />
+              <input type="date" value={newSemester.endDate} onChange={(event) => setNewSemester((current) => ({ ...current, endDate: event.target.value }))} className="h-11 rounded-lg border border-slate-200 bg-white px-3 text-sm text-slate-700" />
+            </div>
+            <label className="flex items-center gap-2 text-sm font-semibold text-navy">
+              <input type="checkbox" checked={newSemester.makeActive} onChange={(event) => setNewSemester((current) => ({ ...current, makeActive: event.target.checked }))} />
+              Set as active semester when saved
+            </label>
+          </div>
           <ReadOnlySetting icon={CheckCircle2} title="Absent report shortcut" description="Enabled. Reporters can submit an absence without teaching details." />
           <ReadOnlySetting icon={Clock} title="Duplicate report policy" description="One report is allowed per schedule and class date." />
         </div>
@@ -138,14 +154,7 @@ export function SettingsForm({ initialSettings, semesters, providerStatus }: Pro
       </SectionPanel>
 
       <SectionPanel title="ShowUp AI" description="Control database-only assistant access for this university.">
-        <div className="grid gap-4 lg:grid-cols-2">
-          <Toggle label="Enable ShowUp AI" checked={settings.showUpAiEnabled} onChange={(value) => update("showUpAiEnabled", value)} />
-          <div className="grid gap-2 text-sm">
-            <ProviderRow icon={Bot} label="Groq" configured={providerStatus.groqConfigured} />
-            <ProviderRow icon={MessageSquare} label="Arkesel SMS" configured={providerStatus.arkeselConfigured} />
-            <ProviderRow icon={Mail} label="Resend email" configured={providerStatus.resendConfigured} />
-          </div>
-        </div>
+        <Toggle label="Enable ShowUp AI" checked={settings.showUpAiEnabled} onChange={(value) => update("showUpAiEnabled", value)} />
       </SectionPanel>
 
       <div className="sticky bottom-20 z-10 flex justify-end md:bottom-4">
@@ -225,20 +234,6 @@ function ReadOnlySetting({ icon: Icon, title, description }: { icon: SettingsIco
         <p className="text-sm font-bold text-navy">{title}</p>
         <p className="mt-1 text-sm leading-6 text-muted">{description}</p>
       </div>
-    </div>
-  );
-}
-
-function ProviderRow({ icon: Icon, label, configured }: { icon: SettingsIcon; label: string; configured: boolean }) {
-  return (
-    <div className="flex items-center justify-between rounded-lg border border-slate-200 bg-white px-3 py-2">
-      <span className="flex items-center gap-2 font-semibold text-navy">
-        <Icon className="h-4 w-4 text-primary" aria-hidden />
-        {label}
-      </span>
-      <span className={`rounded-full px-2 py-1 text-xs font-bold ${configured ? "bg-emerald-50 text-emerald-700" : "bg-amber-50 text-amber-700"}`}>
-        {configured ? "Configured" : "Missing"}
-      </span>
     </div>
   );
 }

@@ -112,6 +112,9 @@ Only if the question is clearly unrelated to ShowUp data, such as "what time wil
 }
 
 export async function formatAnswer(question: string, data: object): Promise<string> {
+  const emptyAnswer = answerEmptyResult(question, data);
+  if (emptyAnswer) return emptyAnswer;
+
   let dataString = JSON.stringify(data, null, 2);
   const estimatedTokens = estimateTokens(dataString) + estimateTokens(question) + 200;
   if (estimatedTokens > 6000) {
@@ -129,6 +132,7 @@ export async function formatAnswer(question: string, data: object): Promise<stri
         content: `You are the ShowUp analytics assistant for a university quality assurance platform.
 You will receive a user's question and the relevant data fetched from the ShowUp database.
 Write a clear, concise, plain-English answer in 1-4 sentences.
+Return only the final answer for the user. Do not include reasoning, analysis, chain-of-thought, markdown headings, tags, or notes.
 Use specific names, numbers, and percentages from the data.
 Do not mention databases, APIs, JSON, or any technical terms.
 If the data is empty, say so clearly and suggest why (e.g. "No absences recorded this semester yet.").`
@@ -137,11 +141,39 @@ If the data is empty, say so clearly and suggest why (e.g. "No absences recorded
     ]
   });
 
-  return answer || "I could not generate an answer from the available data. Please try rephrasing your question.";
+  return cleanFinalAnswer(answer) || "I could not generate an answer from the available data. Please try rephrasing your question.";
 }
 
 function cleanJson(text: string) {
   return text.replace(/```json|```/g, "").trim();
+}
+
+function cleanFinalAnswer(text: string) {
+  return text
+    .replace(/<think>[\s\S]*?<\/think>/gi, "")
+    .replace(/<think>[\s\S]*/gi, "")
+    .replace(/^\s*(Here's a thinking process:|Thinking process:|Analysis:)[\s\S]*?(Final answer:|Answer:)/i, "")
+    .replace(/^\s*(Final answer:|Answer:)\s*/i, "")
+    .trim();
+}
+
+function answerEmptyResult(question: string, data: object) {
+  const emptyArray = Array.isArray(data) && data.length === 0;
+  const emptyObject = !Array.isArray(data) && Object.keys(data).length === 0;
+  if (!emptyArray && !emptyObject) return null;
+
+  const normalized = question.toLowerCase();
+  const threshold = normalized.match(/more than\s+(\d+)|over\s+(\d+)|above\s+(\d+)/)?.slice(1).find(Boolean);
+  if (/\blate\b|\blateness\b/.test(normalized)) {
+    return `No lecturer has been recorded late more than ${threshold ?? "the requested number of"} times in your current scope.`;
+  }
+  if (/\babsent\b|\babsence\b|\bmissed\b/.test(normalized)) {
+    return `No lecturer has been recorded absent more than ${threshold ?? "the requested number of"} times in your current scope.`;
+  }
+  if (/\bbehind\b|\bcoverage\b|\boutline\b|\btopics?\b/.test(normalized)) {
+    return "No course currently matches that coverage question in your current scope.";
+  }
+  return "No matching records were found in your current scope.";
 }
 
 function parseCommonQuestion(question: string): QueryPlan | null {

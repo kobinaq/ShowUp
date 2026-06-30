@@ -18,7 +18,7 @@ export const createStaffSchema = z.object({
   email: z.string().email(),
   password: z.string().min(10),
   displayName: z.string().min(2),
-  role: z.enum(["VC", "QA_OFFICER", "HOD", "HOD_ASSISTANT", "SUPER_ADMIN"]),
+  role: z.enum(["VC", "QA_OFFICER", "QA_ASSISTANT", "HOD", "HOD_ASSISTANT", "SUPER_ADMIN"]),
   universityId: z.string().min(8),
   departmentId: z.string().min(8).optional()
 });

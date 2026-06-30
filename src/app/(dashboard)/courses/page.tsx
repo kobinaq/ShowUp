@@ -4,16 +4,7 @@ import { prisma } from "@/lib/prisma";
 import { createClient } from "@/lib/supabase/server";
 import { PageHeader } from "@/components/shared/PageHeader";
 import { SectionPanel } from "@/components/shared/Panels";
-import { DataTable, type DataTableColumn, type DataTableRow } from "@/components/shared/DataTable";
-
-const columns: DataTableColumn[] = [
-  { key: "code", label: "Code", mono: true },
-  { key: "title", label: "Course" },
-  { key: "department", label: "Department" },
-  { key: "lecturer", label: "Lecturer" },
-  { key: "schedule", label: "Schedule" },
-  { key: "topics", label: "Topics" }
-];
+import { CourseDirectory, type CourseDirectoryItem } from "@/components/courses/CourseDirectory";
 
 export default async function CoursesPage() {
   const supabase = await createClient();
@@ -32,21 +23,16 @@ export default async function CoursesPage() {
     include: { lecturer: true, department: true, schedule: true, outline: { include: { topics: true } } },
     orderBy: { code: "asc" }
   });
-  const rows: DataTableRow[] = courses.map((course) => ({
+  const directoryItems: CourseDirectoryItem[] = courses.map((course) => ({
     id: course.id,
     href: `/courses/${course.id}`,
-    searchText: `${course.code} ${course.title} ${course.department.name} ${course.lecturer.firstName} ${course.lecturer.lastName}`,
-    filters: [course.department.name],
-    cells: {
-      code: course.code,
-      title: course.title,
-      department: course.department.name,
-      lecturer: `${course.lecturer.firstName} ${course.lecturer.lastName}`,
-      schedule: course.schedule.map((item) => `${item.startTime}-${item.endTime}`).join(", ") || "-",
-      topics: course.outline?.topics.length ?? 0
-    }
+    code: course.code,
+    title: course.title,
+    department: course.department.name,
+    lecturer: { id: course.lecturer.id, name: `${course.lecturer.firstName} ${course.lecturer.lastName}` },
+    schedule: course.schedule.map((item) => `${item.startTime}-${item.endTime}`).join(", ") || "No schedule",
+    topicCount: course.outline?.topics.length ?? 0
   }));
-  const departments = Array.from(new Set(courses.map((course) => course.department.name))).map((name) => ({ label: name, value: name }));
   return (
     <div className="space-y-6">
       <PageHeader
@@ -56,7 +42,7 @@ export default async function CoursesPage() {
         actions={<Link href="/admin" className="rounded-lg bg-accent px-4 py-2 text-sm font-semibold text-navy">Manage setup</Link>}
       />
       <SectionPanel title="Course catalog" description={`${courses.length} courses in your current scope.`}>
-        <DataTable columns={columns} rows={rows} filters={departments} searchPlaceholder="Search courses, lecturers, departments..." emptyTitle="No courses match this view." />
+        <CourseDirectory courses={directoryItems} />
       </SectionPanel>
     </div>
   );

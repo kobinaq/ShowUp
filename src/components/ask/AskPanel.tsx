@@ -1,7 +1,9 @@
 "use client";
 
 import { useState } from "react";
+import { usePathname } from "next/navigation";
 import { Bot, Loader2, MessageSquare, Send, Sparkles, X } from "lucide-react";
+import { cn } from "@/lib/utils/cn";
 
 type Message = {
   q: string;
@@ -17,11 +19,13 @@ const exampleQuestions = [
 ];
 
 export function AskPanel({ universityName }: { universityName?: string | null }) {
+  const pathname = usePathname();
   const [isOpen, setIsOpen] = useState(false);
   const [question, setQuestion] = useState("");
   const [messages, setMessages] = useState<Message[]>([]);
   const [loading, setLoading] = useState(false);
   const databaseLabel = universityName ? `${universityName}'s database` : "your selected university database";
+  const isSettingsPage = pathname.startsWith("/settings");
 
   async function handleSubmit() {
     if (!question.trim() || loading) return;
@@ -58,7 +62,10 @@ export function AskPanel({ universityName }: { universityName?: string | null })
       <button
         type="button"
         onClick={() => setIsOpen(true)}
-        className="fixed bottom-24 right-5 z-40 flex h-14 w-14 items-center justify-center rounded-full bg-navy text-white shadow-2xl shadow-navy/20 transition duration-200 hover:-translate-y-1 hover:scale-105 hover:bg-navy/90 focus:outline-none focus:ring-4 focus:ring-accent/30 md:bottom-6 md:right-6"
+        className={cn(
+          "fixed right-5 z-40 flex h-14 w-14 items-center justify-center rounded-full bg-navy text-white shadow-2xl shadow-navy/20 transition duration-200 hover:-translate-y-1 hover:scale-105 hover:bg-navy/90 focus:outline-none focus:ring-4 focus:ring-accent/30 md:right-6",
+          isSettingsPage ? "bottom-40 md:bottom-24" : "bottom-24 md:bottom-6"
+        )}
         aria-label="Open ShowUp AI"
         title="ShowUp AI"
       >
@@ -73,7 +80,10 @@ export function AskPanel({ universityName }: { universityName?: string | null })
             aria-label="Close ShowUp AI"
             onClick={() => setIsOpen(false)}
           />
-          <aside className="absolute bottom-24 right-3 flex h-[80vh] max-h-[760px] w-[calc(100%-1.5rem)] max-w-[460px] animate-[showup-panel-in_180ms_ease-out] flex-col rounded-2xl border border-slate-200 bg-white shadow-2xl md:bottom-6 md:right-6">
+          <aside className={cn(
+            "absolute right-3 flex h-[80vh] max-h-[760px] w-[calc(100%-1.5rem)] max-w-[460px] animate-[showup-panel-in_180ms_ease-out] flex-col rounded-2xl border border-slate-200 bg-white shadow-2xl md:right-6",
+            isSettingsPage ? "bottom-40 md:bottom-24" : "bottom-24 md:bottom-6"
+          )}>
             <span className="absolute -top-7 right-6 flex h-14 w-14 items-center justify-center rounded-full border-4 border-white bg-navy text-white shadow-xl shadow-navy/20">
               <Bot className="h-6 w-6" aria-hidden />
             </span>

@@ -1,60 +1,48 @@
 "use client";
 
-import { Monitor, Moon, Sun } from "lucide-react";
+import { Moon, Sun } from "lucide-react";
 import { useEffect, useState } from "react";
-import { cn } from "@/lib/utils/cn";
-
-type ThemePreference = "system" | "light" | "dark";
-
-const modes: Array<{ value: ThemePreference; label: string; Icon: typeof Monitor }> = [
-  { value: "system", label: "System theme", Icon: Monitor },
-  { value: "light", label: "Light theme", Icon: Sun },
-  { value: "dark", label: "Dark theme", Icon: Moon }
-];
 
 export function ThemeToggle() {
-  const [theme, setTheme] = useState<ThemePreference>(() => {
-    if (typeof window === "undefined") return "system";
-    const stored = window.localStorage.getItem("showup-theme") as ThemePreference | null;
-    return stored === "light" || stored === "dark" || stored === "system" ? stored : "system";
+  const [hasManualChoice, setHasManualChoice] = useState(() => {
+    if (typeof window === "undefined") return false;
+    return Boolean(window.localStorage.getItem("showup-theme"));
+  });
+  const [isDark, setIsDark] = useState(() => {
+    if (typeof window === "undefined") return false;
+    const stored = window.localStorage.getItem("showup-theme");
+    return stored ? stored === "dark" : window.matchMedia("(prefers-color-scheme: dark)").matches;
   });
 
   useEffect(() => {
     const media = window.matchMedia("(prefers-color-scheme: dark)");
-
-    function apply(preference: ThemePreference) {
-      const dark = preference === "dark" || (preference === "system" && media.matches);
-      document.documentElement.classList.toggle("dark", dark);
-      document.documentElement.dataset.theme = preference;
-    }
-
-    apply(theme);
-    window.localStorage.setItem("showup-theme", theme);
-
     const listener = () => {
-      if (theme === "system") apply("system");
+      if (!hasManualChoice) setIsDark(media.matches);
     };
     media.addEventListener("change", listener);
     return () => media.removeEventListener("change", listener);
-  }, [theme]);
+  }, [hasManualChoice]);
+
+  useEffect(() => {
+    document.documentElement.classList.toggle("dark", isDark);
+    document.documentElement.dataset.theme = isDark ? "dark" : "light";
+    if (hasManualChoice) window.localStorage.setItem("showup-theme", isDark ? "dark" : "light");
+  }, [hasManualChoice, isDark]);
+
+  function toggleTheme() {
+    setHasManualChoice(true);
+    setIsDark((value) => !value);
+  }
 
   return (
-    <div className="flex items-center rounded-lg border border-slate-200 bg-white/80 p-1 shadow-sm" aria-label="Theme preference">
-      {modes.map(({ value, label, Icon }) => (
-        <button
-          key={value}
-          type="button"
-          onClick={() => setTheme(value)}
-          aria-label={label}
-          title={label}
-          className={cn(
-            "flex h-8 w-8 items-center justify-center rounded-md text-muted transition hover:bg-accent hover:text-navy",
-            theme === value ? "bg-primary text-primary-foreground shadow-sm" : ""
-          )}
-        >
-          <Icon className="h-4 w-4" aria-hidden />
-        </button>
-      ))}
-    </div>
+    <button
+      type="button"
+      onClick={toggleTheme}
+      className="flex h-10 w-10 items-center justify-center rounded-lg border border-slate-200 bg-white/80 text-muted shadow-sm transition hover:bg-accent hover:text-navy"
+      aria-label={isDark ? "Switch to light mode" : "Switch to dark mode"}
+      title={isDark ? "Switch to light mode" : "Switch to dark mode"}
+    >
+      {isDark ? <Sun className="h-4 w-4" aria-hidden /> : <Moon className="h-4 w-4" aria-hidden />}
+    </button>
   );
 }

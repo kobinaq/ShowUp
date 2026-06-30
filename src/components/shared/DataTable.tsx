@@ -2,9 +2,10 @@
 
 import { useMemo, useState } from "react";
 import Link from "next/link";
-import { ArrowDownUp, Download, Search } from "lucide-react";
+import { ArrowDownUp, Download, Search, SlidersHorizontal } from "lucide-react";
 import { StatusBadge } from "@/components/shared/StatusBadge";
 import { cn } from "@/lib/utils/cn";
+import { displayText } from "@/lib/utils/displayText";
 
 type Tone = "green" | "red" | "amber" | "blue" | "grey";
 
@@ -99,8 +100,14 @@ export function DataTable({
               {filter.label}
             </button>
           ))}
-          <button type="button" onClick={() => setDense((value) => !value)} className="min-h-10 rounded-lg border border-slate-200 bg-white px-3 text-sm font-semibold text-slate-600 hover:border-slate-300">
-            {dense ? "Comfortable" : "Compact"}
+          <button
+            type="button"
+            onClick={() => setDense((value) => !value)}
+            className="flex h-10 w-10 items-center justify-center rounded-lg border border-slate-200 bg-white text-slate-600 hover:border-slate-300"
+            aria-label={dense ? "Use comfortable table density" : "Use compact table density"}
+            title={dense ? "Comfortable density" : "Compact density"}
+          >
+            <SlidersHorizontal className="h-4 w-4" aria-hidden />
           </button>
           {exportHref ? (
             <Link href={exportHref} className="inline-flex min-h-10 items-center gap-2 rounded-lg bg-accent px-3 text-sm font-semibold text-navy">
@@ -129,7 +136,7 @@ export function DataTable({
               <tr key={row.id} className="group hover:bg-accent/10 focus-within:bg-accent/10">
                 {columns.map((column) => {
                   const value = String(row.cells[column.key] ?? "-");
-                  const content = column.badge?.[value] ? <StatusBadge tone={column.badge[value]}>{value}</StatusBadge> : value;
+                  const content = column.badge?.[value] ? <StatusBadge tone={column.badge[value]}>{value}</StatusBadge> : displayText(value);
                   return (
                     <td key={column.key} className={cn(dense ? "px-3 py-2" : "px-3 py-3", column.mono ? "font-mono" : "")}>
                       {row.href ? <Link href={row.href} className="block min-h-8 outline-none">{content}</Link> : content}

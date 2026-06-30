@@ -36,7 +36,7 @@ const groups: Array<{
     label: "Setup",
     items: [
       { href: "/admin", label: "Admin", icon: Users },
-      { href: "/settings", label: "Settings", icon: Settings, roles: ["QA_OFFICER"] as Role[] }
+      { href: "/settings", label: "Settings", icon: Settings, roles: ["QA_OFFICER", "QA_ASSISTANT"] as Role[] }
     ]
   }
 ];
@@ -46,13 +46,13 @@ export function Sidebar({ children, role }: { children?: React.ReactNode; role?:
   return (
     <aside className="hidden h-screen w-72 shrink-0 overflow-y-auto border-r border-slate-200 bg-white md:block">
       <div className="border-b border-slate-100 px-6 py-5">
-        <div className="flex items-center gap-3">
+        <Link href="/dashboard" className="flex items-center gap-3 rounded-lg transition hover:opacity-85" aria-label="Open Command Center">
           <div className="flex h-10 w-10 items-center justify-center rounded-lg bg-navy font-display text-lg font-bold text-white">S</div>
           <div>
             <p className="font-display text-xl font-bold text-navy">ShowUp</p>
             <p className="text-xs font-medium text-muted">Quality assurance</p>
           </div>
-        </div>
+        </Link>
       </div>
       <nav className="space-y-6 px-4 py-5">
         {groups.map((group) => {

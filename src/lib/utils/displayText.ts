@@ -11,5 +11,13 @@ const replacements: Array<[RegExp, string]> = [
 
 export function displayText(value: string | null | undefined) {
   if (!value) return "";
-  return replacements.reduce((text, [pattern, replacement]) => text.replace(pattern, replacement), value);
+  const cleaned = replacements.reduce((text, [pattern, replacement]) => text.replace(pattern, replacement), value);
+  if (/^[A-Z0-9_]+$/.test(cleaned)) {
+    return cleaned
+      .toLowerCase()
+      .split("_")
+      .map((part, index) => index === 0 ? part.charAt(0).toUpperCase() + part.slice(1) : part)
+      .join(" ");
+  }
+  return cleaned;
 }

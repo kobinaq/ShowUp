@@ -14,7 +14,7 @@ export function isDepartmentRole(role: Role) {
 }
 
 export function isUniversityRole(role: Role) {
-  return role === Role.VC || role === Role.QA_OFFICER;
+  return role === Role.VC || role === Role.QA_OFFICER || role === Role.QA_ASSISTANT;
 }
 
 export function courseScope(profile: ScopedProfile): Prisma.CourseWhereInput {

@@ -30,6 +30,7 @@ export default async function DashboardLayout({ children }: { children: React.Re
 
   const canAsk =
     profile?.role === "QA_OFFICER" ||
+    profile?.role === "QA_ASSISTANT" ||
     profile?.role === "VC" ||
     profile?.role === "HOD" ||
     profile?.role === "HOD_ASSISTANT";

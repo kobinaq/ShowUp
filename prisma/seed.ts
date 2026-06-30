@@ -176,6 +176,7 @@ async function main() {
   const adminUser = await createAuthUser("admin@atu.showup.demo", "ATU Super Admin");
   const vcUser = await createAuthUser("vc@atu.showup.demo", "ATU Vice Chancellor");
   const qaUser = await createAuthUser("qa@atu.showup.demo", "ATU QA Officer");
+  const qaAssistantUser = await createAuthUser("qa.assistant@atu.showup.demo", "ATU QA Assistant");
   const admin = await prisma.profile.create({
     data: { id: "atu_profile_admin", supabaseUid: adminUser.id, email: "admin@atu.showup.demo", displayName: "ATU Super Admin", role: Role.SUPER_ADMIN, universityId: university.id }
   });
@@ -184,6 +185,9 @@ async function main() {
   });
   await prisma.profile.create({
     data: { id: "atu_profile_qa", supabaseUid: qaUser.id, email: "qa@atu.showup.demo", displayName: "ATU QA Officer", role: Role.QA_OFFICER, universityId: university.id }
+  });
+  await prisma.profile.create({
+    data: { id: "atu_profile_qa_assistant", supabaseUid: qaAssistantUser.id, email: "qa.assistant@atu.showup.demo", displayName: "ATU QA Assistant", role: Role.QA_ASSISTANT, universityId: university.id }
   });
 
   const departmentRecords: Array<{ id: string; name: string; code: string; hodProfileId: string }> = [];

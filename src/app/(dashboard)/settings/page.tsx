@@ -41,11 +41,6 @@ export default async function SettingsPage() {
             activeSemesterId: activeSemester?.id ?? null
           }}
           semesters={semesters.map((semester) => ({ id: semester.id, name: semester.name }))}
-          providerStatus={{
-            groqConfigured: Boolean(process.env.GROQ_API_KEY),
-            arkeselConfigured: Boolean(process.env.ARKESEL_API_KEY && process.env.ARKESEL_SENDER_ID),
-            resendConfigured: Boolean(process.env.RESEND_API_KEY)
-          }}
         />
       ) : null}
     </div>

@@ -4,6 +4,7 @@ import { useEffect, useMemo, useState } from "react";
 import toast from "react-hot-toast";
 import { CheckCircle2, Send } from "lucide-react";
 import { PingCard } from "@/components/reports/PingCard";
+import { displayText } from "@/lib/utils/displayText";
 
 type SchedulePayload = {
   id: string;
@@ -272,7 +273,7 @@ function Stepper({ steps, activeStep }: { steps: string[]; activeStep: number })
 }
 
 function Select({ name, options, labels, value, onChange }: { name: string; options: string[]; labels?: Record<string, string>; value?: string; onChange?: (value: string) => void }) {
-  return <select name={name} value={value} onChange={(event) => onChange?.(event.target.value)} className="h-12 w-full rounded-md border px-3" required>{options.map((option) => <option key={option} value={option}>{labels?.[option] ?? option}</option>)}</select>;
+  return <select name={name} value={value} onChange={(event) => onChange?.(event.target.value)} className="h-12 w-full rounded-md border px-3" required>{options.map((option) => <option key={option} value={option}>{labels?.[option] ?? displayText(option)}</option>)}</select>;
 }
 
 function NumberInput({ name, label }: { name: string; label: string }) {

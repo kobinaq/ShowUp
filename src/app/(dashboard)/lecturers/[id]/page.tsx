@@ -7,6 +7,7 @@ import { createClient } from "@/lib/supabase/server";
 import { PageHeader } from "@/components/shared/PageHeader";
 import { MetricCard, SectionPanel, Tabs } from "@/components/shared/Panels";
 import { StatusBadge } from "@/components/shared/StatusBadge";
+import { displayText } from "@/lib/utils/displayText";
 
 export default async function LecturerPage({ params }: { params: Promise<{ id: string }> }) {
   const { id } = await params;
@@ -95,10 +96,10 @@ export default async function LecturerPage({ params }: { params: Promise<{ id: s
             {lecturer.flags.length ? lecturer.flags.map((flag) => (
               <div key={flag.id} className="rounded-lg border border-slate-200 px-3 py-2 text-sm">
                 <div className="flex items-center justify-between gap-3">
-                  <span className="font-mono">{flag.type}</span>
+                  <span className="font-medium">{displayText(flag.type)}</span>
                   <StatusBadge tone={flag.isResolved ? "green" : "amber"}>{flag.isResolved ? "Reviewed" : "Open"}</StatusBadge>
                 </div>
-                <p className="mt-1 text-muted">{flag.message}</p>
+                <p className="mt-1 text-muted">{displayText(flag.message)}</p>
               </div>
             )) : <p className="text-sm text-muted">No flags recorded.</p>}
           </div>

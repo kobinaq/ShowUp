@@ -95,5 +95,6 @@ function adminLabel(role: Role) {
   if (role === Role.SUPER_ADMIN) return "Platform administration";
   if (role === Role.VC) return "University leadership";
   if (role === Role.QA_OFFICER) return "Quality assurance administration";
+  if (role === Role.QA_ASSISTANT) return "Quality assurance assistant";
   return "Department administration";
 }

@@ -85,12 +85,12 @@ export default async function ReportDetailPage({ params }: { params: Promise<{ i
           <Detail label="Student count" value={report.studentCount?.toString() ?? "-"} />
         </Card>
         <Card title="Flags">
-          {report.flags.length ? report.flags.map((flag) => <p key={flag.id}><span className="font-semibold">{flag.type}:</span> {displayText(flag.message)}</p>) : "No flags"}
+          {report.flags.length ? report.flags.map((flag) => <p key={flag.id}><span className="font-semibold">{displayText(flag.type)}:</span> {displayText(flag.message)}</p>) : "No flags"}
         </Card>
         <Card title="Contest">
           {report.contest ? (
             <>
-              <Detail label="Status" value={report.contest.status} />
+              <Detail label="Status" value={displayText(report.contest.status)} />
               <Detail label="Reason" value={displayText(report.contest.reason)} />
               <Detail label="Raised by" value={report.contest.raisedBy.displayName ?? report.contest.raisedBy.email ?? "-"} />
               <Detail label="Raised at" value={report.contest.raisedAt.toLocaleString()} />
@@ -109,5 +109,5 @@ function Card({ title, children }: { title: string; children: React.ReactNode })
 }
 
 function Detail({ label, value }: { label: string; value: string }) {
-  return <p><span className="font-semibold">{label}:</span> {value}</p>;
+  return <p><span className="font-semibold">{label}:</span> {displayText(value)}</p>;
 }

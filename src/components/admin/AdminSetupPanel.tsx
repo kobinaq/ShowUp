@@ -36,7 +36,7 @@ export function AdminSetupPanel({ role, scopeLabel, universities, faculties, dep
   const [type, setType] = useState<CardType>(visibleCards[0]?.type ?? "lecturer");
   const [loading, setLoading] = useState(false);
   const showUniversityFields = role === "SUPER_ADMIN";
-  const showDepartmentFields = role === "SUPER_ADMIN" || role === "QA_OFFICER";
+  const showDepartmentFields = role === "SUPER_ADMIN" || role === "QA_OFFICER" || role === "QA_ASSISTANT";
 
   if (role === "VC") {
     return (
@@ -115,7 +115,7 @@ export function AdminSetupPanel({ role, scopeLabel, universities, faculties, dep
 
 function getVisibleCards(role: Role) {
   if (role === "SUPER_ADMIN") return cards;
-  if (role === "QA_OFFICER") return cards.filter((card) => card.type !== "university");
+  if (role === "QA_OFFICER" || role === "QA_ASSISTANT") return cards.filter((card) => card.type !== "university");
   if (role === "HOD" || role === "HOD_ASSISTANT") return cards.filter((card) => ["lecturer", "course"].includes(card.type));
   return [];
 }

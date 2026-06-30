@@ -25,6 +25,7 @@ function dashboardTitle(role?: Role) {
   if (role === "SUPER_ADMIN") return "Super Admin Dashboard";
   if (role === "VC") return "VC Dashboard";
   if (role === "QA_OFFICER") return "QA Dashboard";
+  if (role === "QA_ASSISTANT") return "QA Assistant Dashboard";
   if (role === "HOD") return "HOD Dashboard";
   if (role === "HOD_ASSISTANT") return "HOD Assistant Dashboard";
   if (role === "CLASS_REP") return "Class Rep Dashboard";

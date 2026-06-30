@@ -1,4 +1,5 @@
 import { cn } from "@/lib/utils/cn";
+import { displayText } from "@/lib/utils/displayText";
 
 const tones = {
   green: "border-emerald-200 bg-emerald-50 text-emerald-700",
@@ -9,5 +10,6 @@ const tones = {
 };
 
 export function StatusBadge({ children, tone = "grey" }: { children: React.ReactNode; tone?: keyof typeof tones }) {
-  return <span className={cn("inline-flex items-center rounded-full border px-2.5 py-1 text-xs font-semibold", tones[tone])}>{children}</span>;
+  const label = typeof children === "string" ? displayText(children) : children;
+  return <span className={cn("inline-flex items-center rounded-full border px-2.5 py-1 text-xs font-medium", tones[tone])}>{label}</span>;
 }

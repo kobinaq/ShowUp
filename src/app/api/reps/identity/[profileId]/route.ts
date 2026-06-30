@@ -17,4 +17,4 @@ export const GET = withAuth<Params>(async (request, { params, profile }) => {
     data: { performedById: profile.id, lookedUpProfileId: profileId, reason }
   });
   return json({ data: { realName: identity.realName, realEmail: identity.realEmail, realPhone: identity.realPhone } });
-}, [Role.SUPER_ADMIN, Role.QA_OFFICER, Role.HOD]);
+}, [Role.SUPER_ADMIN, Role.QA_OFFICER, Role.QA_ASSISTANT, Role.HOD]);

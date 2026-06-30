@@ -15,7 +15,15 @@ const settingsSchema = z.object({
   latePingEmailEnabled: z.boolean(),
   qaLatePingEmailEnabled: z.boolean(),
   showUpAiEnabled: z.boolean(),
-  activeSemesterId: z.string().nullable().optional()
+  activeSemesterId: z.string().nullable().optional(),
+  newSemester: z
+    .object({
+      name: z.string().min(4).max(120),
+      startDate: z.coerce.date(),
+      endDate: z.coerce.date(),
+      makeActive: z.boolean().default(true)
+    })
+    .optional()
 });
 
 export const GET = withAuth(async (_request, { profile }) => {
@@ -28,12 +36,12 @@ export const GET = withAuth(async (_request, { profile }) => {
     prisma.semester.findFirst({ where: { universityId: profile.universityId, isActive: true }, select: { id: true } })
   ]);
   return json({ data: { ...settings, activeSemesterId: activeSemester?.id ?? null } });
-}, [Role.QA_OFFICER]);
+}, [Role.QA_OFFICER, Role.QA_ASSISTANT]);
 
 export const PUT = withAuth(async (request, { profile }) => {
   const parsed = settingsSchema.safeParse(await request.json().catch(() => ({})));
   if (!parsed.success) return badRequest("Invalid settings payload", parsed.error.flatten());
-  const { activeSemesterId, ...settingsData } = parsed.data;
+  const { activeSemesterId, newSemester, ...settingsData } = parsed.data;
 
   if (activeSemesterId) {
     const semester = await prisma.semester.findFirst({ where: { id: activeSemesterId, universityId: profile.universityId }, select: { id: true } });
@@ -41,10 +49,24 @@ export const PUT = withAuth(async (request, { profile }) => {
   }
 
   const settings = await prisma.$transaction(async (tx) => {
-    if (activeSemesterId !== undefined) {
+    let nextActiveSemesterId = activeSemesterId;
+    if (newSemester) {
+      const created = await tx.semester.create({
+        data: {
+          name: newSemester.name,
+          startDate: newSemester.startDate,
+          endDate: newSemester.endDate,
+          isActive: false,
+          universityId: profile.universityId
+        }
+      });
+      if (newSemester.makeActive) nextActiveSemesterId = created.id;
+    }
+
+    if (activeSemesterId !== undefined || newSemester?.makeActive) {
       await tx.semester.updateMany({ where: { universityId: profile.universityId }, data: { isActive: false } });
-      if (activeSemesterId) {
-        await tx.semester.update({ where: { id: activeSemesterId }, data: { isActive: true } });
+      if (nextActiveSemesterId) {
+        await tx.semester.update({ where: { id: nextActiveSemesterId }, data: { isActive: true } });
       }
     }
 
@@ -54,5 +76,6 @@ export const PUT = withAuth(async (request, { profile }) => {
       create: { universityId: profile.universityId, ...settingsData, updatedById: profile.id }
     });
   });
-  return json({ data: { ...settings, activeSemesterId: activeSemesterId ?? null } });
-}, [Role.QA_OFFICER]);
+  const activeSemester = await prisma.semester.findFirst({ where: { universityId: profile.universityId, isActive: true }, select: { id: true } });
+  return json({ data: { ...settings, activeSemesterId: activeSemester?.id ?? null } });
+}, [Role.QA_OFFICER, Role.QA_ASSISTANT]);

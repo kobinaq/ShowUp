@@ -81,7 +81,7 @@ export async function sendLatePing(courseId: string, scheduleId: string, sentByI
         })
       );
 
-  const qaOfficers = await prisma.profile.findMany({ where: { role: Role.QA_OFFICER, universityId, email: { not: null } } });
+  const qaOfficers = await prisma.profile.findMany({ where: { role: { in: [Role.QA_OFFICER, Role.QA_ASSISTANT] }, universityId, email: { not: null } } });
   if (settings?.qaLatePingEmailEnabled !== false) {
     await Promise.all(
       qaOfficers.map((qa) =>

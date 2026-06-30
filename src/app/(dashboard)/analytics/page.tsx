@@ -158,7 +158,7 @@ function ListPanel({ title, children }: { title: string; children: React.ReactNo
 }
 
 function Row({ label, value, href }: { label: string; value: string; href?: string }) {
-  const content = <><span className="truncate text-sm font-medium">{label}</span><span className="shrink-0 font-mono text-sm text-muted">{value}</span></>;
+  const content = <><span className="truncate text-sm font-medium">{label}</span><span className="shrink-0 font-mono text-sm text-muted">{displayText(value)}</span></>;
   if (href) return <Link href={href} className="flex items-center justify-between gap-3 rounded-lg border border-slate-200 px-3 py-2 hover:border-accent hover:bg-accent/10">{content}</Link>;
   return <div className="flex items-center justify-between gap-3 rounded-lg border border-slate-200 px-3 py-2">{content}</div>;
 }

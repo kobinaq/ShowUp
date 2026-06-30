@@ -55,7 +55,7 @@ export const POST = withAuth(async (request, { profile }) => {
       { status: 503 }
     );
   }
-}, [Role.SUPER_ADMIN, Role.QA_OFFICER, Role.VC, Role.HOD, Role.HOD_ASSISTANT]);
+}, [Role.SUPER_ADMIN, Role.QA_OFFICER, Role.QA_ASSISTANT, Role.VC, Role.HOD, Role.HOD_ASSISTANT]);
 
 function classifyAskError(error: unknown) {
   const message = error instanceof Error ? error.message : String(error);

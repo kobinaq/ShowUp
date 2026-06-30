@@ -1,3 +1,5 @@
+import Link from "next/link";
+import { Minus, TrendingDown, TrendingUp } from "lucide-react";
 import { cn } from "@/lib/utils/cn";
 
 export function SectionPanel({
@@ -35,30 +37,55 @@ export function MetricCard({
   label,
   value,
   helper,
-  tone = "blue"
+  tone = "blue",
+  href,
+  badge,
+  trend,
+  footerTitle
 }: {
   label: string;
   value: string | number;
   helper?: string;
   tone?: "blue" | "green" | "amber" | "red" | "grey";
+  href?: string;
+  badge?: string;
+  trend?: "up" | "down" | "neutral";
+  footerTitle?: string;
 }) {
   const tones = {
-    blue: "border-blue-100 bg-blue-50/50 text-blue-700",
-    green: "border-emerald-100 bg-emerald-50/60 text-emerald-700",
-    amber: "border-amber-100 bg-amber-50/70 text-amber-700",
-    red: "border-red-100 bg-red-50/70 text-red-700",
-    grey: "border-slate-200 bg-white text-slate-600"
+    blue: "text-blue-700",
+    green: "text-emerald-700",
+    amber: "text-amber-700",
+    red: "text-red-700",
+    grey: "text-slate-600"
   };
-  return (
-    <div className="rounded-lg border border-slate-200 bg-white p-4 shadow-card">
-      <div className="flex items-start justify-between gap-3">
-        <p className="text-sm font-medium text-slate-600">{label}</p>
-        <span className={cn("h-2.5 w-2.5 rounded-full border", tones[tone])} aria-hidden />
+  const trendValue = trend ?? (tone === "red" || tone === "amber" ? "down" : tone === "grey" ? "neutral" : "up");
+  const TrendIcon = trendValue === "up" ? TrendingUp : trendValue === "down" ? TrendingDown : Minus;
+  const badgeText = badge ?? (trendValue === "up" ? "Healthy" : trendValue === "down" ? "Review" : "Scoped");
+  const body = (
+    <>
+      <div className="space-y-2 p-5">
+        <div className="flex items-start justify-between gap-3">
+          <p className="text-sm font-medium text-muted">{label}</p>
+          <span className={cn("inline-flex shrink-0 items-center gap-1 rounded-full border border-slate-200 bg-white/70 px-2 py-1 text-xs font-semibold shadow-sm", tones[tone])}>
+            <TrendIcon className="h-3.5 w-3.5" aria-hidden />
+            {badgeText}
+          </span>
+        </div>
+        <p className="font-mono text-2xl font-semibold tabular-nums tracking-tight text-navy sm:text-3xl">{value}</p>
       </div>
-      <p className="mt-3 font-mono text-3xl font-bold tracking-tight text-navy">{value}</p>
-      {helper ? <p className="mt-2 text-xs leading-5 text-muted">{helper}</p> : null}
-    </div>
+      <div className="flex flex-col items-start gap-1.5 px-5 pb-5 text-sm">
+        <div className="line-clamp-1 flex items-center gap-2 font-medium text-card-foreground">
+          {footerTitle ?? helper ?? "Current scope performance"}
+          <TrendIcon className="h-4 w-4" aria-hidden />
+        </div>
+        {helper ? <div className="text-muted">{helper}</div> : null}
+      </div>
+    </>
   );
+  const className = "block overflow-hidden rounded-lg border border-slate-200 bg-[linear-gradient(to_top,color-mix(in_srgb,var(--primary)_8%,transparent),var(--card))] shadow-card transition duration-200 hover:-translate-y-1 hover:shadow-lg dark:bg-card";
+  if (href) return <Link href={href} data-slot="card" className={className}>{body}</Link>;
+  return <div data-slot="card" className={className}>{body}</div>;
 }
 
 export function Tabs({ items }: { items: Array<{ id: string; label: string; count?: number }> }) {

@@ -51,8 +51,8 @@ const payloadSchema = z.discriminatedUnion("type", [
   })
 ]);
 
-const universityScopedRoles: Role[] = [Role.SUPER_ADMIN, Role.QA_OFFICER];
-const departmentScopedRoles: Role[] = [Role.SUPER_ADMIN, Role.QA_OFFICER, Role.HOD, Role.HOD_ASSISTANT];
+const universityScopedRoles: Role[] = [Role.SUPER_ADMIN, Role.QA_OFFICER, Role.QA_ASSISTANT];
+const departmentScopedRoles: Role[] = [Role.SUPER_ADMIN, Role.QA_OFFICER, Role.QA_ASSISTANT, Role.HOD, Role.HOD_ASSISTANT];
 type DepartmentResolution = { departmentId: string } | { response: Response };
 
 export const POST = withAuth(async (request, { profile }): Promise<Response> => {
@@ -62,7 +62,7 @@ export const POST = withAuth(async (request, { profile }): Promise<Response> => 
 
   const data = parsed.data;
   const isSuperAdmin = profile.role === Role.SUPER_ADMIN;
-  const isQa = profile.role === Role.QA_OFFICER;
+  const isQa = profile.role === Role.QA_OFFICER || profile.role === Role.QA_ASSISTANT;
   const isDepartmentRole = profile.role === Role.HOD || profile.role === Role.HOD_ASSISTANT;
 
   if (data.type === "university") {
@@ -151,7 +151,7 @@ export const POST = withAuth(async (request, { profile }): Promise<Response> => 
   }
 
   return badRequest("Unsupported setup type");
-}, [Role.SUPER_ADMIN, Role.VC, Role.QA_OFFICER, Role.HOD, Role.HOD_ASSISTANT]);
+}, [Role.SUPER_ADMIN, Role.VC, Role.QA_OFFICER, Role.QA_ASSISTANT, Role.HOD, Role.HOD_ASSISTANT]);
 
 async function resolveDepartmentId(
   submittedDepartmentId: string | undefined,

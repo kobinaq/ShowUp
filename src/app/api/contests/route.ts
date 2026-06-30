@@ -11,7 +11,7 @@ export const GET = withAuth(async (_request, { profile }) => {
     orderBy: { raisedAt: "desc" }
   });
   return json({ data: contests });
-}, [Role.SUPER_ADMIN, Role.QA_OFFICER, Role.HOD, Role.HOD_ASSISTANT]);
+}, [Role.SUPER_ADMIN, Role.QA_OFFICER, Role.QA_ASSISTANT, Role.HOD, Role.HOD_ASSISTANT]);
 
 export const POST = withAuth(async (request, { profile }) => {
   const parsed = contestSchema.safeParse(await request.json());
