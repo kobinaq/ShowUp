@@ -60,6 +60,9 @@ async function callGroqWithRetry(params: ChatCreateParams, maxRetries = 2): Prom
 }
 
 export async function parseQuestion(question: string): Promise<QueryPlan> {
+  const fallback = parseCommonQuestion(question);
+  if (fallback) return fallback;
+
   const raw = await callGroqWithRetry({
     model: MODEL,
     max_tokens: 400,
@@ -68,6 +71,8 @@ export async function parseQuestion(question: string): Promise<QueryPlan> {
       {
         role: "system",
         content: `You are a query planner for ShowUp, a university lecturer quality assurance platform.
+
+Default assumption: the user's question is about ShowUp database records unless it is clearly personal, general knowledge, entertainment, medical, legal, financial, or otherwise not directed at university quality assurance data. Ambiguous analytics questions such as "who was late?", "what happened today?", "which courses are behind?", or "show problems" should be interpreted as ShowUp database questions.
 
 ShowUp tracks:
 - Lecturer attendance (present / absent / late / early dismissal) per class session
@@ -81,7 +86,7 @@ Available query types and their parameters:
 - "topic_coverage": { courseId?, departmentId?, semesterId? }
 - "flags": { lecturerId?, type?, departmentId?, semesterId?, limit? }
 - "top_absent": { departmentId?, semesterId?, limit? }
-- "top_late": { departmentId?, semesterId?, limit? }
+- "top_late": { departmentId?, semesterId?, limit?, threshold? }
 - "coverage_lag": { threshold?, semesterId?, departmentId?, courseId? }
 - "department_summary": { departmentId?, semesterId? }
 - "ping_history": { lecturerId?, departmentId?, semesterId?, limit? }
@@ -89,7 +94,10 @@ Available query types and their parameters:
 Respond ONLY with a valid JSON object, no explanation, no markdown, no code fences. Example:
 {"queryType":"top_absent","params":{"limit":5,"semesterId":"active"},"intent":"Find the lecturers with the most absences"}
 
-If the question is unrelated to ShowUp data, respond exactly with:
+For questions like "Who has been late more than 3 times?", respond:
+{"queryType":"top_late","params":{"threshold":3,"semesterId":"active"},"intent":"Find lecturers with more than 3 late reports"}
+
+Only if the question is clearly unrelated to ShowUp data, such as "what time will my wife arrive today?", respond exactly with:
 {"queryType":"unsupported","params":{},"intent":""}`
       },
       { role: "user", content: question }
@@ -134,6 +142,57 @@ If the data is empty, say so clearly and suggest why (e.g. "No absences recorded
 
 function cleanJson(text: string) {
   return text.replace(/```json|```/g, "").trim();
+}
+
+function parseCommonQuestion(question: string): QueryPlan | null {
+  const normalized = question.toLowerCase();
+  const threshold = Number(normalized.match(/more than\s+(\d+)/)?.[1] ?? normalized.match(/over\s+(\d+)/)?.[1] ?? normalized.match(/above\s+(\d+)/)?.[1]);
+  const params = {
+    semesterId: "active",
+    ...(Number.isFinite(threshold) && threshold > 0 ? { threshold } : {})
+  };
+
+  if (/\blate\b|\blateness\b/.test(normalized) && /\bwho\b|\bwhich lecturers?\b|\btop\b|\bmost\b/.test(normalized)) {
+    return {
+      queryType: "top_late",
+      params,
+      intent: "Find lecturers with repeated lateness"
+    };
+  }
+
+  if (/\babsent\b|\babsence\b|\bmissed\b/.test(normalized) && /\bwho\b|\bwhich lecturers?\b|\btop\b|\bmost\b/.test(normalized)) {
+    return {
+      queryType: "top_absent",
+      params,
+      intent: "Find lecturers with repeated absences"
+    };
+  }
+
+  if (/\bbehind\b|\bcoverage\b|\boutline\b|\btopics?\b/.test(normalized)) {
+    return {
+      queryType: "coverage_lag",
+      params: { semesterId: "active" },
+      intent: "Find courses behind expected topic coverage"
+    };
+  }
+
+  if (/\bproblem|issue|flag|flags|risk|risks\b/.test(normalized)) {
+    return {
+      queryType: "flags",
+      params: { semesterId: "active", limit: 10 },
+      intent: "Find recent ShowUp quality assurance flags"
+    };
+  }
+
+  if (/\bdepartment|departments|performance|summary|summaries\b/.test(normalized)) {
+    return {
+      queryType: "department_summary",
+      params: { semesterId: "active" },
+      intent: "Summarize department performance"
+    };
+  }
+
+  return null;
 }
 
 function isRateLimitError(error: unknown) {

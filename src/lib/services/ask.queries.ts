@@ -101,6 +101,7 @@ async function rankedPresence(
   params: QueryPlan["params"] & { semesterId?: string; limit: number },
   scope: QueryScope
 ) {
+  const take = params.threshold ? Math.max(params.limit * 3, 25) : params.limit;
   const grouped = await prisma.lectureReport.groupBy({
     by: ["courseId"],
     where: {
@@ -110,12 +111,14 @@ async function rankedPresence(
     },
     _count: { id: true },
     orderBy: { _count: { id: "desc" } },
-    take: params.limit
+    take
   });
-  return hydrateCourseCounts(grouped);
+  const hydrated = await hydrateCourseCounts(grouped);
+  return applyCountThreshold(hydrated, params.threshold).slice(0, params.limit);
 }
 
 async function rankedLateness(params: QueryPlan["params"] & { semesterId?: string; limit: number }, scope: QueryScope) {
+  const take = params.threshold ? Math.max(params.limit * 3, 25) : params.limit;
   const grouped = await prisma.lectureReport.groupBy({
     by: ["courseId"],
     where: {
@@ -125,9 +128,10 @@ async function rankedLateness(params: QueryPlan["params"] & { semesterId?: strin
     },
     _count: { id: true },
     orderBy: { _count: { id: "desc" } },
-    take: params.limit
+    take
   });
-  return hydrateCourseCounts(grouped);
+  const hydrated = await hydrateCourseCounts(grouped);
+  return applyCountThreshold(hydrated, params.threshold).slice(0, params.limit);
 }
 
 async function hydrateCourseCounts(grouped: Array<{ courseId: string; _count: { id: number } }>) {
@@ -146,6 +150,10 @@ async function hydrateCourseCounts(grouped: Array<{ courseId: string; _count: { 
       count: item._count.id
     };
   });
+}
+
+function applyCountThreshold<T extends { count: number }>(items: T[], threshold?: number) {
+  return typeof threshold === "number" ? items.filter((item) => item.count > threshold) : items;
 }
 
 async function flags(params: QueryPlan["params"] & { semesterId?: string; limit: number }, scope: QueryScope) {
