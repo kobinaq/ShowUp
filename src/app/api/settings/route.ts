@@ -36,7 +36,7 @@ export const GET = withAuth(async (_request, { profile }) => {
     prisma.semester.findFirst({ where: { universityId: profile.universityId, isActive: true }, select: { id: true } })
   ]);
   return json({ data: { ...settings, activeSemesterId: activeSemester?.id ?? null } });
-}, [Role.QA_OFFICER, Role.QA_ASSISTANT]);
+}, [Role.SUPER_ADMIN, Role.IT]);
 
 export const PUT = withAuth(async (request, { profile }) => {
   const parsed = settingsSchema.safeParse(await request.json().catch(() => ({})));
@@ -78,4 +78,4 @@ export const PUT = withAuth(async (request, { profile }) => {
   });
   const activeSemester = await prisma.semester.findFirst({ where: { universityId: profile.universityId, isActive: true }, select: { id: true } });
   return json({ data: { ...settings, activeSemesterId: activeSemester?.id ?? null } });
-}, [Role.QA_OFFICER, Role.QA_ASSISTANT]);
+}, [Role.SUPER_ADMIN, Role.IT]);

@@ -34,7 +34,7 @@ export const PUT = withAuth<Params>(async (request, { params, profile }) => {
   if (data.lecturerId && (!lecturer || lecturer.departmentId !== departmentId)) return badRequest("Lecturer must belong to the selected department");
   const course = await prisma.course.update({ where: { id }, data });
   return json({ data: course });
-}, [Role.SUPER_ADMIN, Role.HOD, Role.HOD_ASSISTANT]);
+}, [Role.SUPER_ADMIN, Role.IT]);
 
 export const DELETE = withAuth<Params>(async (_request, { params, profile }) => {
   const { id } = await params;
@@ -42,4 +42,4 @@ export const DELETE = withAuth<Params>(async (_request, { params, profile }) => 
   if (!existing) return json({ error: "Not found" }, { status: 404 });
   await prisma.course.delete({ where: { id } });
   return json({ ok: true });
-}, [Role.SUPER_ADMIN, Role.HOD]);
+}, [Role.SUPER_ADMIN, Role.IT]);

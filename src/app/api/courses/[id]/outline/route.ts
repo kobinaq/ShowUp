@@ -28,4 +28,4 @@ export const POST = withAuth<Params>(async (request, { params, profile }) => {
     include: { topics: true }
   });
   return json({ data: saved }, { status: 201 });
-}, [Role.SUPER_ADMIN, Role.HOD, Role.HOD_ASSISTANT]);
+}, [Role.SUPER_ADMIN, Role.IT]);

@@ -4,7 +4,7 @@ import { Role } from "@prisma/client";
 import { useMemo, useState } from "react";
 import { useRouter } from "next/navigation";
 import toast from "react-hot-toast";
-import { Building2, CalendarDays, GraduationCap, LibraryBig, Plus, School, UserRound } from "lucide-react";
+import { Building2, CalendarDays, GraduationCap, LibraryBig, Plus, School, UserCog, UserRound } from "lucide-react";
 
 type Option = { id: string; name: string };
 type LecturerOption = Option & { departmentId: string };
@@ -25,7 +25,8 @@ const cards = [
   { type: "department", title: "Department", icon: LibraryBig },
   { type: "semester", title: "Semester", icon: CalendarDays },
   { type: "lecturer", title: "Lecturer", icon: UserRound },
-  { type: "course", title: "Course", icon: GraduationCap }
+  { type: "course", title: "Course", icon: GraduationCap },
+  { type: "user", title: "User", icon: UserCog }
 ] as const;
 
 type CardType = (typeof cards)[number]["type"];
@@ -36,7 +37,7 @@ export function AdminSetupPanel({ role, scopeLabel, universities, faculties, dep
   const [type, setType] = useState<CardType>(visibleCards[0]?.type ?? "lecturer");
   const [loading, setLoading] = useState(false);
   const showUniversityFields = role === "SUPER_ADMIN";
-  const showDepartmentFields = role === "SUPER_ADMIN" || role === "QA_OFFICER" || role === "QA_ASSISTANT";
+  const showDepartmentFields = role === "SUPER_ADMIN" || role === "IT";
 
   if (role === "VC") {
     return (
@@ -53,6 +54,9 @@ export function AdminSetupPanel({ role, scopeLabel, universities, faculties, dep
     event.preventDefault();
     const form = new FormData(event.currentTarget);
     const payload = Object.fromEntries(form.entries());
+    for (const key of Object.keys(payload)) {
+      if (payload[key] === "") delete payload[key];
+    }
     setLoading(true);
     const response = await fetch("/api/admin/setup", {
       method: "POST",
@@ -115,8 +119,7 @@ export function AdminSetupPanel({ role, scopeLabel, universities, faculties, dep
 
 function getVisibleCards(role: Role) {
   if (role === "SUPER_ADMIN") return cards;
-  if (role === "QA_OFFICER" || role === "QA_ASSISTANT") return cards.filter((card) => card.type !== "university");
-  if (role === "HOD" || role === "HOD_ASSISTANT") return cards.filter((card) => ["lecturer", "course"].includes(card.type));
+  if (role === "IT") return cards.filter((card) => card.type !== "university");
   return [];
 }
 
@@ -135,15 +138,17 @@ function Fields({
   if (type === "department") return <><Input name="name" label="Name" /><Select name="facultyId" label="Faculty" options={faculties} /></>;
   if (type === "semester") return <><Input name="name" label="Name" />{showUniversityFields ? <Select name="universityId" label="University" options={universities} /> : null}<Input name="startDate" label="Start date" type="date" /><Input name="endDate" label="End date" type="date" /><label className="flex items-center gap-2 text-sm"><input name="isActive" type="checkbox" defaultChecked /> Active semester</label></>;
   if (type === "lecturer") return <><Input name="firstName" label="First name" /><Input name="lastName" label="Last name" /><Input name="email" label="Email" type="email" /><Input name="phone" label="Phone" /><Input name="staffId" label="Staff ID" />{showDepartmentFields ? <Select name="departmentId" label="Department" options={departments} /> : null}</>;
+  if (type === "user") return <><Input name="displayName" label="Display name" /><Input name="email" label="Email" type="email" /><Input name="phone" label="Phone" required={false} />{showUniversityFields ? <Select name="universityId" label="University" options={universities} /> : null}<Select name="role" label="Role" options={[{ id: "VC", name: "VC" }, { id: "QA_OFFICER", name: "QA Officer" }, { id: "QA_ASSISTANT", name: "QA Assistant" }, { id: "IT", name: "IT" }, { id: "HOD", name: "HOD" }, { id: "HOD_ASSISTANT", name: "HOD Assistant" }]} /><Select name="departmentId" label="Department for HOD roles" options={[{ id: "", name: "No department" }, ...departments]} required={false} /></>;
   return <><Input name="code" label="Code" /><Input name="title" label="Title" />{showDepartmentFields ? <Select name="departmentId" label="Department" options={departments} /> : null}<Select name="semesterId" label="Semester" options={semesters} /><Select name="lecturerId" label="Lecturer" options={lecturers} /><Input name="creditHours" label="Credit hours" type="number" defaultValue="3" /><Input name="classSize" label="Class size" type="number" defaultValue="60" /><Select name="dayOfWeek" label="Day" options={[{ id: "1", name: "Monday" }, { id: "2", name: "Tuesday" }, { id: "3", name: "Wednesday" }, { id: "4", name: "Thursday" }, { id: "5", name: "Friday" }]} /><Input name="startTime" label="Start time" defaultValue="08:00" /><Input name="endTime" label="End time" defaultValue="10:00" /><Input name="venue" label="Venue" /></>;
 }
 
-function Input({ name, label, type = "text", defaultValue }: { name: string; label: string; type?: string; defaultValue?: string }) {
-  return <label className="text-sm font-medium">{label}<input name={name} type={type} defaultValue={defaultValue} className="mt-1 h-11 w-full rounded-md border px-3" required={name !== "address" && name !== "venue"} /></label>;
+function Input({ name, label, type = "text", defaultValue, required }: { name: string; label: string; type?: string; defaultValue?: string; required?: boolean }) {
+  const isRequired = required ?? (name !== "address" && name !== "venue");
+  return <label className="text-sm font-medium">{label}<input name={name} type={type} defaultValue={defaultValue} className="mt-1 h-11 w-full rounded-md border px-3" required={isRequired} /></label>;
 }
 
-function Select({ name, label, options }: { name: string; label: string; options: Option[] }) {
-  return <label className="text-sm font-medium">{label}<select name={name} className="mt-1 h-11 w-full rounded-md border px-3" required>{options.map((option) => <option key={option.id} value={option.id}>{option.name}</option>)}</select></label>;
+function Select({ name, label, options, required = true }: { name: string; label: string; options: Option[]; required?: boolean }) {
+  return <label className="text-sm font-medium">{label}<select name={name} className="mt-1 h-11 w-full rounded-md border px-3" required={required}>{options.map((option) => <option key={option.id} value={option.id}>{option.name}</option>)}</select></label>;
 }
 
 function label(type: string) {

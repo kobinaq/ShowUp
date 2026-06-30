@@ -36,4 +36,4 @@ export const PUT = withAuth<Params>(async (request, { params, profile }) => {
   }
   const lecturer = await prisma.lecturer.update({ where: { id }, data: parsed.data });
   return json({ data: lecturer });
-}, [Role.SUPER_ADMIN, Role.HOD, Role.HOD_ASSISTANT]);
+}, [Role.SUPER_ADMIN, Role.IT]);

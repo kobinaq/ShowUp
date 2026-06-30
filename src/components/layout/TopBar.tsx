@@ -1,6 +1,7 @@
 import type { Role } from "@prisma/client";
 import { LogoutButton } from "@/components/layout/LogoutButton";
 import { ThemeToggle } from "@/components/layout/ThemeToggle";
+import { SupportButton } from "@/components/support/SupportButton";
 
 export function TopBar({ role, email, university, department }: { role?: Role; email?: string | null; university?: string | null; department?: string | null }) {
   return (
@@ -14,6 +15,7 @@ export function TopBar({ role, email, university, department }: { role?: Role; e
       </div>
       <div className="flex items-center justify-end gap-3">
         <div className="hidden text-right text-sm text-muted lg:block">{email}</div>
+        <SupportButton compact />
         <ThemeToggle />
         <LogoutButton />
       </div>
@@ -26,6 +28,7 @@ function dashboardTitle(role?: Role) {
   if (role === "VC") return "VC Dashboard";
   if (role === "QA_OFFICER") return "QA Dashboard";
   if (role === "QA_ASSISTANT") return "QA Assistant Dashboard";
+  if (role === "IT") return "IT Dashboard";
   if (role === "HOD") return "HOD Dashboard";
   if (role === "HOD_ASSISTANT") return "HOD Assistant Dashboard";
   if (role === "CLASS_REP") return "Class Rep Dashboard";

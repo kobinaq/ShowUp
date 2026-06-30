@@ -25,4 +25,4 @@ export const POST = withAuth(async (request, { profile }) => {
   if (!department) return forbidden("Department is outside your scope");
   const lecturer = await prisma.lecturer.create({ data: parsed.data });
   return json({ data: lecturer }, { status: 201 });
-}, [Role.SUPER_ADMIN, Role.HOD, Role.HOD_ASSISTANT]);
+}, [Role.SUPER_ADMIN, Role.IT]);

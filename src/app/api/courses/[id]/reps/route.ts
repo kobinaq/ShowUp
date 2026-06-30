@@ -20,7 +20,7 @@ export const GET = withAuth<Params>(async (_request, { params, profile }) => {
     orderBy: { createdAt: "desc" }
   });
   return json({ data: reps });
-}, [Role.SUPER_ADMIN, Role.HOD, Role.HOD_ASSISTANT]);
+}, [Role.SUPER_ADMIN, Role.QA_OFFICER, Role.QA_ASSISTANT, Role.IT]);
 
 export const POST = withAuth<Params>(async (request, { params, profile }) => {
   const { id } = await params;
@@ -61,7 +61,7 @@ export const POST = withAuth<Params>(async (request, { params, profile }) => {
   });
   await notificationService.sendRepCredentials(parsed.data.realEmail, parsed.data.realPhone, email, password);
   return json({ data: saved, alias }, { status: 201 });
-}, [Role.SUPER_ADMIN, Role.HOD, Role.HOD_ASSISTANT]);
+}, [Role.SUPER_ADMIN, Role.QA_OFFICER, Role.QA_ASSISTANT, Role.IT]);
 
 export const PUT = withAuth<Params>(async (_request, { params, profile }) => {
   const { id } = await params;
@@ -69,7 +69,7 @@ export const PUT = withAuth<Params>(async (_request, { params, profile }) => {
   if (!course) return json({ error: "Not found" }, { status: 404 });
   const result = await rotationService.rotateCourse(id, profile.id);
   return json({ data: result });
-}, [Role.SUPER_ADMIN, Role.HOD, Role.HOD_ASSISTANT]);
+}, [Role.SUPER_ADMIN, Role.QA_OFFICER, Role.QA_ASSISTANT, Role.IT]);
 
 async function createAuthUser(email: string, password: string) {
   if (!process.env.NEXT_PUBLIC_SUPABASE_URL || !process.env.SUPABASE_SERVICE_ROLE_KEY) {

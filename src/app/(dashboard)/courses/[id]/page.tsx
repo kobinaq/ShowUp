@@ -8,6 +8,7 @@ import { PageHeader } from "@/components/shared/PageHeader";
 import { MetricCard, SectionPanel, Tabs } from "@/components/shared/Panels";
 import { StatusBadge } from "@/components/shared/StatusBadge";
 import { EmptyState } from "@/components/shared/EmptyState";
+import { ReporterAssignmentForm } from "@/components/courses/ReporterAssignmentForm";
 
 export default async function CourseDetailPage({ params }: { params: Promise<{ id: string }> }) {
   const { id } = await params;
@@ -17,6 +18,7 @@ export default async function CourseDetailPage({ params }: { params: Promise<{ i
     ? await prisma.profile.findUnique({ where: { supabaseUid: data.user.id }, select: { role: true, universityId: true, departmentId: true } })
     : null;
   const isSuperAdmin = profile?.role === Role.SUPER_ADMIN;
+  const canManageReporter = profile?.role === Role.SUPER_ADMIN || profile?.role === Role.QA_OFFICER || profile?.role === Role.QA_ASSISTANT || profile?.role === Role.IT;
   const isDepartmentScope = profile?.role === Role.HOD || profile?.role === Role.HOD_ASSISTANT;
   const course = await prisma.course.findFirst({
     where: {
@@ -107,6 +109,7 @@ export default async function CourseDetailPage({ params }: { params: Promise<{ i
                 <StatusBadge tone={assignment.isActive ? "green" : "grey"}>{assignment.isActive ? "Active" : "Inactive"}</StatusBadge>
               </div>
             )) : <p className="text-sm text-muted">No reporter assignments yet.</p>}
+            {canManageReporter ? <ReporterAssignmentForm courseId={course.id} /> : null}
           </div>
         </SectionPanel>
         <SectionPanel id="schedule" title="Schedule">

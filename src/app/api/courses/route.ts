@@ -30,4 +30,4 @@ export const POST = withAuth(async (request, { profile }) => {
     include: { schedule: true }
   });
   return json({ data: course }, { status: 201 });
-}, [Role.SUPER_ADMIN, Role.HOD, Role.HOD_ASSISTANT]);
+}, [Role.SUPER_ADMIN, Role.IT]);
