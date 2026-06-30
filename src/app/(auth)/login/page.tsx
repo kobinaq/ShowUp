@@ -1,6 +1,5 @@
 "use client";
 
-import Link from "next/link";
 import { useState } from "react";
 import { useRouter } from "next/navigation";
 import toast from "react-hot-toast";
@@ -19,7 +18,7 @@ export default function LoginPage() {
     const { error } = await supabase.auth.signInWithPassword({ email, password });
     setLoading(false);
     if (error) return toast.error(error.message);
-    router.push("/");
+    router.push("/dashboard");
     router.refresh();
   }
 
@@ -37,9 +36,6 @@ export default function LoginPage() {
         <button disabled={loading} className="mt-6 h-12 w-full rounded-md bg-accent font-semibold text-navy disabled:opacity-60">
           {loading ? "Signing in..." : "Sign in"}
         </button>
-        <Link href="/#demo-request" className="mt-3 flex h-11 w-full items-center justify-center rounded-md border border-slate-200 text-sm font-semibold text-navy transition hover:border-primary hover:bg-slate-50">
-          Request access
-        </Link>
       </form>
     </main>
   );

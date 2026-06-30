@@ -10,7 +10,7 @@ const roles = ["Vice-Chancellor", "Pro Vice-Chancellor", "Registrar", "QA Office
 
 const leadSchema = z.object({
   fullName: z.string().min(2, "Enter your full name").max(100),
-  email: z.string().email("Enter a valid work email"),
+  email: z.string().email("Enter a valid email"),
   institution: z.string().min(2, "Enter your institution").max(150),
   role: z.string().min(2, "Select your role"),
   message: z.string().max(1000).optional()
@@ -63,7 +63,7 @@ export function LeadForm() {
           ) : (
             <form onSubmit={form.handleSubmit(onSubmit)} className="space-y-4">
               <Input label="Full Name" registration={form.register("fullName")} error={form.formState.errors.fullName?.message} />
-              <Input label="Work Email" type="email" registration={form.register("email")} error={form.formState.errors.email?.message} />
+              <Input label="Email" type="email" registration={form.register("email")} error={form.formState.errors.email?.message} />
               <Input label="Institution / University Name" registration={form.register("institution")} error={form.formState.errors.institution?.message} />
               <label className="block text-sm font-bold">
                 Role
@@ -81,12 +81,6 @@ export function LeadForm() {
                 {form.formState.isSubmitting ? <Loader2 className="h-4 w-4 animate-spin" aria-hidden /> : null}
                 {form.formState.isSubmitting ? "Sending..." : "Request a Demo"}
               </button>
-              <p className="text-center text-sm text-[#6B7280]">
-                Prefer to explore on your own?{" "}
-                <a href="https://show-up-six.vercel.app/" target="_blank" rel="noreferrer" className="font-bold text-[#0D1F3C] underline decoration-[#00C48C] underline-offset-4">
-                  Try the live demo
-                </a>
-              </p>
             </form>
           )}
         </div>

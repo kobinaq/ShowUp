@@ -30,7 +30,7 @@ export async function POST(request: NextRequest) {
 
   try {
     await notificationService.sendEmail(
-      process.env.LEAD_NOTIFICATION_EMAIL ?? "hello@showup.app",
+      process.env.LEAD_NOTIFICATION_EMAIL ?? "info@weareubic.com",
       `New ShowUp demo request - ${parsed.data.institution}`,
       leadEmail(parsed.data)
     );

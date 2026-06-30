@@ -8,7 +8,10 @@ export function Footer() {
           <Wordmark small />
           <p className="mt-2 text-sm text-white/55">Copyright 2026 ShowUp. Built for university quality assurance.</p>
         </div>
-        <a href="mailto:hello@showup.app" className="text-sm font-semibold text-[#00C48C]">hello@showup.app</a>
+        <div className="flex flex-col gap-1 text-sm font-semibold text-[#00C48C] sm:text-right">
+          <a href="mailto:info@weareubic.com">info@weareubic.com</a>
+          <a href="tel:+23353394720">+233 53 394 720</a>
+        </div>
       </div>
     </footer>
   );

@@ -19,9 +19,6 @@ export function Hero() {
             <Link href="#demo-request" className="inline-flex min-h-12 items-center justify-center rounded-md bg-[#00C48C] px-6 text-sm font-bold text-[#0D1F3C] transition hover:-translate-y-0.5 hover:bg-[#12dca2]">
               Request a Demo
             </Link>
-            <a href="https://show-up-six.vercel.app/" target="_blank" rel="noreferrer" className="inline-flex min-h-12 items-center justify-center rounded-md border border-white/25 px-6 text-sm font-bold text-white transition hover:-translate-y-0.5 hover:border-[#00C48C] hover:text-[#00C48C]">
-              Explore Live Demo
-            </a>
           </div>
         </div>
         <EvolutionDevice />
