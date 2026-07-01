@@ -1,10 +1,18 @@
 import { NextResponse, type NextRequest } from "next/server";
 import { updateSession } from "@/lib/supabase/middleware";
 
-const publicPaths = ["/login", "/api/auth/callback", "/api/leads", "/manifest.json", "/sw.js", "/icon.svg"];
+const publicPaths = ["/m", "/login", "/api/auth/callback", "/api/leads", "/manifest.json", "/sw.js", "/icon.svg"];
+
+function isMobilePhone(userAgent: string) {
+  return /Android.*Mobile|iPhone|iPod|BlackBerry|IEMobile|Opera Mini|Mobile Safari/i.test(userAgent);
+}
 
 export async function middleware(request: NextRequest) {
   const path = request.nextUrl.pathname;
+  if (path === "/" && isMobilePhone(request.headers.get("user-agent") ?? "")) {
+    return NextResponse.redirect(new URL("/m", request.url));
+  }
+
   if (path === "/" || publicPaths.some((publicPath) => path.startsWith(publicPath)) || path.startsWith("/_next")) {
     return NextResponse.next();
   }
