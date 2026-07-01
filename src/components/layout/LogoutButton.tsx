@@ -28,12 +28,11 @@ export function LogoutButton() {
       type="button"
       onClick={() => void logout()}
       disabled={loading}
-      className="inline-flex h-10 items-center gap-2 rounded-md border px-3 text-sm font-semibold text-navy transition hover:border-accent hover:bg-accent/10 disabled:opacity-60"
-      aria-label="Log out"
-      title="Log out"
+      className="inline-flex h-10 w-10 items-center justify-center rounded-md border text-navy transition hover:border-accent hover:bg-accent/10 disabled:opacity-60"
+      aria-label={loading ? "Logging out" : "Log out"}
+      title={loading ? "Logging out..." : "Log out"}
     >
       <LogOut className="h-4 w-4" aria-hidden />
-      <span className="hidden sm:inline">{loading ? "Logging out..." : "Log out"}</span>
     </button>
   );
 }

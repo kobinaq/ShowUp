@@ -3,7 +3,7 @@
 import Link from "next/link";
 import { usePathname } from "next/navigation";
 import type { Role } from "@prisma/client";
-import { BarChart3, BookOpen, FileText, Home, LifeBuoy } from "lucide-react";
+import { BarChart3, BookOpen, FileText, Home, Users } from "lucide-react";
 import { cn } from "@/lib/utils/cn";
 
 export function MobileNav({ role }: { role?: Role }) {
@@ -14,7 +14,7 @@ export function MobileNav({ role }: { role?: Role }) {
     { href: "/analytics", Icon: BarChart3, label: "Insights" },
     { href: "/reports", Icon: FileText, label: "Reports" },
     { href: "/courses", Icon: BookOpen, label: "Courses" },
-    { href: "/support", Icon: LifeBuoy, label: "IT" }
+    { href: "/students", Icon: Users, label: "Students" }
   ];
   return (
     <nav className="fixed inset-x-0 bottom-0 z-30 grid grid-cols-5 border-t border-slate-200 bg-white/95 backdrop-blur md:hidden">

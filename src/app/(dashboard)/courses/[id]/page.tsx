@@ -47,7 +47,7 @@ export default async function CourseDetailPage({ params }: { params: Promise<{ i
   const studentAttendanceRate = course.classSize && studentCountReports.length
     ? Math.round((studentCountReports.reduce((sum, report) => sum + (report.studentCount ?? 0), 0) / (studentCountReports.length * course.classSize)) * 100)
     : null;
-  const activeRep = course.repAssignments.find((item) => item.isActive);
+  const activeReps = course.repAssignments.filter((item) => item.isActive);
 
   return (
     <div className="space-y-6">
@@ -68,7 +68,7 @@ export default async function CourseDetailPage({ params }: { params: Promise<{ i
         { id: "overview", label: "Overview" },
         { id: "reports", label: "Reports", count: course.reports.length },
         { id: "coverage", label: "Coverage", count: course.outline?.topics.length ?? 0 },
-        { id: "reporter", label: "Reporter" },
+        { id: "reporter", label: "Reporters", count: activeReps.length },
         { id: "schedule", label: "Schedule", count: course.schedule.length }
       ]} />
       <section id="overview" className="grid gap-4 xl:grid-cols-3">
@@ -81,13 +81,17 @@ export default async function CourseDetailPage({ params }: { params: Promise<{ i
             <Detail label="Topics uploaded" value={(course.outline?.topics.length ?? 0).toString()} />
           </div>
         </SectionPanel>
-        <SectionPanel title="Current reporter">
-          {activeRep ? (
-            <div>
-              <p className="font-mono text-sm font-semibold text-navy">{activeRep.profile.anonymousAlias}</p>
-              <p className="mt-2 text-sm text-muted">Assigned {activeRep.createdAt.toLocaleDateString()}</p>
+        <SectionPanel title="Current reporters" description={`${activeReps.length}/2 active reporter slots filled.`}>
+          {activeReps.length ? (
+            <div className="space-y-3">
+              {activeReps.map((assignment) => (
+                <div key={assignment.id}>
+                  <p className="font-mono text-sm font-semibold text-navy">{assignment.profile.anonymousAlias}</p>
+                  <p className="mt-1 text-sm text-muted">Assigned {assignment.createdAt.toLocaleDateString()}</p>
+                </div>
+              ))}
             </div>
-          ) : <p className="text-sm text-muted">No active reporter assigned.</p>}
+          ) : <p className="text-sm text-muted">No active reporters assigned.</p>}
         </SectionPanel>
       </section>
       <SectionPanel id="reports" title="Reports" description="Click any report row to open the full submitted report.">
@@ -101,7 +105,7 @@ export default async function CourseDetailPage({ params }: { params: Promise<{ i
         ) : <EmptyState title="No outline uploaded." description="Upload course topics from Admin so coverage analytics can track progress." />}
       </SectionPanel>
       <section id="reporter" className="grid gap-4 xl:grid-cols-2">
-        <SectionPanel title="Reporter rotation">
+        <SectionPanel title="Reporter rotation" description="Each class should have two active student reporters. Use the Students page for easier changes.">
           <div className="space-y-2">
             {course.repAssignments.length ? course.repAssignments.map((assignment) => (
               <div key={assignment.id} className="flex items-center justify-between rounded-lg border border-slate-200 px-3 py-2 text-sm">
@@ -109,7 +113,8 @@ export default async function CourseDetailPage({ params }: { params: Promise<{ i
                 <StatusBadge tone={assignment.isActive ? "green" : "grey"}>{assignment.isActive ? "Active" : "Inactive"}</StatusBadge>
               </div>
             )) : <p className="text-sm text-muted">No reporter assignments yet.</p>}
-            {canManageReporter ? <ReporterAssignmentForm courseId={course.id} /> : null}
+            {canManageReporter && activeReps.length < 2 ? <ReporterAssignmentForm courseId={course.id} /> : null}
+            {canManageReporter ? <p className="text-sm text-muted">For replacements and comparison review, open <a href="/students" className="font-semibold text-navy underline">Students</a>.</p> : null}
           </div>
         </SectionPanel>
         <SectionPanel id="schedule" title="Schedule">

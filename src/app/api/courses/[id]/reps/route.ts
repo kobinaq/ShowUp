@@ -31,6 +31,10 @@ export const POST = withAuth<Params>(async (request, { params, profile }) => {
     include: { semester: true }
   });
   if (!course) return json({ error: "Not found" }, { status: 404 });
+  const activeReporterCount = await prisma.repAssignment.count({ where: { courseId: id, isActive: true } });
+  if (activeReporterCount >= 2) {
+    return json({ error: "This course already has two active reporters. Deactivate one before assigning another." }, { status: 409 });
+  }
   const alias = generateAlias();
   const password = generatePassword();
   const email = `${alias}@showup.internal`;
@@ -40,7 +44,6 @@ export const POST = withAuth<Params>(async (request, { params, profile }) => {
   });
   if (!supabaseUid) return json({ error: "Reporter auth account could not be created. Check Supabase admin credentials." }, { status: 503 });
   const saved = await prisma.$transaction(async (tx) => {
-    await tx.repAssignment.updateMany({ where: { courseId: id, isActive: true }, data: { isActive: false, endDate: new Date() } });
     const repProfile = await tx.profile.create({
       data: { supabaseUid, anonymousAlias: alias, role: Role.CLASS_REP, departmentId: course.departmentId, universityId: course.semester.universityId }
     });
@@ -61,6 +64,31 @@ export const POST = withAuth<Params>(async (request, { params, profile }) => {
   });
   await notificationService.sendRepCredentials(parsed.data.realEmail, parsed.data.realPhone, email, password);
   return json({ data: saved, alias }, { status: 201 });
+}, [Role.SUPER_ADMIN, Role.QA_OFFICER, Role.QA_ASSISTANT, Role.IT]);
+
+export const DELETE = withAuth<Params>(async (request, { params, profile }) => {
+  const { id } = await params;
+  const body = await request.json().catch(() => ({}));
+  const assignmentId = typeof body.assignmentId === "string" ? body.assignmentId : "";
+  if (!assignmentId) return badRequest("Assignment ID is required");
+  const assignment = await prisma.repAssignment.findFirst({
+    where: { id: assignmentId, courseId: id },
+    include: { profile: true, course: true }
+  });
+  if (!assignment) return json({ error: "Not found" }, { status: 404 });
+  const course = await prisma.course.findFirst({ where: andWhere({ id }, courseScope(profile)), select: { id: true } });
+  if (!course) return json({ error: "Not found" }, { status: 404 });
+  await prisma.$transaction(async (tx) => {
+    await tx.repAssignment.update({
+      where: { id: assignment.id },
+      data: { isActive: false, endDate: new Date() }
+    });
+    await tx.profile.update({
+      where: { id: assignment.profileId },
+      data: { isActive: false }
+    });
+  });
+  return json({ data: { id: assignment.id, isActive: false } });
 }, [Role.SUPER_ADMIN, Role.QA_OFFICER, Role.QA_ASSISTANT, Role.IT]);
 
 export const PUT = withAuth<Params>(async (_request, { params, profile }) => {

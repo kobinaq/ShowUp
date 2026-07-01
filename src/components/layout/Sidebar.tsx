@@ -22,6 +22,7 @@ const groups: Array<{
     items: [
       { href: "/reports", label: "Reports", icon: Gauge },
       { href: "/courses", label: "Courses", icon: BookOpen },
+      { href: "/students", label: "Students", icon: Users },
       { href: "/lecturers", label: "Lecturers", icon: GraduationCap }
     ]
   },

@@ -23,17 +23,28 @@ export class RotationService {
 
   async rotateCourse(courseId: string, assignedById: string, outgoingAlias?: string) {
     const sealedPool = await prisma.sealedRepIdentity.findMany({ where: { courseId }, orderBy: { createdAt: "asc" } });
+    const activeAssignments = await prisma.repAssignment.findMany({
+      where: { courseId, isActive: true },
+      include: { profile: true },
+      orderBy: { createdAt: "asc" }
+    });
+    const outgoingAssignment = outgoingAlias
+      ? activeAssignments.find((assignment) => assignment.profile.anonymousAlias === outgoingAlias)
+      : activeAssignments[0];
+    const outgoingAliasForLog = outgoingAssignment?.profile.anonymousAlias ?? outgoingAlias;
     const alias = generateAlias();
     const password = generatePassword();
     const course = await prisma.course.findUnique({ where: { id: courseId } });
     if (!course) throw new Error("Course not found");
-    const identity = sealedPool.find((item) => item.anonymousAlias !== outgoingAlias) ?? sealedPool[0];
+    const identity = sealedPool.find((item) => item.anonymousAlias !== outgoingAliasForLog) ?? sealedPool[0];
     if (!identity) throw new Error("No sealed identities available for this course");
 
     const supabaseUid = await this.createSupabaseUser(`${alias}@showup.internal`, password);
     await prisma.$transaction(async (tx) => {
-      await tx.repAssignment.updateMany({ where: { courseId, isActive: true }, data: { isActive: false, endDate: new Date() } });
-      await tx.profile.updateMany({ where: { anonymousAlias: outgoingAlias }, data: { isActive: false } });
+      if (outgoingAssignment) {
+        await tx.repAssignment.update({ where: { id: outgoingAssignment.id }, data: { isActive: false, endDate: new Date() } });
+        await tx.profile.update({ where: { id: outgoingAssignment.profileId }, data: { isActive: false } });
+      }
       const profile = await tx.profile.create({
         data: {
           supabaseUid,
@@ -64,11 +75,11 @@ export class RotationService {
         }
       });
       await tx.rotationLog.create({
-        data: { courseId, assignmentId: assignment.id, outgoingAlias, incomingAlias: alias, action: "rotated" }
+        data: { courseId, assignmentId: assignment.id, outgoingAlias: outgoingAliasForLog, incomingAlias: alias, action: "rotated" }
       });
     });
     await notificationService.sendRepCredentials(identity.realEmail, identity.realPhone, `${alias}@showup.internal`, password);
-    return { courseId, outgoingAlias, incomingAlias: alias };
+    return { courseId, outgoingAlias: outgoingAliasForLog, incomingAlias: alias };
   }
 
   private async createSupabaseUser(email: string, password: string) {

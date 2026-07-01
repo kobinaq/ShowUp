@@ -50,10 +50,11 @@ export function SupportButton({ compact = false }: { compact?: boolean }) {
           setOpen(true);
           setSubmitted(false);
         }}
-        className={compact ? "inline-flex h-10 items-center gap-2 rounded-md border border-slate-200 bg-white px-3 text-sm font-semibold text-navy hover:border-primary" : "inline-flex h-11 items-center gap-2 rounded-lg bg-navy px-4 text-sm font-semibold text-white shadow-card hover:bg-navy/90"}
+        className={compact ? "inline-flex h-10 w-10 items-center justify-center rounded-md border border-slate-200 bg-white text-navy hover:border-primary" : "inline-flex h-11 w-11 items-center justify-center rounded-lg bg-navy text-white shadow-card hover:bg-navy/90"}
+        aria-label="Ping IT"
+        title="Ping IT"
       >
         <LifeBuoy className="h-4 w-4" aria-hidden />
-        Ping IT
       </button>
       {open ? (
         <div className="fixed inset-0 z-[70] flex items-end bg-navy/40 p-4 backdrop-blur-sm sm:items-center sm:justify-center">

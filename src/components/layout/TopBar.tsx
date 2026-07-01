@@ -15,7 +15,7 @@ export function TopBar({ role, email, university, department }: { role?: Role; e
       </div>
       <div className="flex items-center justify-end gap-3">
         <div className="hidden text-right text-sm text-muted lg:block">{email}</div>
-        <SupportButton compact />
+        {role !== "CLASS_REP" ? <SupportButton compact /> : null}
         <ThemeToggle />
         <LogoutButton />
       </div>
