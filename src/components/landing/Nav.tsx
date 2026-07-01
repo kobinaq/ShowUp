@@ -11,6 +11,7 @@ export function Nav() {
           <Link href="#features" className="transition hover:text-[#18796e]">Features</Link>
           <Link href="#roles" className="transition hover:text-[#18796e]">Roles</Link>
           <Link href="#workflow" className="transition hover:text-[#18796e]">Workflow</Link>
+          <Link href="#pricing" className="transition hover:text-[#18796e]">Pricing</Link>
         </nav>
         <Link href="#demo-request" className="rounded-full bg-[#12203a] px-5 py-3 text-sm font-black text-white shadow-[0_14px_26px_rgba(18,32,58,0.22)] transition hover:-translate-y-0.5">
           Request a Demo

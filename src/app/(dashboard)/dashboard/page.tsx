@@ -50,7 +50,7 @@ export default async function DashboardPage({ searchParams }: { searchParams?: P
   const periodRange = getPeriodRange(period, activeSemester);
   const periodReportScope = { ...reportScope, lectureDate: { gte: periodRange.start, lte: periodRange.end } };
   const periodLabel = periodRange.label;
-  const [reports, insightReports, reportsThisWeek, absences, lateness, flags, contests, pings, courses] = await Promise.all([
+  const [reports, insightReports, reportsThisWeek, presentReports, absences, lateness, flags, contests, pings, courses] = await Promise.all([
     prisma.lectureReport.findMany({
       where: periodReportScope,
       take: 8,
@@ -64,6 +64,7 @@ export default async function DashboardPage({ searchParams }: { searchParams?: P
       include: { course: { include: { lecturer: true, department: true } }, flags: true }
     }),
     prisma.lectureReport.count({ where: periodReportScope }),
+    prisma.lectureReport.count({ where: { ...periodReportScope, lecturerPresent: { not: "ABSENT" } } }),
     prisma.lectureReport.count({ where: { ...periodReportScope, lecturerPresent: "ABSENT" } }),
     prisma.lectureReport.count({ where: { ...periodReportScope, arrivalStatus: "LATE" } }),
     prisma.flag.findMany({ where: { isResolved: false, createdAt: { gte: periodRange.start, lte: periodRange.end }, ...lecturerScope }, include: { lecturer: true, report: { include: { course: true } } }, orderBy: { createdAt: "desc" }, take: 6 }),
@@ -71,8 +72,7 @@ export default async function DashboardPage({ searchParams }: { searchParams?: P
     prisma.latePing.findMany({ where: { lectureDate: { gte: periodRange.start, lte: periodRange.end }, course: courseScope }, include: { course: true }, orderBy: { createdAt: "desc" }, take: 6 }),
     prisma.course.count({ where: courseScope })
   ]);
-  const present = reports.filter((report) => report.lecturerPresent !== "ABSENT").length;
-  const attendanceRate = reports.length ? Math.round((present / reports.length) * 100) : 0;
+  const attendanceRate = reportsThisWeek ? Math.round((presentReports / reportsThisWeek) * 100) : 0;
   const scopeName = isSuperAdmin ? "All universities" : isDepartmentScope ? profile?.department?.name ?? "Your department" : profile?.university?.name ?? "Your university";
   const insights = buildInsights(insightReports, flags, contests, periodRange.start, scopeName, periodLabel);
   const needsAttention = [

@@ -5,6 +5,7 @@ import { LandingMotion } from "@/components/landing/LandingMotion";
 import { LeadForm } from "@/components/landing/LeadForm";
 import { ModuleGrid } from "@/components/landing/ModuleGrid";
 import { Nav } from "@/components/landing/Nav";
+import { Pricing } from "@/components/landing/Pricing";
 import { RolePreview } from "@/components/landing/RolePreview";
 import { Workflow } from "@/components/landing/Workflow";
 import { EvolutionDevice } from "@/components/landing/EvolutionDevice";
@@ -32,6 +33,7 @@ export default function LandingPage() {
       <ModuleGrid />
       <RolePreview />
       <Workflow />
+      <Pricing />
       <LeadForm />
       <Footer />
     </main>

@@ -59,12 +59,12 @@ export function RolePreview() {
                 onClick={() => setActiveRole(key)}
                 className={`rounded-[24px] border p-5 text-left transition hover:-translate-y-0.5 ${
                   activeRole === key
-                    ? "border-[#2a9d8f]/30 bg-white shadow-[0_16px_40px_rgba(18,32,58,0.08)]"
+                    ? "border-[#12203a] bg-[#12203a] shadow-[0_16px_40px_rgba(18,32,58,0.18)]"
                     : "border-[rgba(16,24,40,0.08)] bg-white/65"
                 }`}
               >
-                <strong className="block text-lg tracking-[-0.03em] text-[#12203a]">{item.label}</strong>
-                <span className="mt-1 block text-sm leading-6 text-[#667085]">{item.meta}</span>
+                <strong className={`block text-lg tracking-[-0.03em] ${activeRole === key ? "text-white" : "text-[#12203a]"}`}>{item.label}</strong>
+                <span className={`mt-1 block text-sm leading-6 ${activeRole === key ? "text-white/70" : "text-[#667085]"}`}>{item.meta}</span>
               </button>
             ))}
           </div>
@@ -74,7 +74,7 @@ export function RolePreview() {
             <p className="mt-5 max-w-2xl text-lg leading-8 text-white/70">{role.copy}</p>
             <div className="mt-8 grid gap-4 sm:grid-cols-3">
               {role.metrics.map(([value, label]) => (
-                <div key={label} className="rounded-[22px] border border-white/10 bg-white/10 p-5">
+                <div key={label} className="rounded-[22px] border border-[#2a9d8f]/35 bg-[#2a9d8f]/16 p-5 shadow-[inset_0_1px_0_rgba(255,255,255,0.08)]">
                   <strong className="block text-4xl font-black tracking-[-0.06em] text-[#8df2de]">{value}</strong>
                   <span className="mt-2 block text-xs font-bold leading-5 text-white/68">{label}</span>
                 </div>

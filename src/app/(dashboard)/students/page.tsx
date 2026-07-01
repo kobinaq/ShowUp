@@ -26,19 +26,35 @@ export default async function StudentsPage() {
       repAssignments: {
         include: { profile: true },
         orderBy: [{ isActive: "desc" }, { createdAt: "desc" }]
-      },
-      reports: {
-        where: { isVoided: false },
-        include: {
-          schedule: true,
-          submittedBy: { select: { anonymousAlias: true } },
-          topicsCovered: { include: { topic: true } }
-        },
-        orderBy: { lectureDate: "desc" },
-        take: 80
       }
     },
     orderBy: { code: "asc" }
+  });
+  const courseIds = courses.map((course) => course.id);
+  const comparisonReports = courseIds.length
+    ? await prisma.lectureReport.findMany({
+        where: { isVoided: false, courseId: { in: courseIds } },
+        select: {
+          id: true,
+          courseId: true,
+          scheduleId: true,
+          lectureDate: true,
+          lecturerPresent: true,
+          arrivalStatus: true,
+          lateMinutes: true,
+          studentCount: true,
+          additionalNotes: true,
+          schedule: { select: { startTime: true, endTime: true } },
+          submittedBy: { select: { anonymousAlias: true } },
+          topicsCovered: { select: { topic: { select: { title: true } } } }
+        },
+        orderBy: [{ lectureDate: "desc" }, { submittedAt: "desc" }],
+        take: 300
+      })
+    : [];
+  const comparisonReportsByCourse = new Map<string, typeof comparisonReports>();
+  comparisonReports.forEach((report) => {
+    comparisonReportsByCourse.set(report.courseId, [...(comparisonReportsByCourse.get(report.courseId) ?? []), report]);
   });
 
   const aliases = courses.flatMap((course) => course.repAssignments.map((assignment) => assignment.profile.anonymousAlias).filter(Boolean) as string[]);
@@ -66,7 +82,7 @@ export default async function StudentsPage() {
         createdAt: assignment.createdAt.toISOString()
       };
     }),
-    comparisons: buildComparisons(course.reports)
+    comparisons: buildComparisons(comparisonReportsByCourse.get(course.id) ?? [])
   }));
 
   const activeSlots = studentCourses.reduce((sum, course) => sum + course.reporters.filter((reporter) => reporter.isActive).length, 0);
@@ -96,6 +112,7 @@ export default async function StudentsPage() {
 
 type ComparisonReport = {
   id: string;
+  courseId: string;
   scheduleId: string;
   lectureDate: Date;
   lecturerPresent: string;

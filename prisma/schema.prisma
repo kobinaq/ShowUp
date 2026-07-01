@@ -212,6 +212,8 @@ model RepAssignment {
   rotationWeeks Int           @default(4)
   createdAt     DateTime      @default(now())
   logs          RotationLog[]
+
+  @@index([courseId, isActive])
 }
 
 model LectureReport {
@@ -244,6 +246,10 @@ model LectureReport {
   windowClosedAt           DateTime
 
   @@unique([scheduleId, lectureDate, submittedById])
+  @@index([courseId, lectureDate])
+  @@index([lectureDate, lecturerPresent])
+  @@index([lectureDate, arrivalStatus])
+  @@index([submittedById, lectureDate])
 }
 
 model LatePing {
@@ -266,6 +272,9 @@ model LatePing {
   reportId            String?        @unique
   report              LectureReport? @relation(fields: [reportId], references: [id], onDelete: SetNull)
   createdAt           DateTime       @default(now())
+
+  @@index([courseId, lectureDate])
+  @@index([lectureDate, acknowledgedAt])
 }
 
 enum PresenceStatus {
@@ -325,6 +334,8 @@ model Contest {
   resolutionNote String?
   raisedAt       DateTime      @default(now())
   resolvedAt     DateTime?
+
+  @@index([status, raisedAt])
 }
 
 enum ContestStatus {
@@ -345,6 +356,9 @@ model Flag {
   isResolved       Boolean        @default(false)
   notificationSent Boolean        @default(false)
   createdAt        DateTime       @default(now())
+
+  @@index([isResolved, createdAt])
+  @@index([lecturerId, createdAt])
 }
 
 enum FlagType {

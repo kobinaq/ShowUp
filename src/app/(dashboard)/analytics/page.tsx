@@ -35,41 +35,109 @@ export default async function AnalyticsPage() {
     : isDepartmentScope
       ? { departmentId }
       : { department: { faculty: { universityId } } };
+  const lecturerWhere = isSuperAdmin
+    ? {}
+    : isDepartmentScope
+      ? { departmentId }
+      : { department: { faculty: { universityId } } };
 
   const courses = await prisma.course.findMany({
     where: courseWhere,
-    include: {
-      lecturer: true,
-      department: { include: { faculty: true } },
-      reports: { where: { isVoided: false }, include: { flags: true, contest: true } },
-      outline: { include: { topics: true } },
-      latePings: true
+    select: {
+      id: true,
+      code: true,
+      title: true,
+      classSize: true,
+      lecturer: { select: { firstName: true, lastName: true } },
+      department: { select: { name: true, faculty: { select: { name: true } } } }
     },
     orderBy: { code: "asc" }
   });
+  const courseIds = courses.map((course) => course.id);
+  const reportWhere = { isVoided: false, courseId: { in: courseIds.length ? courseIds : ["__none__"] } };
+  const contestWhere = { report: { course: courseWhere } };
+  const pingWhere = { course: courseWhere };
 
-  const reports = courses.flatMap((course) => course.reports.map((report) => ({ ...report, course })));
-  const flags = reports.flatMap((report) => report.flags.map((flag) => ({ ...flag, report })));
-  const contests = reports.flatMap((report) => report.contest ? [{ ...report.contest, report }] : []);
-  const pings = courses.flatMap((course) => course.latePings);
-  const present = reports.filter((report) => report.lecturerPresent !== "ABSENT").length;
-  const absences = reports.filter((report) => report.lecturerPresent === "ABSENT").length;
-  const lateness = reports.filter((report) => report.arrivalStatus === "LATE").length;
-  const unresolvedFlags = flags.filter((flag) => !flag.isResolved).length;
-  const openContests = contests.filter((contest) => contest.status === "PENDING").length;
-  const acknowledgedPings = pings.filter((ping) => ping.acknowledgedAt).length;
-  const studentAttendance = buildStudentAttendance(courses);
+  const [
+    reports,
+    reportCount,
+    present,
+    absences,
+    lateness,
+    unresolvedFlags,
+    openContests,
+    pingCount,
+    acknowledgedPings,
+    flags,
+    recentContests
+  ] = await Promise.all([
+    prisma.lectureReport.findMany({
+      where: reportWhere,
+      select: {
+        id: true,
+        lecturerPresent: true,
+        arrivalStatus: true,
+        studentCount: true,
+        lectureDate: true,
+        course: {
+          select: {
+            id: true,
+            code: true,
+            classSize: true,
+            lecturer: { select: { firstName: true, lastName: true } },
+            department: { select: { name: true, faculty: { select: { name: true } } } }
+          }
+        }
+      },
+      orderBy: { lectureDate: "desc" },
+      take: 1000
+    }),
+    prisma.lectureReport.count({ where: reportWhere }),
+    prisma.lectureReport.count({ where: { ...reportWhere, lecturerPresent: { not: "ABSENT" } } }),
+    prisma.lectureReport.count({ where: { ...reportWhere, lecturerPresent: "ABSENT" } }),
+    prisma.lectureReport.count({ where: { ...reportWhere, arrivalStatus: "LATE" } }),
+    prisma.flag.count({ where: { isResolved: false, lecturer: lecturerWhere } }),
+    prisma.contest.count({ where: { status: "PENDING", ...contestWhere } }),
+    prisma.latePing.count({ where: pingWhere }),
+    prisma.latePing.count({ where: { ...pingWhere, acknowledgedAt: { not: null } } }),
+    prisma.flag.findMany({
+      where: { lecturer: lecturerWhere },
+      select: {
+        id: true,
+        type: true,
+        isResolved: true,
+        lecturer: { select: { firstName: true, lastName: true } },
+        report: { select: { course: { select: { code: true } } } }
+      },
+      orderBy: { createdAt: "desc" },
+      take: 250
+    }),
+    prisma.contest.findMany({
+      where: contestWhere,
+      select: {
+        id: true,
+        status: true,
+        reason: true,
+        raisedAt: true,
+        report: { select: { id: true, course: { select: { code: true } } } }
+      },
+      orderBy: { raisedAt: "desc" },
+      take: 5
+    })
+  ]);
+
+  const studentAttendance = buildStudentAttendance(reports);
 
   const coverage = await Promise.all(courses.map(async (course) => ({ course, ...(await coverageService.calculate(course.id)) })));
   const averageCoverage = coverage.length ? Math.round(coverage.reduce((sum, item) => sum + item.coveragePercent, 0) / coverage.length) : 0;
-  const attendanceRate = reports.length ? Math.round((present / reports.length) * 100) : 0;
-  const pingAcknowledgementRate = pings.length ? Math.round((acknowledgedPings / pings.length) * 100) : 0;
-  const attendanceChart = buildAttendanceChart(courses, isSuperAdmin, isDepartmentScope);
+  const attendanceRate = reportCount ? Math.round((present / reportCount) * 100) : 0;
+  const pingAcknowledgementRate = pingCount ? Math.round((acknowledgedPings / pingCount) * 100) : 0;
+  const attendanceChart = buildAttendanceChart(reports, isSuperAdmin, isDepartmentScope);
   const studentAttendanceChart = studentAttendance.byCourse.slice(0, 12);
   const studentAttendanceTrend = buildStudentAttendanceTrend(reports);
   const flagChart = Object.entries(groupByCount(flags, (flag) => displayText(flag.type))).map(([name, count]) => ({ name, count }));
   const coverageChart = Object.entries(groupByCount(coverage, (item) => item.pacingStatus)).map(([name, count]) => ({ name, count }));
-  const topFlaggedLecturers = Object.entries(groupByCount(flags, (flag) => `${flag.report.course.lecturer.firstName} ${flag.report.course.lecturer.lastName}`))
+  const topFlaggedLecturers = Object.entries(groupByCount(flags, (flag) => `${flag.lecturer.firstName} ${flag.lecturer.lastName}`))
     .map(([name, count]) => ({ name, count }))
     .sort((a, b) => b.count - a.count)
     .slice(0, 5);
@@ -77,7 +145,6 @@ export default async function AnalyticsPage() {
     .filter((item) => item.pacingStatus === "Behind")
     .sort((a, b) => a.coveragePercent - b.coveragePercent)
     .slice(0, 5);
-  const recentContests = contests.sort((a, b) => b.raisedAt.getTime() - a.raisedAt.getTime()).slice(0, 5);
   const scopeTitle = isSuperAdmin ? "All universities" : isDepartmentScope ? profile?.department?.name ?? "Your department" : profile?.university?.name ?? "Your university";
 
   return (
@@ -90,7 +157,7 @@ export default async function AnalyticsPage() {
         <MetricCard label="Lateness" value={lateness} helper="Total late reports" tone={lateness ? "amber" : "green"} />
         <MetricCard label="Open flags" value={unresolvedFlags} helper={`${flags.length} total flags`} tone={unresolvedFlags ? "amber" : "green"} />
         <MetricCard label="Open contests" value={openContests} helper="Pending challenge reviews" tone={openContests ? "red" : "green"} />
-        <MetricCard label="Ping acknowledgement" value={`${pingAcknowledgementRate}%`} helper={`${acknowledgedPings}/${pings.length} late pings acknowledged`} tone={pingAcknowledgementRate >= 80 ? "green" : pings.length ? "amber" : "grey"} />
+        <MetricCard label="Ping acknowledgement" value={`${pingAcknowledgementRate}%`} helper={`${acknowledgedPings}/${pingCount} late pings acknowledged`} tone={pingAcknowledgementRate >= 80 ? "green" : pingCount ? "amber" : "grey"} />
         <MetricCard label="Student attendance" value={studentAttendance.rate === null ? "-" : `${studentAttendance.rate}%`} helper={studentAttendance.ratedReports ? `${studentAttendance.ratedReports} sessions with class size` : "Add class sizes to compare"} tone={studentAttendance.rate === null ? "grey" : studentAttendance.rate >= 80 ? "green" : studentAttendance.rate >= 60 ? "amber" : "red"} />
         <MetricCard label="Courses" value={courses.length} helper="Course records in scope" tone="grey" />
       </section>
@@ -128,50 +195,59 @@ export default async function AnalyticsPage() {
   );
 }
 
-type AttendanceCourse = {
-  code: string;
-  classSize: number | null;
-  lecturer: { firstName: string; lastName: string };
-  department: { name: string; faculty: { name: string } };
-  reports: Array<{ lecturerPresent: string; studentCount: number | null; lectureDate: Date }>;
+type AnalyticsReport = {
+  lecturerPresent: string;
+  studentCount: number | null;
+  lectureDate: Date;
+  course: {
+    code: string;
+    classSize: number | null;
+    lecturer: { firstName: string; lastName: string };
+    department: { name: string; faculty: { name: string } };
+  };
 };
 
-function buildAttendanceChart(courses: AttendanceCourse[], isSuperAdmin: boolean, isDepartmentScope: boolean) {
+function buildAttendanceChart(reports: AnalyticsReport[], isSuperAdmin: boolean, isDepartmentScope: boolean) {
   const groups = new Map<string, { reports: number; present: number }>();
-  for (const course of courses) {
+  for (const report of reports) {
+    const course = report.course;
     const name = isDepartmentScope
       ? `${course.lecturer.firstName} ${course.lecturer.lastName}`
       : isSuperAdmin
         ? course.department.faculty.name
         : course.department.name;
     const current = groups.get(name) ?? { reports: 0, present: 0 };
-    current.reports += course.reports.length;
-    current.present += course.reports.filter((report) => report.lecturerPresent !== "ABSENT").length;
+    current.reports += 1;
+    current.present += report.lecturerPresent !== "ABSENT" ? 1 : 0;
     groups.set(name, current);
   }
   return Array.from(groups.entries()).map(([name, item]) => ({ name, attendance: item.reports ? Math.round((item.present / item.reports) * 100) : 0 }));
 }
 
-function buildStudentAttendance(courses: AttendanceCourse[]) {
+function buildStudentAttendance(reports: AnalyticsReport[]) {
   let attended = 0;
   let expected = 0;
   let ratedReports = 0;
-  const byCourse = courses
-    .map((course) => {
-      if (!course.classSize) return null;
-      const countedReports = course.reports.filter((report) => typeof report.studentCount === "number");
-      if (!countedReports.length) return null;
-      const courseAttended = countedReports.reduce((sum, report) => sum + (report.studentCount ?? 0), 0);
-      const courseExpected = countedReports.length * course.classSize;
+  const groups = new Map<string, { classSize: number; attended: number; reports: number }>();
+  for (const report of reports) {
+    if (!report.course.classSize || typeof report.studentCount !== "number") continue;
+    const current = groups.get(report.course.code) ?? { classSize: report.course.classSize, attended: 0, reports: 0 };
+    current.attended += report.studentCount;
+    current.reports += 1;
+    groups.set(report.course.code, current);
+  }
+  const byCourse = Array.from(groups.entries())
+    .map(([name, item]) => {
+      const courseAttended = item.attended;
+      const courseExpected = item.reports * item.classSize;
       attended += courseAttended;
       expected += courseExpected;
-      ratedReports += countedReports.length;
+      ratedReports += item.reports;
       return {
-        name: course.code,
+        name,
         attendance: courseExpected ? Math.round((courseAttended / courseExpected) * 100) : 0
       };
     })
-    .filter((item): item is { name: string; attendance: number } => Boolean(item))
     .sort((a, b) => a.attendance - b.attendance);
 
   return {
@@ -181,7 +257,7 @@ function buildStudentAttendance(courses: AttendanceCourse[]) {
   };
 }
 
-function buildStudentAttendanceTrend(reports: Array<{ lectureDate: Date; studentCount: number | null; course: { classSize: number | null } }>) {
+function buildStudentAttendanceTrend(reports: AnalyticsReport[]) {
   const groups = new Map<string, { attended: number; expected: number }>();
   for (const report of reports) {
     if (!report.course.classSize || typeof report.studentCount !== "number") continue;
