@@ -29,8 +29,8 @@ export function Pricing() {
         </div>
 
         <div className="grid gap-5 lg:grid-cols-[1fr_0.9fr]">
-          <article className="reveal rounded-[32px] border border-[#4288c9]/20 bg-white p-8 shadow-[0_24px_70px_rgba(18,32,58,0.10)]">
-            <p className="text-sm font-black uppercase tracking-[0.14em] text-[#4288c9]">Small tertiary institutions</p>
+          <article className="reveal rounded-[32px] border border-[#2a9d8f]/25 bg-white p-8 shadow-[0_24px_70px_rgba(18,32,58,0.10)]">
+            <p className="text-sm font-black uppercase tracking-[0.14em] text-[#18796e]">Small tertiary institutions</p>
             <div className="mt-5 flex flex-wrap items-end gap-3">
               <span className="text-5xl font-black tracking-[-0.06em] text-[#12203a]">GHS 60,000</span>
               <span className="pb-2 text-sm font-bold text-[#667085]">starting annual license fee</span>
@@ -40,8 +40,8 @@ export function Pricing() {
             </p>
             <div className="mt-7 grid gap-3 sm:grid-cols-2">
               {starterFeatures.map((feature) => (
-                <p key={feature} className="flex gap-3 rounded-[18px] border border-slate-200 bg-[#f7f9f8] p-4 text-sm font-semibold text-[#26384f]">
-                  <CheckCircle2 className="mt-0.5 h-4 w-4 shrink-0 text-[#4288c9]" aria-hidden />
+                <p key={feature} className="flex gap-3 rounded-[18px] border border-[#d9e8e4] bg-[#f7f9f8] p-4 text-sm font-semibold text-[#12203a]">
+                  <CheckCircle2 className="mt-0.5 h-4 w-4 shrink-0 text-[#2a9d8f]" aria-hidden />
                   {feature}
                 </p>
               ))}
