@@ -38,7 +38,7 @@ export const metadata: Metadata = {
 
 export default function MobileLandingPage() {
   return (
-    <main className="min-h-screen overflow-x-hidden bg-[#f7f9f8] font-sans text-[#12203a]">
+    <main className="showup-landing min-h-screen overflow-x-hidden bg-[#f7f9f8] font-sans text-[#12203a]">
       <header className="sticky top-0 z-40 border-b border-[#d9e8e4] bg-[#f7f9f8]/92 px-4 py-3 backdrop-blur-xl">
         <div className="mx-auto flex max-w-md items-center justify-between">
           <Link href="/m" className="inline-flex items-center gap-2 font-black tracking-[-0.04em]" aria-label="ShowUp mobile home">

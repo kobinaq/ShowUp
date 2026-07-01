@@ -231,6 +231,58 @@ body {
   --showup-muted: #667085;
   --showup-navy: #12203a;
   --showup-teal: #2a9d8f;
+  color-scheme: light;
+  background: var(--showup-bg);
+  color: var(--showup-ink);
+}
+
+.dark .showup-landing,
+.dark .showup-landing .bg-white,
+.dark .showup-landing .bg-white\/65,
+.dark .showup-landing .bg-white\/75,
+.dark .showup-landing .bg-white\/80,
+.dark .showup-landing .bg-white\/85,
+.dark .showup-landing .bg-white\/90,
+.dark .showup-landing .bg-white\/92,
+.dark .showup-landing .bg-white\/95 {
+  color-scheme: light;
+}
+
+.dark .showup-landing {
+  background: var(--showup-bg);
+  color: var(--showup-ink);
+}
+
+.dark .showup-landing .bg-white {
+  background-color: #ffffff;
+}
+
+.dark .showup-landing .bg-white\/65 {
+  background-color: rgba(255, 255, 255, 0.65);
+}
+
+.dark .showup-landing .bg-white\/75 {
+  background-color: rgba(255, 255, 255, 0.75);
+}
+
+.dark .showup-landing .bg-white\/80 {
+  background-color: rgba(255, 255, 255, 0.8);
+}
+
+.dark .showup-landing .bg-white\/85 {
+  background-color: rgba(255, 255, 255, 0.85);
+}
+
+.dark .showup-landing .bg-white\/90 {
+  background-color: rgba(255, 255, 255, 0.9);
+}
+
+.dark .showup-landing .bg-white\/92 {
+  background-color: rgba(255, 255, 255, 0.92);
+}
+
+.dark .showup-landing .bg-white\/95 {
+  background-color: rgba(255, 255, 255, 0.95);
 }
 
 .showup-noise {
