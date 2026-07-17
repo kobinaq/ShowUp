@@ -26,6 +26,16 @@ All required variables are documented in `.env.local.example`.
 - `ARKESEL_API_KEY`, `ARKESEL_SENDER_ID`: Arkesel SMS.
 - `GROQ_API_KEY`: Groq API access for the ShowUp AI analytics assistant, using `qwen/qwen3.6-27b`.
 - `CRON_SECRET`: bearer token for `/api/cron/rotation`.
+- `DEMO_ACCESS_TOKEN`: enables `/demo` live pitch mode (auth bypass + SMS console). Leave unset to disable.
+
+## Live demo (pitch / client walkthrough)
+
+1. Seed data: `npx prisma db seed`
+2. Set `DEMO_ACCESS_TOKEN` (and Arkesel keys for real SMS)
+3. Open `/demo`, enter the access code, pick a role, add a phone number
+4. Use **Test SMS** / **Late-ping SMS** / **Absence SMS**, then **Open app** to explore dashboards without logging in
+
+Demo sessions are signed cookies (8h). They map to the ATU seed profiles and show a banner in-app.
 
 ## Architecture
 

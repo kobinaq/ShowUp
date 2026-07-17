@@ -3,7 +3,19 @@ import { LogoutButton } from "@/components/layout/LogoutButton";
 import { ThemeToggle } from "@/components/layout/ThemeToggle";
 import { SupportButton } from "@/components/support/SupportButton";
 
-export function TopBar({ role, email, university, department }: { role?: Role; email?: string | null; university?: string | null; department?: string | null }) {
+export function TopBar({
+  role,
+  email,
+  university,
+  department,
+  isDemo
+}: {
+  role?: Role;
+  email?: string | null;
+  university?: string | null;
+  department?: string | null;
+  isDemo?: boolean;
+}) {
   return (
     <header className="sticky top-0 z-20 grid min-h-16 grid-cols-[1fr_auto_1fr] items-center gap-3 border-b border-slate-200 bg-white/90 px-4 backdrop-blur md:px-8">
       <div className="min-w-0">
@@ -17,7 +29,7 @@ export function TopBar({ role, email, university, department }: { role?: Role; e
         <div className="hidden text-right text-sm text-muted lg:block">{email}</div>
         {role !== "CLASS_REP" ? <SupportButton compact /> : null}
         <ThemeToggle />
-        <LogoutButton />
+        <LogoutButton isDemo={isDemo} />
       </div>
     </header>
   );

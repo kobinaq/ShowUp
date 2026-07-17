@@ -36,6 +36,12 @@ export default function LoginPage() {
         <button disabled={loading} className="mt-6 h-12 w-full rounded-md bg-accent font-semibold text-navy disabled:opacity-60">
           {loading ? "Signing in..." : "Sign in"}
         </button>
+        <p className="mt-4 text-center text-sm text-muted">
+          Pitching or client walkthrough?{" "}
+          <a href="/demo" className="font-semibold text-navy underline underline-offset-2">
+            Open live demo
+          </a>
+        </p>
       </form>
     </main>
   );

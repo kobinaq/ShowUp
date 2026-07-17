@@ -3,22 +3,20 @@ import { Role } from "@prisma/client";
 import { prisma } from "@/lib/prisma";
 import { coverageService } from "@/lib/services/coverage.service";
 import { ReportTable } from "@/components/reports/ReportTable";
-import { createClient } from "@/lib/supabase/server";
 import { PageHeader } from "@/components/shared/PageHeader";
 import { MetricCard, SectionPanel, Tabs } from "@/components/shared/Panels";
 import { StatusBadge } from "@/components/shared/StatusBadge";
 import { EmptyState } from "@/components/shared/EmptyState";
 import { ReporterAssignmentForm } from "@/components/courses/ReporterAssignmentForm";
+import { OutlineUploadForm } from "@/components/courses/OutlineUploadForm";
+import { getAuthProfile } from "@/lib/auth/session";
 
 export default async function CourseDetailPage({ params }: { params: Promise<{ id: string }> }) {
   const { id } = await params;
-  const supabase = await createClient();
-  const { data } = await supabase.auth.getUser();
-  const profile = data.user
-    ? await prisma.profile.findUnique({ where: { supabaseUid: data.user.id }, select: { role: true, universityId: true, departmentId: true } })
-    : null;
+  const profile = await getAuthProfile();
   const isSuperAdmin = profile?.role === Role.SUPER_ADMIN;
   const canManageReporter = profile?.role === Role.SUPER_ADMIN || profile?.role === Role.QA_OFFICER || profile?.role === Role.QA_ASSISTANT || profile?.role === Role.IT;
+  const canUploadOutline = profile?.role === Role.SUPER_ADMIN || profile?.role === Role.IT;
   const isDepartmentScope = profile?.role === Role.HOD || profile?.role === Role.HOD_ASSISTANT;
   const course = await prisma.course.findFirst({
     where: {
@@ -102,7 +100,12 @@ export default async function CourseDetailPage({ params }: { params: Promise<{ i
           <ol className="grid gap-2 md:grid-cols-2">
             {course.outline.topics.map((topic) => <li key={topic.id} className="rounded-lg border border-slate-200 p-3 text-sm"><span className="font-semibold">Week {topic.weekNumber ?? "-"}</span>: {topic.title}</li>)}
           </ol>
-        ) : <EmptyState title="No outline uploaded." description="Upload course topics from Admin so coverage analytics can track progress." />}
+        ) : <EmptyState title="No outline uploaded." description="Upload course topics so coverage analytics can track progress." />}
+        {canUploadOutline ? (
+          <div className="mt-4">
+            <OutlineUploadForm courseId={course.id} hasOutline={Boolean(course.outline?.topics.length)} />
+          </div>
+        ) : null}
       </SectionPanel>
       <section id="reporter" className="grid gap-4 xl:grid-cols-2">
         <SectionPanel title="Reporter rotation" description="Each class should have two active student reporters. Use the Students page for easier changes.">

@@ -1,24 +1,17 @@
-import { Role } from "@prisma/client";
 import { prisma } from "@/lib/prisma";
-import { createClient } from "@/lib/supabase/server";
+import { getAuthProfile } from "@/lib/auth/session";
 import { courseScope } from "@/lib/auth/scope";
 import { PageHeader } from "@/components/shared/PageHeader";
 import { MetricCard, SectionPanel } from "@/components/shared/Panels";
 import { StudentReporterManager, type StudentCourse } from "@/components/students/StudentReporterManager";
+import { redirect } from "next/navigation";
 
 export default async function StudentsPage() {
-  const supabase = await createClient();
-  const { data } = await supabase.auth.getUser();
-  const profile = data.user
-    ? await prisma.profile.findUnique({
-        where: { supabaseUid: data.user.id },
-        select: { id: true, role: true, universityId: true, departmentId: true }
-      })
-    : null;
+  const profile = await getAuthProfile();
+  if (!profile) redirect("/login");
 
-  const scopedProfile = profile ?? { id: "__none__", role: Role.CLASS_REP, universityId: "__none__", departmentId: null };
   const courses = await prisma.course.findMany({
-    where: courseScope(scopedProfile),
+    where: courseScope(profile),
     include: {
       lecturer: true,
       department: true,
@@ -57,12 +50,6 @@ export default async function StudentsPage() {
     comparisonReportsByCourse.set(report.courseId, [...(comparisonReportsByCourse.get(report.courseId) ?? []), report]);
   });
 
-  const aliases = courses.flatMap((course) => course.repAssignments.map((assignment) => assignment.profile.anonymousAlias).filter(Boolean) as string[]);
-  const identities = aliases.length
-    ? await prisma.sealedRepIdentity.findMany({ where: { anonymousAlias: { in: aliases } } })
-    : [];
-  const identityByAlias = new Map(identities.map((identity) => [identity.anonymousAlias, identity]));
-
   const studentCourses: StudentCourse[] = courses.map((course) => ({
     id: course.id,
     code: course.code,
@@ -71,13 +58,13 @@ export default async function StudentsPage() {
     lecturer: `${course.lecturer.firstName} ${course.lecturer.lastName}`,
     reporters: course.repAssignments.map((assignment) => {
       const alias = assignment.profile.anonymousAlias ?? "Reporter";
-      const identity = identityByAlias.get(alias);
       return {
         id: assignment.id,
         alias,
-        realName: identity?.realName ?? null,
-        realEmail: identity?.realEmail ?? null,
-        realPhone: identity?.realPhone ?? null,
+        // Sealed identities stay sealed — reveal only via audited lookup API
+        realName: null,
+        realEmail: null,
+        realPhone: null,
         isActive: assignment.isActive,
         createdAt: assignment.createdAt.toISOString()
       };

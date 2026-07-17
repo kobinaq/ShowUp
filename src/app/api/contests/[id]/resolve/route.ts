@@ -4,6 +4,7 @@ import { andWhere, contestScope } from "@/lib/auth/scope";
 import { withAuth, json, badRequest } from "@/lib/middleware/withAuth";
 import { resolveContestSchema } from "@/lib/validators/contest";
 import { coverageService } from "@/lib/services/coverage.service";
+import { notificationService } from "@/lib/services/notification.service";
 
 type Params = { params: Promise<{ id: string }> };
 
@@ -11,7 +12,14 @@ export const PUT = withAuth<Params>(async (request, { params, profile }) => {
   const { id } = await params;
   const parsed = resolveContestSchema.safeParse(await request.json());
   if (!parsed.success) return badRequest("Invalid resolution payload", parsed.error.flatten());
-  const existing = await prisma.contest.findFirst({ where: andWhere({ id }, contestScope(profile)), select: { id: true } });
+  const existing = await prisma.contest.findFirst({
+    where: andWhere({ id }, contestScope(profile)),
+    select: {
+      id: true,
+      raisedBy: { select: { email: true } },
+      report: { select: { lectureDate: true, course: { select: { code: true } } } }
+    }
+  });
   if (!existing) return json({ error: "Not found" }, { status: 404 });
   const contest = await prisma.$transaction(async (tx) => {
     const resolved = await tx.contest.update({
@@ -26,5 +34,14 @@ export const PUT = withAuth<Params>(async (request, { params, profile }) => {
     return resolved;
   });
   await coverageService.recalculateAndFlag(contest.report.courseId);
+  if (existing.raisedBy.email) {
+    await notificationService.contestResolved(
+      existing.raisedBy.email,
+      existing.report.course.code,
+      existing.report.lectureDate.toDateString(),
+      parsed.data.status,
+      parsed.data.resolutionNote ?? ""
+    );
+  }
   return json({ data: contest });
 }, [Role.SUPER_ADMIN, Role.QA_OFFICER, Role.QA_ASSISTANT]);

@@ -2,6 +2,7 @@ import { NextResponse, type NextRequest } from "next/server";
 import { Role } from "@prisma/client";
 import { prisma } from "@/lib/prisma";
 import { createClient } from "@/lib/supabase/server";
+import { DEMO_COOKIE, parseDemoSession, resolveDemoProfile } from "@/lib/auth/demo";
 
 export type ApiContext = {
   profile: {
@@ -31,14 +32,28 @@ export function withAuth<T>(handler: ApiHandler<T>, roles?: Role[]) {
   return async (request: NextRequest, context: T) => {
     const supabase = await createClient();
     const { data, error } = await supabase.auth.getUser();
-    if (error || !data.user) return json({ error: "Unauthorized" }, { status: 401 });
 
-    const profile = await prisma.profile.findUnique({
-      where: { supabaseUid: data.user.id },
-      select: { id: true, supabaseUid: true, role: true, universityId: true, departmentId: true, isActive: true }
-    });
-    if (!profile || !profile.isActive) return json({ error: "Inactive or missing profile" }, { status: 401 });
-    if (roles && !roles.includes(profile.role)) return forbidden();
-    return handler(request, { ...(context as object), profile } as ApiContext & T);
+    if (!error && data.user) {
+      const profile = await prisma.profile.findUnique({
+        where: { supabaseUid: data.user.id },
+        select: { id: true, supabaseUid: true, role: true, universityId: true, departmentId: true, isActive: true }
+      });
+      if (profile?.isActive) {
+        if (roles && !roles.includes(profile.role)) return forbidden();
+        const { isActive: _isActive, ...authProfile } = profile;
+        return handler(request, { ...(context as object), profile: authProfile } as ApiContext & T);
+      }
+    }
+
+    const demo = await parseDemoSession(request.cookies.get(DEMO_COOKIE)?.value);
+    if (demo) {
+      const profile = await resolveDemoProfile(demo);
+      if (profile) {
+        if (roles && !roles.includes(profile.role)) return forbidden();
+        return handler(request, { ...(context as object), profile } as ApiContext & T);
+      }
+    }
+
+    return json({ error: "Unauthorized" }, { status: 401 });
   };
 }
