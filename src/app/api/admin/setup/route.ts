@@ -195,11 +195,13 @@ export const POST = withAuth(async (request, { profile }): Promise<Response> => 
         departmentId
       }
     });
-    await notificationService.sendEmail(
-      data.email,
-      "ShowUp account created",
-      `<div style="font-family:Inter,Arial,sans-serif;color:#0D1F3C"><h1>ShowUp</h1><p>Hello ${data.displayName},</p><p>Your ShowUp account has been created.</p><p>Login: ${process.env.NEXT_PUBLIC_APP_URL ?? "http://localhost:3000"}</p><p>Email: ${data.email}</p><p>Password: ${password}</p><p>Please change it after signing in.</p></div>`
-    );
+    await notificationService.sendStaffWelcome(data.email, data.displayName, password);
+    if (data.phone) {
+      await notificationService.sendSms(
+        data.phone,
+        `ShowUp: your staff account was created for ${data.email}. Check your email for login details — the password is not sent by SMS.`
+      );
+    }
     await prisma.activityLog.create({
       data: { universityId, actorId: profile.id, action: "USER_CREATED", metadata: { role, email: data.email } }
     });

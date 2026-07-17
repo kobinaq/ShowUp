@@ -2,6 +2,7 @@ import { NextRequest, NextResponse } from "next/server";
 import { z } from "zod";
 import { prisma } from "@/lib/prisma";
 import { notificationService } from "@/lib/services/notification.service";
+import { allowRateLimit } from "@/lib/rate-limit";
 
 const leadSchema = z.object({
   fullName: z.string().min(2).max(100),
@@ -11,22 +12,28 @@ const leadSchema = z.object({
   message: z.string().max(1000).optional()
 });
 
-const buckets = new Map<string, { count: number; resetAt: number }>();
 const limit = 5;
 const windowMs = 60 * 60 * 1000;
 
 export async function POST(request: NextRequest) {
   const ip = getClientIp(request);
-  if (!allowRequest(ip)) {
-    return NextResponse.json({ error: "Too many submissions. Please try again later." }, { status: 429 });
-  }
-
-  const parsed = leadSchema.safeParse(await request.json().catch(() => ({})));
+  const body = await request.json().catch(() => ({}));
+  const parsed = leadSchema.safeParse(body);
   if (!parsed.success) {
     return NextResponse.json({ error: "Invalid submission", details: parsed.error.flatten() }, { status: 400 });
   }
 
-  const lead = await prisma.leadInquiry.create({ data: parsed.data });
+  const [ipAllowed, emailAllowed] = await Promise.all([
+    allowRateLimit(`lead:ip:${ip}`, limit, windowMs),
+    allowRateLimit(`lead:email:${parsed.data.email.toLowerCase()}`, limit, windowMs)
+  ]);
+  if (!ipAllowed || !emailAllowed) {
+    return NextResponse.json({ error: "Too many submissions. Please try again later." }, { status: 429 });
+  }
+
+  const lead = await prisma.leadInquiry.create({
+    data: { ...parsed.data, clientIp: ip === "unknown" ? null : ip }
+  });
 
   try {
     await notificationService.sendEmail(
@@ -39,18 +46,6 @@ export async function POST(request: NextRequest) {
   }
 
   return NextResponse.json({ success: true, id: lead.id });
-}
-
-function allowRequest(ip: string) {
-  const now = Date.now();
-  const current = buckets.get(ip);
-  if (!current || current.resetAt <= now) {
-    buckets.set(ip, { count: 1, resetAt: now + windowMs });
-    return true;
-  }
-  if (current.count >= limit) return false;
-  current.count += 1;
-  return true;
 }
 
 function getClientIp(request: NextRequest) {

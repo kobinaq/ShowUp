@@ -14,9 +14,10 @@ export class FlagService {
 
     const created = [];
     if (report.lecturerPresent === PresenceStatus.ABSENT) {
-      created.push(await this.create(report.course.lecturerId, report.id, FlagType.ABSENCE, `Absent from ${report.course.code}.`));
+      const absenceFlag = await this.create(report.course.lecturerId, report.id, FlagType.ABSENCE, `Absent from ${report.course.code}.`);
+      created.push(absenceFlag);
       await this.createRepeatedFlagIfNeeded(report.course.lecturerId, report.id, FlagType.ABSENCE, FlagType.REPEATED_ABSENCE, repeatThreshold);
-      await notificationService.notifyLecturer(
+      const delivery = await notificationService.notifyLecturer(
         report.course.lecturer,
         "ShowUp absence report",
         `You were reported absent for your ${report.course.code} class today at ${formatClassTime(report.schedule.startTime)}. Contact your HOD if incorrect. Do not reply to this message.`,
@@ -25,6 +26,9 @@ export class FlagService {
           smsEnabled: settings?.lecturerAbsenceSmsEnabled ?? true
         }
       );
+      if (delivery.email === "sent" || delivery.sms === "sent") {
+        await prisma.flag.update({ where: { id: absenceFlag.id }, data: { notificationSent: true } });
+      }
     }
     if (report.arrivalStatus === ArrivalStatus.LATE && report.lateMinutes) {
       created.push(await this.create(report.course.lecturerId, report.id, FlagType.LATENESS, `Late by ${report.lateMinutes} minutes for ${report.course.code}.`));

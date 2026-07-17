@@ -77,7 +77,9 @@ QA Officers, VCs, HODs, and HOD assistants get a floating `ShowUp AI` button in 
 - All production data access must be scoped from the signed-in `Profile`: super admins are global, QA/VC users are university-scoped, HOD users are department-scoped, and reporters are limited to their active assignments.
 - Class rep real identities live only in `SealedRepIdentity` and are exposed through the audited identity lookup endpoint.
 - Cron rotation requires `Authorization: Bearer $CRON_SECRET`.
-- Enable Supabase RLS policies before production launch as defense in depth.
+- RLS is enabled on all application tables: `anon`/`authenticated` PostgREST access is denied by default; Prisma uses a privileged DB role. `Profile` allows self-select for `auth.uid()`.
+- Temporary passwords are emailed only — never included in SMS. Users should change them via `/update-password` (also linked from forgot-password email).
+- Enable Supabase Auth redirect URLs for `/api/auth/callback` and password recovery.
 
 ## Seed Accounts
 

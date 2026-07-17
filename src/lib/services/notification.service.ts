@@ -17,15 +17,43 @@ export class NotificationService {
         { lecturerId: target.id, channel: NotificationChannel.SMS, message, status: sms }
       ]
     });
+    return { email, sms };
   }
 
+  /** Email carries credentials; SMS only points the user to check email (never includes the password). */
   async sendRepCredentials(realEmail: string, realPhone: string, aliasEmail: string, password: string) {
     const loginUrl = process.env.NEXT_PUBLIC_APP_URL ?? "http://localhost:3000";
-    const message = `ShowUp reporter assigned. Login: ${loginUrl} Username: ${aliasEmail} Password: ${password}. Keep confidential.`;
+    const changeUrl = `${loginUrl}/update-password`;
+    const emailHtml = this.wrapEmail(
+      "Reporter",
+      `You have been assigned as a ShowUp course reporter.<br/><br/>
+       Login: <a href="${loginUrl}/login">${loginUrl}/login</a><br/>
+       Username: <strong>${aliasEmail}</strong><br/>
+       Temporary password: <strong>${password}</strong><br/><br/>
+       Sign in, then set a new password here: <a href="${changeUrl}">${changeUrl}</a>. Keep these details confidential.`
+    );
+    const smsMessage = `ShowUp: you were assigned as a course reporter. Check your email (${realEmail}) for login details. Do not share credentials.`;
     await Promise.all([
-      this.sendEmail(realEmail, "ShowUp course reporter credentials", this.wrapEmail("Reporter", message)),
-      this.sendSms(realPhone, message)
+      this.sendEmail(realEmail, "ShowUp course reporter credentials", emailHtml),
+      this.sendSms(realPhone, smsMessage)
     ]);
+  }
+
+  async sendStaffWelcome(to: string, displayName: string, password: string) {
+    const loginUrl = process.env.NEXT_PUBLIC_APP_URL ?? "http://localhost:3000";
+    const changeUrl = `${loginUrl}/update-password`;
+    return this.sendEmail(
+      to,
+      "ShowUp account created",
+      this.wrapEmail(
+        displayName,
+        `Your ShowUp account has been created.<br/><br/>
+         Login: <a href="${loginUrl}/login">${loginUrl}/login</a><br/>
+         Email: <strong>${to}</strong><br/>
+         Temporary password: <strong>${password}</strong><br/><br/>
+         Please change it after signing in: <a href="${changeUrl}">${changeUrl}</a>.`
+      )
+    );
   }
 
   async contestResolved(to: string, course: string, date: string, status: string, note: string) {

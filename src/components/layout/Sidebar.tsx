@@ -5,10 +5,11 @@ import { usePathname } from "next/navigation";
 import type { Role } from "@prisma/client";
 import { BarChart3, BookOpen, Flag, Gauge, GraduationCap, LayoutDashboard, LifeBuoy, Settings, ShieldCheck, Users } from "lucide-react";
 import { cn } from "@/lib/utils/cn";
+import { pathRoles, roleHome } from "@/lib/auth/roles";
 
 const groups: Array<{
   label: string;
-  items: Array<{ href: string; label: string; icon: React.ComponentType<{ className?: string; "aria-hidden"?: boolean }>; roles?: Role[] }>;
+  items: Array<{ href: string; label: string; icon: React.ComponentType<{ className?: string; "aria-hidden"?: boolean }> }>;
 }> = [
   {
     label: "Monitor",
@@ -37,18 +38,19 @@ const groups: Array<{
   {
     label: "Setup",
     items: [
-      { href: "/admin", label: "Admin", icon: Users, roles: ["SUPER_ADMIN", "VC", "IT"] as Role[] },
-      { href: "/settings", label: "Settings", icon: Settings, roles: ["SUPER_ADMIN", "IT"] as Role[] }
+      { href: "/admin", label: "Admin", icon: Users },
+      { href: "/settings", label: "Settings", icon: Settings }
     ]
   }
 ];
 
 export function Sidebar({ children, role }: { children?: React.ReactNode; role?: Role }) {
   const pathname = usePathname();
+  const brandHref = role ? roleHome[role] : "/dashboard";
   return (
     <aside className="hidden h-screen w-72 shrink-0 overflow-y-auto border-r border-slate-200 bg-white md:block">
       <div className="border-b border-slate-100 px-6 py-5">
-        <Link href="/dashboard" className="flex items-center gap-3 rounded-lg transition hover:opacity-85" aria-label="Open Command Center">
+        <Link href={brandHref} className="flex items-center gap-3 rounded-lg transition hover:opacity-85" aria-label="Open home">
           <div className="flex h-10 w-10 items-center justify-center rounded-lg bg-navy font-display text-lg font-bold text-white">S</div>
           <div>
             <p className="font-display text-xl font-bold text-navy">ShowUp</p>
@@ -58,7 +60,10 @@ export function Sidebar({ children, role }: { children?: React.ReactNode; role?:
       </div>
       <nav className="space-y-6 px-4 py-5">
         {groups.map((group) => {
-          const visibleItems = group.items.filter((item) => !item.roles || (role && item.roles.includes(role)));
+          const visibleItems = group.items.filter((item) => {
+            const allowed = pathRoles[item.href];
+            return !allowed || (role && allowed.includes(role));
+          });
           if (!visibleItems.length) return null;
           return (
             <div key={group.label}>
@@ -73,9 +78,7 @@ export function Sidebar({ children, role }: { children?: React.ReactNode; role?:
                       aria-current={isActive ? "page" : undefined}
                       className={cn(
                         "flex min-h-11 items-center gap-3 rounded-lg px-3 text-sm font-semibold transition",
-                        isActive
-                          ? "bg-navy text-white shadow-sm"
-                          : "text-slate-600 hover:bg-slate-50 hover:text-navy"
+                        isActive ? "bg-navy text-white shadow-sm" : "text-slate-600 hover:bg-slate-50 hover:text-navy"
                       )}
                     >
                       <item.icon className="h-4 w-4" aria-hidden />

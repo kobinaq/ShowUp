@@ -5,6 +5,8 @@ import { DEMO_COOKIE, hasDemoCookieShape, isDemoModeEnabled } from "@/lib/auth/d
 const publicPaths = [
   "/m",
   "/login",
+  "/forgot-password",
+  "/update-password",
   "/demo",
   "/api/auth/callback",
   "/api/leads",

@@ -16,9 +16,13 @@ export default function LoginPage() {
     setLoading(true);
     const supabase = createClient();
     const { error } = await supabase.auth.signInWithPassword({ email, password });
+    if (error) {
+      setLoading(false);
+      return toast.error(error.message);
+    }
+    const me = await fetch("/api/auth/me").then((res) => res.json()).catch(() => null);
     setLoading(false);
-    if (error) return toast.error(error.message);
-    router.push("/dashboard");
+    router.push(typeof me?.home === "string" ? me.home : "/dashboard");
     router.refresh();
   }
 
@@ -37,6 +41,11 @@ export default function LoginPage() {
           {loading ? "Signing in..." : "Sign in"}
         </button>
         <p className="mt-4 text-center text-sm text-muted">
+          <a href="/forgot-password" className="font-semibold text-navy underline underline-offset-2">
+            Forgot password?
+          </a>
+        </p>
+        <p className="mt-3 text-center text-sm text-muted">
           Pitching or client walkthrough?{" "}
           <a href="/demo" className="font-semibold text-navy underline underline-offset-2">
             Open live demo

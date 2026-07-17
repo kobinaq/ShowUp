@@ -424,8 +424,18 @@ model LeadInquiry {
   institution String
   role        String
   message     String?
+  clientIp    String?
   status      LeadStatus @default(NEW)
   createdAt   DateTime   @default(now())
+
+  @@index([clientIp, createdAt])
+  @@index([email, createdAt])
+}
+
+model RateLimitBucket {
+  key     String   @id
+  count   Int      @default(0)
+  resetAt DateTime
 }
 
 enum LeadStatus {
