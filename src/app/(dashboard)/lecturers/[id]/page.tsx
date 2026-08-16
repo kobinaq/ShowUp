@@ -1,6 +1,6 @@
 import { notFound, redirect } from "next/navigation";
 import { prisma } from "@/lib/prisma";
-import { coverageService } from "@/lib/services/coverage.service";
+import { calculateCoverage } from "@/lib/services/coverage.service";
 import { ReportTable } from "@/components/reports/ReportTable";
 import { getAuthProfile } from "@/lib/auth/session";
 import { andWhere, lecturerScope } from "@/lib/auth/scope";
@@ -27,7 +27,7 @@ export default async function LecturerPage({ params }: { params: Promise<{ id: s
     }
   });
   if (!lecturer) notFound();
-  const coverage = await Promise.all(lecturer.courses.map((course) => coverageService.calculate(course.id).then((summary) => ({ course, ...summary }))));
+  const coverage = await Promise.all(lecturer.courses.map((course) => calculateCoverage(course.id).then((summary) => ({ course, ...summary }))));
   const reports = lecturer.courses.flatMap((course) => course.reports).sort((first, second) => second.lectureDate.getTime() - first.lectureDate.getTime());
   const pings = await prisma.latePing.findMany({
     where: { course: { lecturerId: lecturer.id } },

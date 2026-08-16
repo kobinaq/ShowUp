@@ -6,7 +6,7 @@ import { withAuth, json, badRequest } from "@/lib/middleware/withAuth";
 import { createRepSchema } from "@/lib/validators/rep";
 import { generateAlias, generatePassword } from "@/lib/utils/aliasGenerator";
 import { notificationService } from "@/lib/services/notification.service";
-import { rotationService } from "@/lib/services/rotation.service";
+import { rotateCourse } from "@/lib/services/rotation.service";
 
 type Params = { params: Promise<{ id: string }> };
 
@@ -103,7 +103,7 @@ export const PUT = withAuth<Params>(async (_request, { params, profile }) => {
   const { id } = await params;
   const course = await prisma.course.findFirst({ where: andWhere({ id }, courseScope(profile)), select: { id: true } });
   if (!course) return json({ error: "Not found" }, { status: 404 });
-  const result = await rotationService.rotateCourse(id, profile.id);
+  const result = await rotateCourse(id, profile.id);
   return json({ data: result });
 }, [Role.SUPER_ADMIN, Role.QA_OFFICER, Role.QA_ASSISTANT, Role.IT]);
 

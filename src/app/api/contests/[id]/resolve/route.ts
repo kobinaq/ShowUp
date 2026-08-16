@@ -3,7 +3,7 @@ import { prisma } from "@/lib/prisma";
 import { andWhere, contestScope } from "@/lib/auth/scope";
 import { withAuth, json, badRequest } from "@/lib/middleware/withAuth";
 import { resolveContestSchema } from "@/lib/validators/contest";
-import { coverageService } from "@/lib/services/coverage.service";
+import { recalculateAndFlag } from "@/lib/services/coverage.service";
 import { contestIsPending, reportFlagsForResolution } from "@/lib/services/contest-resolution";
 import { notificationService } from "@/lib/services/notification.service";
 
@@ -42,7 +42,7 @@ export const PUT = withAuth<Params>(async (request, { params, profile }) => {
     }
     return resolved;
   });
-  await coverageService.recalculateAndFlag(contest.report.courseId);
+  await recalculateAndFlag(contest.report.courseId);
   if (existing.raisedBy.email) {
     await notificationService.contestResolved(
       existing.raisedBy.email,

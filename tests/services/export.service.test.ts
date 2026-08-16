@@ -1,8 +1,8 @@
-import { ExportService } from "@/lib/services/export.service";
+import { reportsCsv } from "@/lib/services/export.service";
 
-describe("ExportService", () => {
+describe("reportsCsv", () => {
   it("creates report CSV", () => {
-    const csv = new ExportService().reportsCsv([{ course: "CS301", presence: "PRESENT" }]);
+    const csv = reportsCsv([{ course: "CS301", presence: "PRESENT" }]);
     expect(csv).toContain("CS301");
     expect(csv).toContain("PRESENT");
   });

@@ -1,7 +1,7 @@
 import { notFound, redirect } from "next/navigation";
 import { Role } from "@prisma/client";
 import { prisma } from "@/lib/prisma";
-import { coverageService } from "@/lib/services/coverage.service";
+import { calculateCoverage } from "@/lib/services/coverage.service";
 import { ReportTable } from "@/components/reports/ReportTable";
 import { PageHeader } from "@/components/shared/PageHeader";
 import { MetricCard, SectionPanel, Tabs } from "@/components/shared/Panels";
@@ -31,7 +31,7 @@ export default async function CourseDetailPage({ params }: { params: Promise<{ i
     }
   });
   if (!course) notFound();
-  const coverage = await coverageService.calculate(course.id);
+  const coverage = await calculateCoverage(course.id);
   const presentReports = course.reports.filter((report) => report.lecturerPresent !== "ABSENT").length;
   const attendanceRate = course.reports.length ? Math.round((presentReports / course.reports.length) * 100) : 0;
   const studentCountReports = course.classSize ? course.reports.filter((report) => typeof report.studentCount === "number") : [];

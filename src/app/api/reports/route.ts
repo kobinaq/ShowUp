@@ -4,7 +4,7 @@ import { andWhere, courseScope, reportScope, startOfSessionDay, timeOnSessionDat
 import { withAuth, json, badRequest, forbidden } from "@/lib/middleware/withAuth";
 import { presenceStatusSchema, reportSchema } from "@/lib/validators/report";
 import { createFlagsForReport, notifyAbsenceForReport } from "@/lib/services/flag.service";
-import { coverageService } from "@/lib/services/coverage.service";
+import { recalculateAndFlag } from "@/lib/services/coverage.service";
 import { handlePostClassPingEscalation } from "@/lib/services/ping.service";
 
 export const GET = withAuth(async (request, { profile }) => {
@@ -104,7 +104,7 @@ export const POST = withAuth(async (request, { profile }) => {
     throw error;
   }
   await notifyAbsenceForReport(report.id);
-  await coverageService.recalculateAndFlag(report.courseId);
+  await recalculateAndFlag(report.courseId);
   await handlePostClassPingEscalation(report.courseId, report.lectureDate, report.lecturerPresent, report.id);
   return json({ data: report }, { status: 201 });
 }, [Role.CLASS_REP, Role.SUPER_ADMIN, Role.HOD, Role.HOD_ASSISTANT]);

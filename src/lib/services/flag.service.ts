@@ -54,16 +54,12 @@ export async function notifyAbsenceForReport(reportId: string) {
   }
 }
 
-export class FlagService {
-  async resolve(flagId: string, internalNotes?: string) {
-    return prisma.flag.update({
-      where: { id: flagId },
-      data: { isResolved: true, internalNotes }
-    });
-  }
+export async function resolveFlag(flagId: string, internalNotes?: string) {
+  return prisma.flag.update({
+    where: { id: flagId },
+    data: { isResolved: true, internalNotes }
+  });
 }
-
-export const flagService = new FlagService();
 
 async function createFlag(tx: Prisma.TransactionClient, lecturerId: string, reportId: string, type: FlagType, message: string) {
   return tx.flag.create({ data: { lecturerId, reportId, type, message } });

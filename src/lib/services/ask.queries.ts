@@ -6,7 +6,7 @@ import {
   lecturerScope as authLecturerScope,
   type ScopedProfile
 } from "@/lib/auth/scope";
-import { coverageService } from "@/lib/services/coverage.service";
+import { calculateCoverage } from "@/lib/services/coverage.service";
 import type { QueryPlan } from "@/types/ask";
 
 async function resolveSemesterId(semesterId?: string, profile?: ScopedProfile) {
@@ -100,7 +100,7 @@ async function topicCoverage(params: QueryPlan["params"] & { semesterId?: string
       title: course.title,
       lecturer: `${course.lecturer.firstName} ${course.lecturer.lastName}`,
       department: course.department.name,
-      ...(await coverageService.calculate(course.id))
+      ...(await calculateCoverage(course.id))
     }))
   );
 }

@@ -21,92 +21,88 @@ export function nextSealedPerson<T extends { id: string; createdAt: Date }>(pool
   return people.find((person) => person.id !== outgoingId) ?? people[0];
 }
 
-export class RotationService {
-  async rotateDueReps(now = new Date()) {
-    const active = await prisma.repAssignment.findMany({
-      where: { isActive: true },
-      include: { profile: true }
-    });
-    const due = active.filter((assignment) => assignmentIsDue(assignment, now));
-    const results = [];
-    for (const assignment of due) {
-      try {
-        results.push(await this.rotateCourse(assignment.courseId, assignment.assignedById, assignment.id));
-      } catch (error) {
-        results.push({
-          courseId: assignment.courseId,
-          outgoingAlias: assignment.profile.anonymousAlias ?? null,
-          incomingAlias: null,
-          error: error instanceof Error ? error.message : String(error)
-        });
-      }
+export async function rotateDueReps(now = new Date()) {
+  const active = await prisma.repAssignment.findMany({
+    where: { isActive: true },
+    include: { profile: true }
+  });
+  const due = active.filter((assignment) => assignmentIsDue(assignment, now));
+  const results = [];
+  for (const assignment of due) {
+    try {
+      results.push(await rotateCourse(assignment.courseId, assignment.assignedById, assignment.id));
+    } catch (error) {
+      results.push({
+        courseId: assignment.courseId,
+        outgoingAlias: assignment.profile.anonymousAlias ?? null,
+        incomingAlias: null,
+        error: error instanceof Error ? error.message : String(error)
+      });
     }
-    return results;
   }
-
-  async rotateCourse(courseId: string, assignedById: string, outgoingAssignmentId?: string) {
-    const roster = await prisma.sealedRepIdentity.findMany({ where: { courseId }, orderBy: { createdAt: "asc" } });
-    const activeAssignments = await prisma.repAssignment.findMany({
-      where: { courseId, isActive: true },
-      include: { profile: true },
-      orderBy: { createdAt: "asc" }
-    });
-    const outgoingAssignment = outgoingAssignmentId
-      ? activeAssignments.find((assignment) => assignment.id === outgoingAssignmentId)
-      : activeAssignments[0];
-    const outgoingAliasForLog = outgoingAssignment?.profile.anonymousAlias;
-    const alias = generateAlias();
-    const password = generatePassword();
-    const course = await prisma.course.findUnique({ where: { id: courseId } });
-    if (!course) throw new Error("Course not found");
-    const identity = nextSealedPerson(roster, outgoingAssignment?.sealedIdentityId);
-    if (!identity) throw new Error("No sealed identities available for this course");
-
-    const supabaseUid = await this.createSupabaseUser(`${alias}@showup.internal`, password);
-    await prisma.$transaction(async (tx) => {
-      if (outgoingAssignment) {
-        await tx.repAssignment.update({ where: { id: outgoingAssignment.id }, data: { isActive: false, endDate: new Date() } });
-        await tx.profile.update({ where: { id: outgoingAssignment.profileId }, data: { isActive: false } });
-      }
-      const maxOrder = await tx.repAssignment.aggregate({ where: { courseId }, _max: { rotationOrder: true } });
-      const profile = await tx.profile.create({
-        data: {
-          supabaseUid,
-          anonymousAlias: alias,
-          role: Role.CLASS_REP,
-          departmentId: course.departmentId,
-          universityId: (await tx.semester.findUniqueOrThrow({ where: { id: course.semesterId } })).universityId
-        }
-      });
-      const assignment = await tx.repAssignment.create({
-        data: {
-          courseId,
-          profileId: profile.id,
-          sealedIdentityId: identity.id,
-          assignedById,
-          startDate: new Date(),
-          rotationOrder: (maxOrder._max.rotationOrder ?? 0) + 1,
-          rotationWeeks: outgoingAssignment?.rotationWeeks ?? 4,
-          isActive: true
-        }
-      });
-      await tx.rotationLog.create({
-        data: { courseId, assignmentId: assignment.id, outgoingAlias: outgoingAliasForLog, incomingAlias: alias, action: "rotated" }
-      });
-    });
-    await notificationService.sendRepCredentials(identity.realEmail, identity.realPhone, `${alias}@showup.internal`, password);
-    return { courseId, outgoingAlias: outgoingAliasForLog, incomingAlias: alias };
-  }
-
-  private async createSupabaseUser(email: string, password: string) {
-    if (!process.env.NEXT_PUBLIC_SUPABASE_URL || !process.env.SUPABASE_SERVICE_ROLE_KEY) {
-      throw new Error("Supabase admin credentials are required to rotate reporter accounts");
-    }
-    const supabase = createClient(process.env.NEXT_PUBLIC_SUPABASE_URL, process.env.SUPABASE_SERVICE_ROLE_KEY);
-    const { data, error } = await supabase.auth.admin.createUser({ email, password, email_confirm: true });
-    if (error || !data.user) throw error ?? new Error("Supabase user creation failed");
-    return data.user.id;
-  }
+  return results;
 }
 
-export const rotationService = new RotationService();
+export async function rotateCourse(courseId: string, assignedById: string, outgoingAssignmentId?: string) {
+  const roster = await prisma.sealedRepIdentity.findMany({ where: { courseId }, orderBy: { createdAt: "asc" } });
+  const activeAssignments = await prisma.repAssignment.findMany({
+    where: { courseId, isActive: true },
+    include: { profile: true },
+    orderBy: { createdAt: "asc" }
+  });
+  const outgoingAssignment = outgoingAssignmentId
+    ? activeAssignments.find((assignment) => assignment.id === outgoingAssignmentId)
+    : activeAssignments[0];
+  const outgoingAliasForLog = outgoingAssignment?.profile.anonymousAlias;
+  const alias = generateAlias();
+  const password = generatePassword();
+  const course = await prisma.course.findUnique({ where: { id: courseId } });
+  if (!course) throw new Error("Course not found");
+  const identity = nextSealedPerson(roster, outgoingAssignment?.sealedIdentityId);
+  if (!identity) throw new Error("No sealed identities available for this course");
+
+  const supabaseUid = await createSupabaseUser(`${alias}@showup.internal`, password);
+  await prisma.$transaction(async (tx) => {
+    if (outgoingAssignment) {
+      await tx.repAssignment.update({ where: { id: outgoingAssignment.id }, data: { isActive: false, endDate: new Date() } });
+      await tx.profile.update({ where: { id: outgoingAssignment.profileId }, data: { isActive: false } });
+    }
+    const maxOrder = await tx.repAssignment.aggregate({ where: { courseId }, _max: { rotationOrder: true } });
+    const profile = await tx.profile.create({
+      data: {
+        supabaseUid,
+        anonymousAlias: alias,
+        role: Role.CLASS_REP,
+        departmentId: course.departmentId,
+        universityId: (await tx.semester.findUniqueOrThrow({ where: { id: course.semesterId } })).universityId
+      }
+    });
+    const assignment = await tx.repAssignment.create({
+      data: {
+        courseId,
+        profileId: profile.id,
+        sealedIdentityId: identity.id,
+        assignedById,
+        startDate: new Date(),
+        rotationOrder: (maxOrder._max.rotationOrder ?? 0) + 1,
+        rotationWeeks: outgoingAssignment?.rotationWeeks ?? 4,
+        isActive: true
+      }
+    });
+    await tx.rotationLog.create({
+      data: { courseId, assignmentId: assignment.id, outgoingAlias: outgoingAliasForLog, incomingAlias: alias, action: "rotated" }
+    });
+  });
+  await notificationService.sendRepCredentials(identity.realEmail, identity.realPhone, `${alias}@showup.internal`, password);
+  return { courseId, outgoingAlias: outgoingAliasForLog, incomingAlias: alias };
+}
+
+async function createSupabaseUser(email: string, password: string) {
+  if (!process.env.NEXT_PUBLIC_SUPABASE_URL || !process.env.SUPABASE_SERVICE_ROLE_KEY) {
+    throw new Error("Supabase admin credentials are required to rotate reporter accounts");
+  }
+  const supabase = createClient(process.env.NEXT_PUBLIC_SUPABASE_URL, process.env.SUPABASE_SERVICE_ROLE_KEY);
+  const { data, error } = await supabase.auth.admin.createUser({ email, password, email_confirm: true });
+  if (error || !data.user) throw error ?? new Error("Supabase user creation failed");
+  return data.user.id;
+}

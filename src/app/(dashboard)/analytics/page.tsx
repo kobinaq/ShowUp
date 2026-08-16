@@ -5,7 +5,7 @@ import { SimpleLineChart } from "@/components/charts/SimpleLineChart";
 import { getAuthProfile } from "@/lib/auth/session";
 import { contestScope, courseScope, flagScope, isDepartmentRole, latePingScope } from "@/lib/auth/scope";
 import { redirect } from "next/navigation";
-import { coverageService } from "@/lib/services/coverage.service";
+import { calculateCoverage } from "@/lib/services/coverage.service";
 import { displayText } from "@/lib/utils/displayText";
 import { PageHeader } from "@/components/shared/PageHeader";
 import { MetricCard, SectionPanel } from "@/components/shared/Panels";
@@ -105,7 +105,7 @@ export default async function AnalyticsPage() {
 
   const studentAttendance = buildStudentAttendance(reports);
 
-  const coverage = await Promise.all(courses.map(async (course) => ({ course, ...(await coverageService.calculate(course.id)) })));
+  const coverage = await Promise.all(courses.map(async (course) => ({ course, ...(await calculateCoverage(course.id)) })));
   const averageCoverage = coverage.length ? Math.round(coverage.reduce((sum, item) => sum + item.coveragePercent, 0) / coverage.length) : 0;
   const attendanceRate = reportCount ? Math.round((present / reportCount) * 100) : 0;
   const pingAcknowledgementRate = pingCount ? Math.round((acknowledgedPings / pingCount) * 100) : 0;
