@@ -1,5 +1,5 @@
 import { randomUUID } from "crypto";
-import { Role, type LatePing } from "@prisma/client";
+import { DeliveryStatus, Role, type LatePing } from "@prisma/client";
 import { prisma } from "@/lib/prisma";
 import { notificationService } from "@/lib/services/notification.service";
 import { formatClassTime, sessionDayRange, startOfSessionDay, timeOnSessionDate } from "@/lib/utils/sessionTime";
@@ -54,21 +54,21 @@ export async function sendLatePing(courseId: string, scheduleId: string, sentByI
       lectureDate: startOfSessionDay(lectureDate),
       minutesLate: threshold,
       acknowledgeToken,
-      lecturerSmsStatus: "pending",
-      lecturerEmailStatus: "pending",
+      lecturerSmsStatus: DeliveryStatus.PENDING,
+      lecturerEmailStatus: DeliveryStatus.PENDING,
       qaNotified: false
     }
   });
 
   const lecturerName = `${course.lecturer.firstName} ${course.lecturer.lastName}`;
   const smsStatus = settings?.latePingSmsEnabled === false
-    ? "skipped"
+    ? DeliveryStatus.SKIPPED
     : await notificationService.sendSms(
         course.lecturer.phone,
         `ShowUp alert: you are ${threshold} minutes late for your ${course.code} class today at ${formatClassTime(schedule.startTime)}. Venue: ${schedule.venue ?? "scheduled venue"}. Please check your email. Do not reply to this message.`
       );
   const lecturerEmailStatus = settings?.latePingEmailEnabled === false
-    ? "skipped"
+    ? DeliveryStatus.SKIPPED
     : await notificationService.sendEmail(
         course.lecturer.email,
         `ShowUp late alert - ${course.code}`,

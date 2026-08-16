@@ -98,7 +98,7 @@ export default async function LecturerPage({ params }: { params: Promise<{ id: s
               <div key={notification.id} className="rounded-lg border border-slate-200 px-3 py-2 text-sm">
                 <div className="flex items-center justify-between gap-3">
                   <span>{notification.channel}</span>
-                  <StatusBadge tone={notification.status === "sent" ? "green" : notification.status === "failed" ? "red" : "grey"}>{notification.status}</StatusBadge>
+                  <StatusBadge tone={notification.status === "SENT" ? "green" : notification.status === "FAILED" ? "red" : "grey"}>{notification.status}</StatusBadge>
                 </div>
                 <p className="mt-1 text-muted">{notification.sentAt.toLocaleString()}</p>
               </div>

@@ -1,4 +1,4 @@
-import { NotificationChannel, type Lecturer } from "@prisma/client";
+import { DeliveryStatus, NotificationChannel, type Lecturer } from "@prisma/client";
 import { Resend } from "resend";
 import { prisma } from "@/lib/prisma";
 
@@ -9,8 +9,8 @@ export class NotificationService {
   private resend = process.env.RESEND_API_KEY ? new Resend(process.env.RESEND_API_KEY) : null;
 
   async notifyLecturer(target: MessageTarget, subject: string, message: string, options: ChannelOptions = {}) {
-    const email = options.emailEnabled === false ? "skipped" : await this.sendEmail(target.email, subject, this.wrapEmail(target.firstName, message));
-    const sms = options.smsEnabled === false ? "skipped" : await this.sendSms(target.phone, message);
+    const email = options.emailEnabled === false ? DeliveryStatus.SKIPPED : await this.sendEmail(target.email, subject, this.wrapEmail(target.firstName, message));
+    const sms = options.smsEnabled === false ? DeliveryStatus.SKIPPED : await this.sendSms(target.phone, message);
     await prisma.lecturerNotification.createMany({
       data: [
         { lecturerId: target.id, channel: NotificationChannel.EMAIL, message, status: email },
@@ -62,7 +62,7 @@ export class NotificationService {
   }
 
   async sendEmail(to: string, subject: string, html: string) {
-    if (!this.resend) return "skipped";
+    if (!this.resend) return DeliveryStatus.SKIPPED;
     try {
       await this.resend.emails.send({
         from: process.env.RESEND_FROM_EMAIL ?? "ShowUp <noreply@showup.app>",
@@ -70,15 +70,15 @@ export class NotificationService {
         subject,
         html
       });
-      return "sent";
+      return DeliveryStatus.SENT;
     } catch (error) {
       console.error(error);
-      return "failed";
+      return DeliveryStatus.FAILED;
     }
   }
 
   async sendSms(to: string, message: string) {
-    if (!process.env.ARKESEL_API_KEY || !process.env.ARKESEL_SENDER_ID) return "skipped";
+    if (!process.env.ARKESEL_API_KEY || !process.env.ARKESEL_SENDER_ID) return DeliveryStatus.SKIPPED;
     try {
       const response = await fetch("https://sms.arkesel.com/api/v2/sms/send", {
         method: "POST",
@@ -96,12 +96,12 @@ export class NotificationService {
       if (!response.ok) {
         const body = await response.text().catch(() => "");
         console.error("Arkesel SMS failed", { status: response.status, body: body.slice(0, 300) });
-        return "failed";
+        return DeliveryStatus.FAILED;
       }
-      return "sent";
+      return DeliveryStatus.SENT;
     } catch (error) {
       console.error(error);
-      return "failed";
+      return DeliveryStatus.FAILED;
     }
   }
 

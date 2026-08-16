@@ -1,5 +1,5 @@
 import { randomUUID } from "crypto";
-import { NotificationChannel } from "@prisma/client";
+import { DeliveryStatus, NotificationChannel } from "@prisma/client";
 import { type NextRequest } from "next/server";
 import { z } from "zod";
 import { DEMO_COOKIE, parseDemoSession } from "@/lib/auth/demo";
@@ -32,7 +32,7 @@ export async function POST(request: NextRequest) {
       phone,
       "ShowUp live demo: SMS notifications are working. This is a test from the ShowUp pitch demo."
     );
-    return json({ ok: status === "sent", status, kind: "test", phone });
+    return json({ ok: status === DeliveryStatus.SENT, status, kind: "test", phone });
   }
 
   const course = await prisma.course.findFirst({
@@ -60,7 +60,7 @@ export async function POST(request: NextRequest) {
       }
     });
     return json({
-      ok: status === "sent",
+      ok: status === DeliveryStatus.SENT,
       status,
       kind: "absence",
       phone,
@@ -94,8 +94,8 @@ async function sendPitchLatePingAnytime(input: {
       lectureDate: startOfSessionDay(new Date()),
       minutesLate: threshold,
       acknowledgeToken,
-      lecturerSmsStatus: "pending",
-      lecturerEmailStatus: "skipped",
+      lecturerSmsStatus: DeliveryStatus.PENDING,
+      lecturerEmailStatus: DeliveryStatus.SKIPPED,
       qaNotified: false
     }
   });
@@ -105,11 +105,11 @@ async function sendPitchLatePingAnytime(input: {
 
   const updated = await prisma.latePing.update({
     where: { id: ping.id },
-    data: { lecturerSmsStatus: smsStatus, lecturerEmailStatus: "skipped", qaNotified: false }
+    data: { lecturerSmsStatus: smsStatus, lecturerEmailStatus: DeliveryStatus.SKIPPED, qaNotified: false }
   });
 
   return json({
-    ok: smsStatus === "sent",
+    ok: smsStatus === DeliveryStatus.SENT,
     status: smsStatus,
     kind: "late_ping",
     phone: input.phone,

@@ -1,4 +1,4 @@
-import { Role, SupportPriority, SupportTicketCategory } from "@prisma/client";
+import { DeliveryStatus, Role, SupportPriority, SupportTicketCategory } from "@prisma/client";
 import { z } from "zod";
 import { prisma } from "@/lib/prisma";
 import { badRequest, json, withAuth } from "@/lib/middleware/withAuth";
@@ -63,8 +63,8 @@ async function notifyUniversityIt(universityId: string, ticketId: string, subjec
     where: { universityId, role: Role.IT, isActive: true },
     select: { email: true, phone: true, displayName: true }
   });
-  const emailResults: string[] = [];
-  const smsResults: string[] = [];
+  const emailResults: DeliveryStatus[] = [];
+  const smsResults: DeliveryStatus[] = [];
   for (const user of itUsers) {
     if (user.email) {
       emailResults.push(await notificationService.sendEmail(
@@ -83,9 +83,9 @@ async function notifyUniversityIt(universityId: string, ticketId: string, subjec
   };
 }
 
-function summarizeStatus(statuses: string[]) {
-  if (!statuses.length) return "skipped";
-  if (statuses.some((status) => status === "sent")) return "sent";
-  if (statuses.some((status) => status === "failed")) return "failed";
-  return "skipped";
+function summarizeStatus(statuses: DeliveryStatus[]) {
+  if (!statuses.length) return DeliveryStatus.SKIPPED;
+  if (statuses.some((status) => status === DeliveryStatus.SENT)) return DeliveryStatus.SENT;
+  if (statuses.some((status) => status === DeliveryStatus.FAILED)) return DeliveryStatus.FAILED;
+  return DeliveryStatus.SKIPPED;
 }

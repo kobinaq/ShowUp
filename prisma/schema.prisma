@@ -262,8 +262,8 @@ model LatePing {
   sentBy              Profile        @relation(fields: [sentById], references: [id], onDelete: Cascade)
   lectureDate         DateTime
   minutesLate         Int
-  lecturerSmsStatus   String
-  lecturerEmailStatus String
+  lecturerSmsStatus   DeliveryStatus
+  lecturerEmailStatus DeliveryStatus
   qaNotified          Boolean        @default(true)
   acknowledgeToken    String         @unique
   acknowledgedAt      DateTime?
@@ -377,12 +377,19 @@ model LecturerNotification {
   channel    NotificationChannel
   message    String
   sentAt     DateTime            @default(now())
-  status     String
+  status     DeliveryStatus
 }
 
 enum NotificationChannel {
   EMAIL
   SMS
+}
+
+enum DeliveryStatus {
+  PENDING
+  SENT
+  SKIPPED
+  FAILED
 }
 
 model IdentityLookup {
@@ -459,8 +466,8 @@ model SupportTicket {
   priority     SupportPriority       @default(NORMAL)
   status       SupportTicketStatus   @default(OPEN)
   resolutionNote String?
-  emailStatus  String                @default("skipped")
-  smsStatus    String                @default("skipped")
+  emailStatus  DeliveryStatus        @default(SKIPPED)
+  smsStatus    DeliveryStatus        @default(SKIPPED)
   createdAt    DateTime              @default(now())
   updatedAt    DateTime              @updatedAt
   resolvedAt   DateTime?

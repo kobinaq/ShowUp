@@ -93,7 +93,7 @@ export function DemoExperience() {
     setBusy(null);
     if (!res.ok) return toast.error(data.error ?? "SMS failed");
     if (data.acknowledgeUrl) setLastAckUrl(data.acknowledgeUrl);
-    if (data.status === "sent") toast.success(`SMS sent to ${data.phone}`);
+    if (data.status === "SENT") toast.success(`SMS sent to ${data.phone}`);
     else toast.error(`SMS status: ${data.status}`);
   }
 

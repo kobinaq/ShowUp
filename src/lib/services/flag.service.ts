@@ -1,4 +1,4 @@
-import { FlagType, PresenceStatus, ArrivalStatus } from "@prisma/client";
+import { FlagType, PresenceStatus, ArrivalStatus, DeliveryStatus } from "@prisma/client";
 import { prisma } from "@/lib/prisma";
 import { notificationService } from "@/lib/services/notification.service";
 import { formatClassTime } from "@/lib/utils/sessionTime";
@@ -27,7 +27,7 @@ export class FlagService {
           smsEnabled: settings?.lecturerAbsenceSmsEnabled ?? true
         }
       );
-      if (delivery.email === "sent" || delivery.sms === "sent") {
+      if (delivery.email === DeliveryStatus.SENT || delivery.sms === DeliveryStatus.SENT) {
         await prisma.flag.update({ where: { id: absenceFlag.id }, data: { notificationSent: true } });
       }
     }
