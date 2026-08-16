@@ -2,7 +2,9 @@ import Link from "next/link";
 import { Role } from "@prisma/client";
 import { AlertTriangle, ArrowRight, CheckCircle2 } from "lucide-react";
 import { prisma } from "@/lib/prisma";
-import { createClient } from "@/lib/supabase/server";
+import { getAuthProfile } from "@/lib/auth/session";
+import { andWhere, contestScope, courseScope, flagScope, isDepartmentRole, latePingScope, reportScope, semesterScope } from "@/lib/auth/scope";
+import { redirect } from "next/navigation";
 import { PageHeader } from "@/components/shared/PageHeader";
 import { MetricCard, SectionPanel } from "@/components/shared/Panels";
 import { StatusBadge } from "@/components/shared/StatusBadge";
@@ -14,41 +16,20 @@ import { displayText } from "@/lib/utils/displayText";
 type DashboardPeriod = "week" | "month" | "semester" | "year";
 
 export default async function DashboardPage({ searchParams }: { searchParams?: Promise<{ period?: string }> }) {
-  const supabase = await createClient();
-  const { data } = await supabase.auth.getUser();
+  const profile = await getAuthProfile();
+  if (!profile) redirect("/login");
   const params = await searchParams;
-  const profile = data.user
-    ? await prisma.profile.findUnique({
-        where: { supabaseUid: data.user.id },
-        select: { role: true, universityId: true, departmentId: true, university: { select: { name: true } }, department: { select: { name: true } } }
-      })
-    : null;
-  const isSuperAdmin = profile?.role === Role.SUPER_ADMIN;
-  const isDepartmentScope = profile?.role === Role.HOD || profile?.role === Role.HOD_ASSISTANT;
-  const reportScope = isSuperAdmin
-    ? {}
-    : isDepartmentScope
-      ? { course: { departmentId: profile?.departmentId ?? "__none__" } }
-      : { course: { department: { faculty: { universityId: profile?.universityId ?? "__none__" } } } };
-  const lecturerScope = isSuperAdmin
-    ? {}
-    : isDepartmentScope
-      ? { lecturer: { departmentId: profile?.departmentId ?? "__none__" } }
-      : { lecturer: { department: { faculty: { universityId: profile?.universityId ?? "__none__" } } } };
-  const courseScope = isSuperAdmin
-    ? {}
-    : isDepartmentScope
-      ? { departmentId: profile?.departmentId ?? "__none__" }
-      : { department: { faculty: { universityId: profile?.universityId ?? "__none__" } } };
+  const isSuperAdmin = profile.role === Role.SUPER_ADMIN;
+  const isDepartmentScope = isDepartmentRole(profile.role);
 
   const requestedPeriod = params?.period;
   const period: DashboardPeriod = requestedPeriod === "month" || requestedPeriod === "semester" || requestedPeriod === "year" ? requestedPeriod : "week";
   const activeSemester = await prisma.semester.findFirst({
-    where: isSuperAdmin ? { isActive: true } : { isActive: true, universityId: profile?.universityId ?? "__none__" },
+    where: andWhere(semesterScope(profile), { isActive: true }),
     orderBy: { startDate: "desc" }
   });
   const periodRange = getPeriodRange(period, activeSemester);
-  const periodReportScope = { ...reportScope, lectureDate: { gte: periodRange.start, lte: periodRange.end } };
+  const periodReportScope = andWhere(reportScope(profile), { lectureDate: { gte: periodRange.start, lte: periodRange.end } });
   const periodLabel = periodRange.label;
   const [reports, insightReports, reportsThisWeek, presentReports, absences, lateness, flags, contests, pings, courses] = await Promise.all([
     prisma.lectureReport.findMany({
@@ -67,13 +48,13 @@ export default async function DashboardPage({ searchParams }: { searchParams?: P
     prisma.lectureReport.count({ where: { ...periodReportScope, lecturerPresent: { not: "ABSENT" } } }),
     prisma.lectureReport.count({ where: { ...periodReportScope, lecturerPresent: "ABSENT" } }),
     prisma.lectureReport.count({ where: { ...periodReportScope, arrivalStatus: "LATE" } }),
-    prisma.flag.findMany({ where: { isResolved: false, createdAt: { gte: periodRange.start, lte: periodRange.end }, ...lecturerScope }, include: { lecturer: true, report: { include: { course: true } } }, orderBy: { createdAt: "desc" }, take: 6 }),
-    prisma.contest.findMany({ where: { status: "PENDING", raisedAt: { gte: periodRange.start, lte: periodRange.end }, report: reportScope }, include: { report: { include: { course: true } } }, orderBy: { raisedAt: "desc" }, take: 6 }),
-    prisma.latePing.findMany({ where: { lectureDate: { gte: periodRange.start, lte: periodRange.end }, course: courseScope }, include: { course: true }, orderBy: { createdAt: "desc" }, take: 6 }),
-    prisma.course.count({ where: courseScope })
+    prisma.flag.findMany({ where: andWhere(flagScope(profile), { isResolved: false, createdAt: { gte: periodRange.start, lte: periodRange.end } }), include: { lecturer: true, report: { include: { course: true } } }, orderBy: { createdAt: "desc" }, take: 6 }),
+    prisma.contest.findMany({ where: andWhere(contestScope(profile), { status: "PENDING", raisedAt: { gte: periodRange.start, lte: periodRange.end } }), include: { report: { include: { course: true } } }, orderBy: { raisedAt: "desc" }, take: 6 }),
+    prisma.latePing.findMany({ where: andWhere(latePingScope(profile), { lectureDate: { gte: periodRange.start, lte: periodRange.end } }), include: { course: true }, orderBy: { createdAt: "desc" }, take: 6 }),
+    prisma.course.count({ where: courseScope(profile) })
   ]);
   const attendanceRate = reportsThisWeek ? Math.round((presentReports / reportsThisWeek) * 100) : 0;
-  const scopeName = isSuperAdmin ? "All universities" : isDepartmentScope ? profile?.department?.name ?? "Your department" : profile?.university?.name ?? "Your university";
+  const scopeName = isSuperAdmin ? "All universities" : isDepartmentScope ? profile.department?.name ?? "Your department" : profile.university?.name ?? "Your university";
   const insights = buildInsights(insightReports, flags, contests, periodRange.start, scopeName, periodLabel);
   const needsAttention = [
     ...flags.map((flag) => ({

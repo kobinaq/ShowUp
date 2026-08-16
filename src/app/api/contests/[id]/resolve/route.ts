@@ -1,4 +1,4 @@
-import { Role } from "@prisma/client";
+import { ContestStatus, Role } from "@prisma/client";
 import { prisma } from "@/lib/prisma";
 import { andWhere, contestScope } from "@/lib/auth/scope";
 import { withAuth, json, badRequest } from "@/lib/middleware/withAuth";
@@ -16,19 +16,27 @@ export const PUT = withAuth<Params>(async (request, { params, profile }) => {
     where: andWhere({ id }, contestScope(profile)),
     select: {
       id: true,
+      status: true,
       raisedBy: { select: { email: true } },
       report: { select: { lectureDate: true, course: { select: { code: true } } } }
     }
   });
   if (!existing) return json({ error: "Not found" }, { status: 404 });
+  if (existing.status !== ContestStatus.PENDING) {
+    return json({ error: "Contest is already resolved" }, { status: 409 });
+  }
+  const accepted = parsed.data.status === ContestStatus.ACCEPTED;
   const contest = await prisma.$transaction(async (tx) => {
     const resolved = await tx.contest.update({
       where: { id },
       data: { status: parsed.data.status, resolutionNote: parsed.data.resolutionNote, resolvedById: profile.id, resolvedAt: new Date() },
       include: { report: true }
     });
-    if (parsed.data.status === "ACCEPTED") {
-      await tx.lectureReport.update({ where: { id: resolved.reportId }, data: { isVoided: true } });
+    await tx.lectureReport.update({
+      where: { id: resolved.reportId },
+      data: { isVoided: accepted, isContested: false }
+    });
+    if (accepted) {
       await tx.flag.updateMany({ where: { reportId: resolved.reportId }, data: { isResolved: true, internalNotes: "Contest accepted" } });
     }
     return resolved;

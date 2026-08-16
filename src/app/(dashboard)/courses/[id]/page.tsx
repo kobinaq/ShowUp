@@ -1,4 +1,4 @@
-import { notFound } from "next/navigation";
+import { notFound, redirect } from "next/navigation";
 import { Role } from "@prisma/client";
 import { prisma } from "@/lib/prisma";
 import { coverageService } from "@/lib/services/coverage.service";
@@ -10,23 +10,16 @@ import { EmptyState } from "@/components/shared/EmptyState";
 import { ReporterAssignmentForm } from "@/components/courses/ReporterAssignmentForm";
 import { OutlineUploadForm } from "@/components/courses/OutlineUploadForm";
 import { getAuthProfile } from "@/lib/auth/session";
+import { andWhere, courseScope } from "@/lib/auth/scope";
 
 export default async function CourseDetailPage({ params }: { params: Promise<{ id: string }> }) {
   const { id } = await params;
   const profile = await getAuthProfile();
-  const isSuperAdmin = profile?.role === Role.SUPER_ADMIN;
-  const canManageReporter = profile?.role === Role.SUPER_ADMIN || profile?.role === Role.QA_OFFICER || profile?.role === Role.QA_ASSISTANT || profile?.role === Role.IT;
-  const canUploadOutline = profile?.role === Role.SUPER_ADMIN || profile?.role === Role.IT;
-  const isDepartmentScope = profile?.role === Role.HOD || profile?.role === Role.HOD_ASSISTANT;
+  if (!profile) redirect("/login");
+  const canManageReporter = profile.role === Role.SUPER_ADMIN || profile.role === Role.QA_OFFICER || profile.role === Role.QA_ASSISTANT || profile.role === Role.IT;
+  const canUploadOutline = profile.role === Role.SUPER_ADMIN || profile.role === Role.IT;
   const course = await prisma.course.findFirst({
-    where: {
-      id,
-      ...(isSuperAdmin
-        ? {}
-        : isDepartmentScope
-          ? { departmentId: profile?.departmentId ?? "__none__" }
-          : { department: { faculty: { universityId: profile?.universityId ?? "__none__" } } })
-    },
+    where: andWhere({ id }, courseScope(profile)),
     include: {
       lecturer: true,
       department: true,

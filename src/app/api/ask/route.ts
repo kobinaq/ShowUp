@@ -29,14 +29,16 @@ export const POST = withAuth(async (request, { profile }) => {
       });
     }
 
-    const scope: { universityId?: string; departmentId?: string | null } = profile.role === "SUPER_ADMIN" ? {} : { universityId: profile.universityId };
-    if (profile.role === "HOD" || profile.role === "HOD_ASSISTANT") {
-      if (!profile.departmentId) return forbidden("HOD analytics require a department assignment");
-      plan.params.departmentId = profile.departmentId;
-      scope.departmentId = profile.departmentId;
+    if ((profile.role === Role.HOD || profile.role === Role.HOD_ASSISTANT) && !profile.departmentId) {
+      return forbidden("HOD analytics require a department assignment");
     }
 
-    const data = await executeQueryPlan(plan, scope);
+    const data = await executeQueryPlan(plan, {
+      id: profile.id,
+      role: profile.role,
+      universityId: profile.universityId,
+      departmentId: profile.departmentId
+    });
     const answer = await formatAnswer(parsed.data.question, data);
 
     return json({ answer, data, plan });

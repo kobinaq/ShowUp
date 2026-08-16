@@ -64,19 +64,16 @@ const payloadSchema = z.discriminatedUnion("type", [
   })
 ]);
 
-const universityScopedRoles: Role[] = [Role.SUPER_ADMIN, Role.IT];
-const departmentScopedRoles: Role[] = [Role.SUPER_ADMIN, Role.IT];
+const setupRoles: Role[] = [Role.SUPER_ADMIN, Role.IT];
 type DepartmentResolution = { departmentId: string } | { response: Response };
 
 export const POST = withAuth(async (request, { profile }): Promise<Response> => {
   const parsed = payloadSchema.safeParse(await request.json().catch(() => ({})));
   if (!parsed.success) return badRequest("Invalid setup payload", parsed.error.flatten());
-  if (profile.role === Role.VC) return forbidden("Vice Chancellor admin is read-only for now.");
 
   const data = parsed.data;
   const isSuperAdmin = profile.role === Role.SUPER_ADMIN;
   const isIt = profile.role === Role.IT;
-  const isDepartmentRole = profile.role === Role.HOD || profile.role === Role.HOD_ASSISTANT;
 
   if (data.type === "university") {
     if (!isSuperAdmin) return forbidden("Only platform administrators can create universities.");
@@ -85,7 +82,7 @@ export const POST = withAuth(async (request, { profile }): Promise<Response> => 
   }
 
   if (data.type === "faculty") {
-    if (!universityScopedRoles.includes(profile.role)) return forbidden("You cannot create faculties for this role.");
+    if (!setupRoles.includes(profile.role)) return forbidden("You cannot create faculties for this role.");
     const universityId = isSuperAdmin ? data.universityId : profile.universityId;
     if (!universityId) return badRequest("University is required");
     const created = await prisma.faculty.create({ data: { name: data.name, universityId } });
@@ -93,7 +90,7 @@ export const POST = withAuth(async (request, { profile }): Promise<Response> => 
   }
 
   if (data.type === "department") {
-    if (!universityScopedRoles.includes(profile.role)) return forbidden("You cannot create departments for this role.");
+    if (!setupRoles.includes(profile.role)) return forbidden("You cannot create departments for this role.");
     const faculty = await prisma.faculty.findUnique({ where: { id: data.facultyId }, select: { id: true, universityId: true } });
     if (!faculty) return badRequest("Faculty was not found");
     if (!isSuperAdmin && faculty.universityId !== profile.universityId) return forbidden("Faculty is outside your university.");
@@ -102,7 +99,7 @@ export const POST = withAuth(async (request, { profile }): Promise<Response> => 
   }
 
   if (data.type === "semester") {
-    if (!universityScopedRoles.includes(profile.role)) return forbidden("You cannot create semesters for this role.");
+    if (!setupRoles.includes(profile.role)) return forbidden("You cannot create semesters for this role.");
     const universityId = isSuperAdmin ? data.universityId : profile.universityId;
     if (!universityId) return badRequest("University is required");
     if (data.isActive) await prisma.semester.updateMany({ where: { universityId }, data: { isActive: false } });
@@ -119,8 +116,8 @@ export const POST = withAuth(async (request, { profile }): Promise<Response> => 
   }
 
   if (data.type === "lecturer") {
-    if (!departmentScopedRoles.includes(profile.role)) return forbidden("You cannot create lecturers for this role.");
-    const resolved = await resolveDepartmentId(data.departmentId, profile, isSuperAdmin, isIt, isDepartmentRole);
+    if (!setupRoles.includes(profile.role)) return forbidden("You cannot create lecturers for this role.");
+    const resolved = await resolveDepartmentId(data.departmentId, profile, isSuperAdmin, isIt);
     if ("response" in resolved) return resolved.response;
     const created = await prisma.lecturer.create({
       data: { firstName: data.firstName, lastName: data.lastName, email: data.email, phone: data.phone, staffId: data.staffId, departmentId: resolved.departmentId }
@@ -129,8 +126,8 @@ export const POST = withAuth(async (request, { profile }): Promise<Response> => 
   }
 
   if (data.type === "course") {
-    if (!departmentScopedRoles.includes(profile.role)) return forbidden("You cannot create courses for this role.");
-    const resolved = await resolveDepartmentId(data.departmentId, profile, isSuperAdmin, isIt, isDepartmentRole);
+    if (!setupRoles.includes(profile.role)) return forbidden("You cannot create courses for this role.");
+    const resolved = await resolveDepartmentId(data.departmentId, profile, isSuperAdmin, isIt);
     if ("response" in resolved) return resolved.response;
     const { departmentId } = resolved;
     const [semester, lecturer] = await Promise.all([
@@ -165,7 +162,7 @@ export const POST = withAuth(async (request, { profile }): Promise<Response> => 
   }
 
   if (data.type === "user") {
-    if (!universityScopedRoles.includes(profile.role)) return forbidden("Only IT can create university users.");
+    if (!setupRoles.includes(profile.role)) return forbidden("Only IT can create university users.");
     const universityId = isSuperAdmin ? data.universityId : profile.universityId;
     if (!universityId) return badRequest("University is required");
     if (!isSuperAdmin && universityId !== profile.universityId) return forbidden("University is outside your scope.");
@@ -213,26 +210,19 @@ export const POST = withAuth(async (request, { profile }): Promise<Response> => 
 
 async function resolveDepartmentId(
   submittedDepartmentId: string | undefined,
-  profile: { role: Role; universityId: string; departmentId: string | null },
+  profile: { universityId: string },
   isSuperAdmin: boolean,
-  isIt: boolean,
-  isDepartmentRole: boolean
+  isIt: boolean
 ): Promise<DepartmentResolution> {
-  const departmentId = isDepartmentRole ? profile.departmentId : submittedDepartmentId;
-  if (!departmentId) return { response: badRequest("Department is required") };
-  if (isSuperAdmin) return { departmentId };
-
-  if (isIt) {
-    const department = await prisma.department.findFirst({
-      where: { id: departmentId, faculty: { universityId: profile.universityId } },
-      select: { id: true }
-    });
-    if (!department) return { response: forbidden("Department is outside your university.") };
-    return { departmentId: department.id };
-  }
-
-  if (departmentId !== profile.departmentId) return { response: forbidden("Department is outside your scope.") };
-  return { departmentId };
+  if (!submittedDepartmentId) return { response: badRequest("Department is required") };
+  if (isSuperAdmin) return { departmentId: submittedDepartmentId };
+  if (!isIt) return { response: forbidden("Department is outside your scope.") };
+  const department = await prisma.department.findFirst({
+    where: { id: submittedDepartmentId, faculty: { universityId: profile.universityId } },
+    select: { id: true }
+  });
+  if (!department) return { response: forbidden("Department is outside your university.") };
+  return { departmentId: department.id };
 }
 
 async function createAuthUser(email: string, password: string) {

@@ -1,10 +1,12 @@
 import { z } from "zod";
 
+export const presenceStatusSchema = z.enum(["PRESENT", "ABSENT", "SUBSTITUTE"]);
+
 export const reportSchema = z.object({
   courseId: z.string().min(8),
   scheduleId: z.string().min(8),
   lectureDate: z.coerce.date(),
-  lecturerPresent: z.enum(["PRESENT", "ABSENT", "SUBSTITUTE"]),
+  lecturerPresent: presenceStatusSchema,
   substituteNote: z.string().max(500).optional(),
   arrivalStatus: z.enum(["ON_TIME", "LATE"]).optional(),
   lateMinutes: z.number().int().min(1).max(240).optional(),

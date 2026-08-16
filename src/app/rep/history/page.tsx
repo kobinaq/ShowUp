@@ -1,14 +1,13 @@
 import { prisma } from "@/lib/prisma";
-import { createClient } from "@/lib/supabase/server";
+import { getAuthProfile } from "@/lib/auth/session";
+import { reportScope } from "@/lib/auth/scope";
+import { redirect } from "next/navigation";
 import { StatusBadge } from "@/components/shared/StatusBadge";
 
 export default async function RepHistoryPage() {
-  const supabase = await createClient();
-  const { data } = await supabase.auth.getUser();
-  const profile = data.user ? await prisma.profile.findUnique({ where: { supabaseUid: data.user.id } }) : null;
-  const reports = profile
-    ? await prisma.lectureReport.findMany({ where: { submittedById: profile.id }, include: { course: true }, orderBy: { lectureDate: "desc" } })
-    : [];
+  const profile = await getAuthProfile();
+  if (!profile) redirect("/login");
+  const reports = await prisma.lectureReport.findMany({ where: reportScope(profile), include: { course: true }, orderBy: { lectureDate: "desc" } });
   return (
     <div className="space-y-4">
       <h1 className="font-display text-2xl font-bold">History</h1>

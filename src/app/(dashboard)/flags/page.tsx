@@ -1,6 +1,7 @@
-import { Role } from "@prisma/client";
 import { prisma } from "@/lib/prisma";
-import { createClient } from "@/lib/supabase/server";
+import { getAuthProfile } from "@/lib/auth/session";
+import { flagScope } from "@/lib/auth/scope";
+import { redirect } from "next/navigation";
 import { displayText } from "@/lib/utils/displayText";
 import { PageHeader } from "@/components/shared/PageHeader";
 import { SectionPanel } from "@/components/shared/Panels";
@@ -16,19 +17,10 @@ const columns: DataTableColumn[] = [
 ];
 
 export default async function FlagsPage() {
-  const supabase = await createClient();
-  const { data } = await supabase.auth.getUser();
-  const profile = data.user
-    ? await prisma.profile.findUnique({ where: { supabaseUid: data.user.id }, select: { role: true, universityId: true, departmentId: true } })
-    : null;
-  const isSuperAdmin = profile?.role === Role.SUPER_ADMIN;
-  const isDepartmentScope = profile?.role === Role.HOD || profile?.role === Role.HOD_ASSISTANT;
+  const profile = await getAuthProfile();
+  if (!profile) redirect("/login");
   const flags = await prisma.flag.findMany({
-    where: isSuperAdmin
-      ? {}
-      : isDepartmentScope
-        ? { lecturer: { departmentId: profile?.departmentId ?? "__none__" } }
-        : { lecturer: { department: { faculty: { universityId: profile?.universityId ?? "__none__" } } } },
+    where: flagScope(profile),
     include: { lecturer: true, report: { include: { course: true } } },
     orderBy: { createdAt: "desc" }
   });

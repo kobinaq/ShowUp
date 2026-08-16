@@ -2,16 +2,19 @@ import { AidType, Prisma, Role } from "@prisma/client";
 import { prisma } from "@/lib/prisma";
 import { andWhere, courseScope, reportScope, startOfSessionDay, timeOnSessionDate } from "@/lib/auth/scope";
 import { withAuth, json, badRequest, forbidden } from "@/lib/middleware/withAuth";
-import { reportSchema } from "@/lib/validators/report";
+import { presenceStatusSchema, reportSchema } from "@/lib/validators/report";
 import { flagService } from "@/lib/services/flag.service";
 import { coverageService } from "@/lib/services/coverage.service";
 import { handlePostClassPingEscalation } from "@/lib/services/ping.service";
 
 export const GET = withAuth(async (request, { profile }) => {
   const url = new URL(request.url);
+  const presence = url.searchParams.get("presence");
+  const parsedPresence = presence ? presenceStatusSchema.safeParse(presence) : null;
+  if (parsedPresence && !parsedPresence.success) return badRequest("Invalid presence filter", parsedPresence.error.flatten());
   const where = andWhere(reportScope(profile), {
     ...(url.searchParams.get("courseId") ? { courseId: url.searchParams.get("courseId")! } : {}),
-    ...(url.searchParams.get("presence") ? { lecturerPresent: url.searchParams.get("presence") as never } : {})
+    ...(parsedPresence?.success ? { lecturerPresent: parsedPresence.data } : {})
   });
   const reports = await prisma.lectureReport.findMany({
     where,

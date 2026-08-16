@@ -1,45 +1,22 @@
 import Link from "next/link";
-import { Role } from "@prisma/client";
 import { prisma } from "@/lib/prisma";
 import { SimpleBarChart } from "@/components/charts/SimpleBarChart";
 import { SimpleLineChart } from "@/components/charts/SimpleLineChart";
-import { createClient } from "@/lib/supabase/server";
+import { getAuthProfile } from "@/lib/auth/session";
+import { contestScope, courseScope, flagScope, isDepartmentRole, latePingScope } from "@/lib/auth/scope";
+import { redirect } from "next/navigation";
 import { coverageService } from "@/lib/services/coverage.service";
 import { displayText } from "@/lib/utils/displayText";
 import { PageHeader } from "@/components/shared/PageHeader";
 import { MetricCard, SectionPanel } from "@/components/shared/Panels";
 
 export default async function AnalyticsPage() {
-  const supabase = await createClient();
-  const { data } = await supabase.auth.getUser();
-  const profile = data.user
-    ? await prisma.profile.findUnique({
-        where: { supabaseUid: data.user.id },
-        select: {
-          role: true,
-          universityId: true,
-          departmentId: true,
-          university: { select: { name: true } },
-          department: { select: { name: true } }
-        }
-      })
-    : null;
+  const profile = await getAuthProfile();
+  if (!profile) redirect("/login");
 
-  const role = profile?.role ?? Role.HOD;
-  const isSuperAdmin = role === Role.SUPER_ADMIN;
-  const isDepartmentScope = role === Role.HOD || role === Role.HOD_ASSISTANT;
-  const universityId = profile?.universityId ?? "__none__";
-  const departmentId = profile?.departmentId ?? "__none__";
-  const courseWhere = isSuperAdmin
-    ? {}
-    : isDepartmentScope
-      ? { departmentId }
-      : { department: { faculty: { universityId } } };
-  const lecturerWhere = isSuperAdmin
-    ? {}
-    : isDepartmentScope
-      ? { departmentId }
-      : { department: { faculty: { universityId } } };
+  const isSuperAdmin = profile.role === "SUPER_ADMIN";
+  const isDepartmentScope = isDepartmentRole(profile.role);
+  const courseWhere = courseScope(profile);
 
   const courses = await prisma.course.findMany({
     where: courseWhere,
@@ -54,9 +31,9 @@ export default async function AnalyticsPage() {
     orderBy: { code: "asc" }
   });
   const courseIds = courses.map((course) => course.id);
-  const reportWhere = { isVoided: false, courseId: { in: courseIds.length ? courseIds : ["__none__"] } };
-  const contestWhere = { report: { course: courseWhere } };
-  const pingWhere = { course: courseWhere };
+  const reportWhere = { isVoided: false, courseId: { in: courseIds.length ? courseIds : ["__no_access__"] } };
+  const contestWhere = contestScope(profile);
+  const pingWhere = latePingScope(profile);
 
   const [
     reports,
@@ -96,12 +73,12 @@ export default async function AnalyticsPage() {
     prisma.lectureReport.count({ where: { ...reportWhere, lecturerPresent: { not: "ABSENT" } } }),
     prisma.lectureReport.count({ where: { ...reportWhere, lecturerPresent: "ABSENT" } }),
     prisma.lectureReport.count({ where: { ...reportWhere, arrivalStatus: "LATE" } }),
-    prisma.flag.count({ where: { isResolved: false, lecturer: lecturerWhere } }),
+    prisma.flag.count({ where: { isResolved: false, ...flagScope(profile) } }),
     prisma.contest.count({ where: { status: "PENDING", ...contestWhere } }),
     prisma.latePing.count({ where: pingWhere }),
     prisma.latePing.count({ where: { ...pingWhere, acknowledgedAt: { not: null } } }),
     prisma.flag.findMany({
-      where: { lecturer: lecturerWhere },
+      where: flagScope(profile),
       select: {
         id: true,
         type: true,
@@ -145,7 +122,7 @@ export default async function AnalyticsPage() {
     .filter((item) => item.pacingStatus === "Behind")
     .sort((a, b) => a.coveragePercent - b.coveragePercent)
     .slice(0, 5);
-  const scopeTitle = isSuperAdmin ? "All universities" : isDepartmentScope ? profile?.department?.name ?? "Your department" : profile?.university?.name ?? "Your university";
+  const scopeTitle = isSuperAdmin ? "All universities" : isDepartmentScope ? profile.department?.name ?? "Your department" : profile.university?.name ?? "Your university";
 
   return (
     <div className="space-y-6">

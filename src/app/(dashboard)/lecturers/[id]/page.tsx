@@ -1,9 +1,9 @@
-import { notFound } from "next/navigation";
-import { Role } from "@prisma/client";
+import { notFound, redirect } from "next/navigation";
 import { prisma } from "@/lib/prisma";
 import { coverageService } from "@/lib/services/coverage.service";
 import { ReportTable } from "@/components/reports/ReportTable";
-import { createClient } from "@/lib/supabase/server";
+import { getAuthProfile } from "@/lib/auth/session";
+import { andWhere, lecturerScope } from "@/lib/auth/scope";
 import { PageHeader } from "@/components/shared/PageHeader";
 import { MetricCard, SectionPanel, Tabs } from "@/components/shared/Panels";
 import { StatusBadge } from "@/components/shared/StatusBadge";
@@ -11,22 +11,10 @@ import { displayText } from "@/lib/utils/displayText";
 
 export default async function LecturerPage({ params }: { params: Promise<{ id: string }> }) {
   const { id } = await params;
-  const supabase = await createClient();
-  const { data } = await supabase.auth.getUser();
-  const profile = data.user
-    ? await prisma.profile.findUnique({ where: { supabaseUid: data.user.id }, select: { role: true, universityId: true, departmentId: true } })
-    : null;
-  const isSuperAdmin = profile?.role === Role.SUPER_ADMIN;
-  const isDepartmentScope = profile?.role === Role.HOD || profile?.role === Role.HOD_ASSISTANT;
+  const profile = await getAuthProfile();
+  if (!profile) redirect("/login");
   const lecturer = await prisma.lecturer.findFirst({
-    where: {
-      id,
-      ...(isSuperAdmin
-        ? {}
-        : isDepartmentScope
-          ? { departmentId: profile?.departmentId ?? "__none__" }
-          : { department: { faculty: { universityId: profile?.universityId ?? "__none__" } } })
-    },
+    where: andWhere({ id }, lecturerScope(profile)),
     include: {
       department: true,
       courses: {

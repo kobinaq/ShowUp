@@ -1,15 +1,15 @@
 import { prisma } from "@/lib/prisma";
-import { createClient } from "@/lib/supabase/server";
+import { getAuthProfile } from "@/lib/auth/session";
 import { ReportForm } from "@/components/reports/ReportForm";
 import { EmptyState } from "@/components/shared/EmptyState";
+import { sessionDayRange } from "@/lib/utils/sessionTime";
+import { redirect } from "next/navigation";
 
 export default async function RepSubmitPage() {
-  const supabase = await createClient();
-  const { data } = await supabase.auth.getUser();
-  const profile = data.user ? await prisma.profile.findUnique({ where: { supabaseUid: data.user.id } }) : null;
+  const profile = await getAuthProfile();
+  if (!profile) redirect("/login");
   const today = new Date();
-  const assignments = profile
-    ? await prisma.repAssignment.findMany({
+  const assignments = await prisma.repAssignment.findMany({
         where: { profileId: profile.id, isActive: true },
         include: {
           course: {
@@ -19,13 +19,13 @@ export default async function RepSubmitPage() {
                   reports: {
                     where: {
                       submittedById: profile.id,
-                      lectureDate: { gte: startOfDay(today), lte: endOfDay(today) }
+                      lectureDate: sessionDayRange(today)
                     },
                     select: { id: true }
                   },
                   latePings: {
                     where: {
-                      lectureDate: { gte: startOfDay(today), lte: endOfDay(today) }
+                      lectureDate: sessionDayRange(today)
                     },
                     orderBy: { createdAt: "desc" },
                     take: 1
@@ -38,10 +38,9 @@ export default async function RepSubmitPage() {
           }
         },
         orderBy: { createdAt: "desc" }
-      })
-    : null;
-  if (!assignments?.length) return <EmptyState title="No active reporting assignment." />;
-  const settings = await prisma.universitySettings.findUnique({ where: { universityId: profile!.universityId } });
+      });
+  if (!assignments.length) return <EmptyState title="No active reporting assignment." />;
+  const settings = await prisma.universitySettings.findUnique({ where: { universityId: profile.universityId } });
   const payload = assignments.map((assignment) => ({
     id: assignment.id,
     course: {
@@ -78,16 +77,4 @@ export default async function RepSubmitPage() {
       <ReportForm assignments={payload} pingThresholdMinutes={settings?.latePingThresholdMinutes ?? 30} submissionWindowHours={settings?.submissionWindowHours ?? 2} />
     </div>
   );
-}
-
-function startOfDay(date: Date) {
-  const value = new Date(date);
-  value.setHours(0, 0, 0, 0);
-  return value;
-}
-
-function endOfDay(date: Date) {
-  const value = new Date(date);
-  value.setHours(23, 59, 59, 999);
-  return value;
 }
