@@ -87,21 +87,4 @@ export function andWhere<T extends object>(...parts: T[]): T {
   return { AND: filtered } as T;
 }
 
-export function startOfSessionDay(date: Date) {
-  const value = new Date(date);
-  value.setHours(0, 0, 0, 0);
-  return value;
-}
-
-export function endOfSessionDay(date: Date) {
-  const value = new Date(date);
-  value.setHours(23, 59, 59, 999);
-  return value;
-}
-
-export function timeOnSessionDate(date: Date, time: string) {
-  const [hour, minute] = time.split(":").map(Number);
-  const value = startOfSessionDay(date);
-  value.setHours(hour, minute, 0, 0);
-  return value;
-}
+export { startOfSessionDay, endOfSessionDay, timeOnSessionDate } from "@/lib/utils/sessionTime";

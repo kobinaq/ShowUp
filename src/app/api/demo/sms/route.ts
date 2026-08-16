@@ -6,6 +6,7 @@ import { DEMO_COOKIE, parseDemoSession } from "@/lib/auth/demo";
 import { badRequest, json } from "@/lib/middleware/withAuth";
 import { notificationService } from "@/lib/services/notification.service";
 import { prisma } from "@/lib/prisma";
+import { startOfSessionDay } from "@/lib/utils/sessionTime";
 
 const schema = z.object({
   phone: z.string().min(8).max(20).optional(),
@@ -81,7 +82,7 @@ export async function POST(request: NextRequest) {
       courseId: course.id,
       scheduleId: schedule.id,
       sentById: qa.id,
-      lectureDate: startOfDay(new Date()),
+      lectureDate: startOfSessionDay(new Date()),
       minutesLate: threshold,
       acknowledgeToken,
       lecturerSmsStatus: "pending",
@@ -109,8 +110,3 @@ export async function POST(request: NextRequest) {
   });
 }
 
-function startOfDay(date: Date) {
-  const copy = new Date(date);
-  copy.setHours(0, 0, 0, 0);
-  return copy;
-}

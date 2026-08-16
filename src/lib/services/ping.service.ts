@@ -2,6 +2,7 @@ import { randomUUID } from "crypto";
 import { Role, type LatePing } from "@prisma/client";
 import { prisma } from "@/lib/prisma";
 import { notificationService } from "@/lib/services/notification.service";
+import { formatClassTime, sessionDayRange, startOfSessionDay, timeOnSessionDate } from "@/lib/utils/sessionTime";
 
 type PingResult = { success: true; ping: LatePing } | { success: false; error: string };
 
@@ -9,7 +10,7 @@ export async function isPingEligible(courseId: string, scheduleId: string, lectu
   const [settings, schedule, existing] = await Promise.all([
     prisma.universitySettings.findUnique({ where: { universityId } }),
     prisma.classSchedule.findUnique({ where: { id: scheduleId } }),
-    prisma.latePing.findFirst({ where: { courseId, scheduleId, lectureDate: dayRange(lectureDate) } })
+    prisma.latePing.findFirst({ where: { courseId, scheduleId, lectureDate: sessionDayRange(lectureDate) } })
   ]);
   if (!schedule) return { eligible: false, reason: "Schedule not found" };
   if (schedule.courseId !== courseId) return { eligible: false, reason: "Schedule does not belong to this course" };
@@ -18,8 +19,8 @@ export async function isPingEligible(courseId: string, scheduleId: string, lectu
 
   const threshold = settings?.latePingThresholdMinutes ?? 30;
   const now = new Date();
-  const classStart = timeOnDate(lectureDate, schedule.startTime);
-  const classEnd = timeOnDate(lectureDate, schedule.endTime);
+  const classStart = timeOnSessionDate(lectureDate, schedule.startTime);
+  const classEnd = timeOnSessionDate(lectureDate, schedule.endTime);
   const pingAvailableAt = new Date(classStart.getTime() + threshold * 60 * 1000);
 
   if (now < pingAvailableAt) {
@@ -50,7 +51,7 @@ export async function sendLatePing(courseId: string, scheduleId: string, sentByI
       courseId,
       scheduleId,
       sentById,
-      lectureDate: startOfDay(lectureDate),
+      lectureDate: startOfSessionDay(lectureDate),
       minutesLate: threshold,
       acknowledgeToken,
       lecturerSmsStatus: "pending",
@@ -112,7 +113,7 @@ export async function acknowledgePing(token: string) {
   });
   if (!ping) return { status: "not_found" as const };
 
-  const classEnd = timeOnDate(ping.lectureDate, ping.schedule.endTime);
+  const classEnd = timeOnSessionDate(ping.lectureDate, ping.schedule.endTime);
   if (new Date() > classEnd) return { status: "expired" as const };
   if (ping.acknowledgedAt) return { status: "already_acknowledged" as const };
 
@@ -122,7 +123,7 @@ export async function acknowledgePing(token: string) {
 
 export async function handlePostClassPingEscalation(courseId: string, lectureDate: Date, lecturerPresent: string, reportId: string) {
   const ping = await prisma.latePing.findFirst({
-    where: { courseId, lectureDate: dayRange(lectureDate), reportId: null },
+    where: { courseId, lectureDate: sessionDayRange(lectureDate), reportId: null },
     include: { course: { include: { lecturer: true } } }
   });
   if (!ping) return;
@@ -149,34 +150,6 @@ export async function handlePostClassPingEscalation(courseId: string, lectureDat
       hodNotifiedAt: shouldEscalate ? new Date() : ping.hodNotifiedAt
     }
   });
-}
-
-function dayRange(date: Date) {
-  const start = new Date(date);
-  start.setHours(0, 0, 0, 0);
-  const end = new Date(date);
-  end.setHours(23, 59, 59, 999);
-  return { gte: start, lte: end };
-}
-
-function startOfDay(date: Date) {
-  const start = new Date(date);
-  start.setHours(0, 0, 0, 0);
-  return start;
-}
-
-function timeOnDate(date: Date, time: string) {
-  const [hour, minute] = time.split(":").map(Number);
-  const value = new Date(date);
-  value.setHours(hour, minute, 0, 0);
-  return value;
-}
-
-function formatClassTime(time: string) {
-  const [hourText, minuteText] = time.split(":");
-  const date = new Date();
-  date.setHours(Number(hourText), Number(minuteText), 0, 0);
-  return date.toLocaleTimeString("en", { hour: "numeric", minute: Number(minuteText) ? "2-digit" : undefined, hour12: true }).toLowerCase().replace(" ", "");
 }
 
 function buildPingEmailHtml(params: { lecturerName: string; courseCode: string; courseTitle: string; minutesLate: number; venue: string; acknowledgeUrl: string }) {

@@ -1,6 +1,7 @@
 import { FlagType, PresenceStatus, ArrivalStatus } from "@prisma/client";
 import { prisma } from "@/lib/prisma";
 import { notificationService } from "@/lib/services/notification.service";
+import { formatClassTime } from "@/lib/utils/sessionTime";
 
 export class FlagService {
   async evaluateReport(reportId: string) {
@@ -70,10 +71,3 @@ export class FlagService {
 }
 
 export const flagService = new FlagService();
-
-function formatClassTime(time: string) {
-  const [hourText, minuteText] = time.split(":");
-  const date = new Date();
-  date.setHours(Number(hourText), Number(minuteText), 0, 0);
-  return date.toLocaleTimeString("en", { hour: "numeric", minute: Number(minuteText) ? "2-digit" : undefined, hour12: true }).toLowerCase().replace(" ", "");
-}
