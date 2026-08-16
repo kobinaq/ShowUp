@@ -68,7 +68,16 @@ export async function POST(request: NextRequest) {
     });
   }
 
-  // late_ping — bypass schedule timing so pitches work any time of day
+  return sendPitchLatePingAnytime({ course, schedule, lecturerName, phone, appUrl });
+}
+
+async function sendPitchLatePingAnytime(input: {
+  course: { id: string; code: string; title: string; lecturerId: string };
+  schedule: { id: string; startTime: string; venue: string | null };
+  lecturerName: string;
+  phone: string;
+  appUrl: string;
+}) {
   const qa = await prisma.profile.findFirst({
     where: { id: "atu_profile_qa", isActive: true },
     select: { id: true }
@@ -79,8 +88,8 @@ export async function POST(request: NextRequest) {
   const threshold = 30;
   const ping = await prisma.latePing.create({
     data: {
-      courseId: course.id,
-      scheduleId: schedule.id,
+      courseId: input.course.id,
+      scheduleId: input.schedule.id,
       sentById: qa.id,
       lectureDate: startOfSessionDay(new Date()),
       minutesLate: threshold,
@@ -91,8 +100,8 @@ export async function POST(request: NextRequest) {
     }
   });
 
-  const smsMessage = `ShowUp alert: you are ${threshold} minutes late for your ${course.code} class today at ${schedule.startTime}. Venue: ${schedule.venue ?? "scheduled venue"}. Acknowledge: ${appUrl}/api/pings/${acknowledgeToken}/acknowledge`;
-  const smsStatus = await notificationService.sendSms(phone, smsMessage);
+  const smsMessage = `ShowUp alert: you are ${threshold} minutes late for your ${input.course.code} class today at ${input.schedule.startTime}. Venue: ${input.schedule.venue ?? "scheduled venue"}. Acknowledge: ${input.appUrl}/api/pings/${acknowledgeToken}/acknowledge`;
+  const smsStatus = await notificationService.sendSms(input.phone, smsMessage);
 
   const updated = await prisma.latePing.update({
     where: { id: ping.id },
@@ -103,10 +112,10 @@ export async function POST(request: NextRequest) {
     ok: smsStatus === "sent",
     status: smsStatus,
     kind: "late_ping",
-    phone,
-    acknowledgeUrl: `${appUrl}/api/pings/${acknowledgeToken}/acknowledge`,
+    phone: input.phone,
+    acknowledgeUrl: `${input.appUrl}/api/pings/${acknowledgeToken}/acknowledge`,
     pingId: updated.id,
-    course: { code: course.code, title: course.title, lecturer: lecturerName, venue: schedule.venue }
+    course: { code: input.course.code, title: input.course.title, lecturer: input.lecturerName, venue: input.schedule.venue }
   });
 }
 
