@@ -15,20 +15,10 @@ export function assignmentIsDue(
   return assignment.startDate.getTime() <= now.getTime() - weeks * WEEK_MS;
 }
 
-export function nextSealedPerson<T extends { anonymousAlias: string; realEmail: string; createdAt: Date }>(
-  pool: T[],
-  outgoingAlias?: string
-) {
-  const firstByEmail = new Map<string, T>();
-  for (const row of [...pool].sort((a, b) => a.createdAt.getTime() - b.createdAt.getTime())) {
-    if (!firstByEmail.has(row.realEmail)) firstByEmail.set(row.realEmail, row);
-  }
-  const people = [...firstByEmail.values()];
+export function nextSealedPerson<T extends { id: string; createdAt: Date }>(pool: T[], outgoingId?: string) {
+  const people = [...pool].sort((a, b) => a.createdAt.getTime() - b.createdAt.getTime());
   if (people.length === 0) return undefined;
-  const outgoingEmail = outgoingAlias
-    ? pool.find((row) => row.anonymousAlias === outgoingAlias)?.realEmail
-    : undefined;
-  return people.find((person) => person.realEmail !== outgoingEmail) ?? people[0];
+  return people.find((person) => person.id !== outgoingId) ?? people[0];
 }
 
 export class RotationService {
@@ -41,9 +31,7 @@ export class RotationService {
     const results = [];
     for (const assignment of due) {
       try {
-        results.push(
-          await this.rotateCourse(assignment.courseId, assignment.assignedById, assignment.profile.anonymousAlias ?? undefined)
-        );
+        results.push(await this.rotateCourse(assignment.courseId, assignment.assignedById, assignment.id));
       } catch (error) {
         results.push({
           courseId: assignment.courseId,
@@ -56,22 +44,22 @@ export class RotationService {
     return results;
   }
 
-  async rotateCourse(courseId: string, assignedById: string, outgoingAlias?: string) {
-    const sealedPool = await prisma.sealedRepIdentity.findMany({ where: { courseId }, orderBy: { createdAt: "asc" } });
+  async rotateCourse(courseId: string, assignedById: string, outgoingAssignmentId?: string) {
+    const roster = await prisma.sealedRepIdentity.findMany({ where: { courseId }, orderBy: { createdAt: "asc" } });
     const activeAssignments = await prisma.repAssignment.findMany({
       where: { courseId, isActive: true },
       include: { profile: true },
       orderBy: { createdAt: "asc" }
     });
-    const outgoingAssignment = outgoingAlias
-      ? activeAssignments.find((assignment) => assignment.profile.anonymousAlias === outgoingAlias)
+    const outgoingAssignment = outgoingAssignmentId
+      ? activeAssignments.find((assignment) => assignment.id === outgoingAssignmentId)
       : activeAssignments[0];
-    const outgoingAliasForLog = outgoingAssignment?.profile.anonymousAlias ?? outgoingAlias;
+    const outgoingAliasForLog = outgoingAssignment?.profile.anonymousAlias;
     const alias = generateAlias();
     const password = generatePassword();
     const course = await prisma.course.findUnique({ where: { id: courseId } });
     if (!course) throw new Error("Course not found");
-    const identity = nextSealedPerson(sealedPool, outgoingAliasForLog);
+    const identity = nextSealedPerson(roster, outgoingAssignment?.sealedIdentityId);
     if (!identity) throw new Error("No sealed identities available for this course");
 
     const supabaseUid = await this.createSupabaseUser(`${alias}@showup.internal`, password);
@@ -94,21 +82,12 @@ export class RotationService {
         data: {
           courseId,
           profileId: profile.id,
+          sealedIdentityId: identity.id,
           assignedById,
           startDate: new Date(),
           rotationOrder: (maxOrder._max.rotationOrder ?? 0) + 1,
           rotationWeeks: outgoingAssignment?.rotationWeeks ?? 4,
           isActive: true
-        }
-      });
-      await tx.sealedRepIdentity.create({
-        data: {
-          supabaseUid,
-          anonymousAlias: alias,
-          realName: identity.realName,
-          realEmail: identity.realEmail,
-          realPhone: identity.realPhone,
-          courseId
         }
       });
       await tx.rotationLog.create({

@@ -126,7 +126,7 @@ async function cleanupDemoData() {
   await prisma.reportTopic.deleteMany({ where: { reportId: { in: reportIds } } });
   await prisma.lectureReport.deleteMany({ where: { id: { in: reportIds } } });
   await prisma.repAssignment.deleteMany({ where: { courseId: { in: courseIds } } });
-  await prisma.sealedRepIdentity.deleteMany({ where: { anonymousAlias: { startsWith: "reporter_ATU_" } } });
+  await prisma.sealedRepIdentity.deleteMany({ where: { courseId: { in: courseIds } } });
   await prisma.outlineTopic.deleteMany({ where: { outlineId: { in: outlineIds } } });
   await prisma.courseOutline.deleteMany({ where: { id: { in: outlineIds } } });
   await prisma.classSchedule.deleteMany({ where: { courseId: { in: courseIds } } });
@@ -310,8 +310,6 @@ async function main() {
     await prisma.sealedRepIdentity.create({
       data: {
         id: `atu_identity_rep_${index + 1}`,
-        supabaseUid: auth.id,
-        anonymousAlias: alias,
         realName: `ATU Class Rep ${index + 1}`,
         realEmail: `rep${index + 1}@atu.edu.gh`,
         realPhone: `+23355000${String(index + 1).padStart(4, "0")}`,
@@ -323,6 +321,7 @@ async function main() {
         id: `atu_assignment_${index + 1}`,
         courseId: course.id,
         profileId: profile.id,
+        sealedIdentityId: `atu_identity_rep_${index + 1}`,
         startDate: new Date("2026-08-17T00:00:00.000Z"),
         isActive: true,
         rotationOrder: index + 1,

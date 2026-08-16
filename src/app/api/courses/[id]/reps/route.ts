@@ -44,16 +44,24 @@ export const POST = withAuth<Params>(async (request, { params, profile }) => {
   });
   if (!supabaseUid) return json({ error: "Reporter auth account could not be created. Check Supabase admin credentials." }, { status: 503 });
   const saved = await prisma.$transaction(async (tx) => {
+    const identity = await tx.sealedRepIdentity.upsert({
+      where: { courseId_realEmail: { courseId: id, realEmail: parsed.data.realEmail } },
+      create: {
+        realName: parsed.data.realName,
+        realEmail: parsed.data.realEmail,
+        realPhone: parsed.data.realPhone,
+        courseId: id
+      },
+      update: { realName: parsed.data.realName, realPhone: parsed.data.realPhone }
+    });
     const repProfile = await tx.profile.create({
       data: { supabaseUid, anonymousAlias: alias, role: Role.CLASS_REP, departmentId: course.departmentId, universityId: course.semester.universityId }
-    });
-    await tx.sealedRepIdentity.create({
-      data: { supabaseUid, anonymousAlias: alias, realName: parsed.data.realName, realEmail: parsed.data.realEmail, realPhone: parsed.data.realPhone, courseId: id }
     });
     return tx.repAssignment.create({
       data: {
         courseId: id,
         profileId: repProfile.id,
+        sealedIdentityId: identity.id,
         assignedById: profile.id,
         startDate: new Date(),
         rotationOrder: parsed.data.rotationOrder,

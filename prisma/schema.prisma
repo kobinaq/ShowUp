@@ -110,14 +110,16 @@ enum Role {
 }
 
 model SealedRepIdentity {
-  id             String   @id @default(cuid())
-  supabaseUid    String   @unique
-  anonymousAlias String   @unique
-  realName       String
-  realEmail      String
-  realPhone      String
-  courseId       String
-  createdAt      DateTime @default(now())
+  id          String          @id @default(cuid())
+  realName    String
+  realEmail   String
+  realPhone   String
+  courseId    String
+  course      Course          @relation(fields: [courseId], references: [id], onDelete: Cascade)
+  assignments RepAssignment[]
+  createdAt   DateTime        @default(now())
+
+  @@unique([courseId, realEmail])
 }
 
 model Lecturer {
@@ -150,6 +152,7 @@ model Course {
   reports        LectureReport[]
   latePings      LatePing[]
   repAssignments RepAssignment[]
+  sealedIdentities SealedRepIdentity[]
   creditHours    Int
   classSize      Int?
   createdAt      DateTime        @default(now())
@@ -199,19 +202,21 @@ model ClassSchedule {
 }
 
 model RepAssignment {
-  id            String        @id @default(cuid())
-  courseId      String
-  course        Course        @relation(fields: [courseId], references: [id], onDelete: Cascade)
-  profileId     String
-  profile       Profile       @relation(fields: [profileId], references: [id], onDelete: Cascade)
-  startDate     DateTime
-  endDate       DateTime?
-  isActive      Boolean       @default(true)
-  rotationOrder Int
-  assignedById  String
-  rotationWeeks Int           @default(4)
-  createdAt     DateTime      @default(now())
-  logs          RotationLog[]
+  id               String            @id @default(cuid())
+  courseId         String
+  course           Course            @relation(fields: [courseId], references: [id], onDelete: Cascade)
+  profileId        String
+  profile          Profile           @relation(fields: [profileId], references: [id], onDelete: Cascade)
+  sealedIdentityId String
+  sealedIdentity   SealedRepIdentity @relation(fields: [sealedIdentityId], references: [id])
+  startDate        DateTime
+  endDate          DateTime?
+  isActive         Boolean           @default(true)
+  rotationOrder    Int
+  assignedById     String
+  rotationWeeks    Int               @default(4)
+  createdAt        DateTime          @default(now())
+  logs             RotationLog[]
 
   @@index([courseId, isActive])
 }

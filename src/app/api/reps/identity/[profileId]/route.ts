@@ -2,6 +2,7 @@ import { Role } from "@prisma/client";
 import { prisma } from "@/lib/prisma";
 import { andWhere, profileScope } from "@/lib/auth/scope";
 import { withAuth, json, badRequest } from "@/lib/middleware/withAuth";
+import { sealedIdentityForProfile } from "@/lib/services/rep-identity";
 
 type Params = { params: Promise<{ profileId: string }> };
 
@@ -10,8 +11,8 @@ export const GET = withAuth<Params>(async (request, { params, profile }) => {
   const reason = new URL(request.url).searchParams.get("reason");
   if (!reason || reason.length < 10) return badRequest("A lookup reason of at least 10 characters is required");
   const lookedUp = await prisma.profile.findFirst({ where: andWhere({ id: profileId, role: Role.CLASS_REP }, profileScope(profile)) });
-  if (!lookedUp?.anonymousAlias) return json({ error: "Not found" }, { status: 404 });
-  const identity = await prisma.sealedRepIdentity.findUnique({ where: { anonymousAlias: lookedUp.anonymousAlias } });
+  if (!lookedUp) return json({ error: "Not found" }, { status: 404 });
+  const identity = await sealedIdentityForProfile(profileId);
   if (!identity) return json({ error: "Not found" }, { status: 404 });
   await prisma.identityLookup.create({
     data: { performedById: profile.id, lookedUpProfileId: profileId, reason }
