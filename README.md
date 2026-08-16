@@ -27,11 +27,12 @@ All required variables are documented in `.env.local.example`.
 - `GROQ_API_KEY`: Groq API access for the ShowUp AI analytics assistant, using `qwen/qwen3.6-27b`.
 - `CRON_SECRET`: bearer token for `/api/cron/rotation`.
 - `DEMO_ACCESS_TOKEN`: enables `/demo` live pitch mode (auth bypass + SMS console). Leave unset to disable.
+- `DEMO_SESSION_SECRET`: HMAC key for demo cookies. Must differ from `DEMO_ACCESS_TOKEN`. Required whenever demo mode is on.
 
 ## Live demo (pitch / client walkthrough)
 
 1. Seed data: `npx prisma db seed`
-2. Set `DEMO_ACCESS_TOKEN` (and Arkesel keys for real SMS)
+2. Set `DEMO_ACCESS_TOKEN` and a distinct `DEMO_SESSION_SECRET` (and Arkesel keys for real SMS)
 3. Open `/demo`, enter the access code, pick a role, add a phone number
 4. Use **Test SMS** / **Late-ping SMS** / **Absence SMS**, then **Open app** to explore dashboards without logging in
 
@@ -76,7 +77,7 @@ QA Officers, VCs, HODs, and HOD assistants get a floating `ShowUp AI` button in 
 - Middleware blocks unauthenticated requests; protected server layouts redirect users away from pages outside their role.
 - All production data access must be scoped from the signed-in `Profile`: super admins are global, QA/VC users are university-scoped, HOD users are department-scoped, and reporters are limited to their active assignments.
 - Class rep real identities live only in `SealedRepIdentity` and are exposed through the audited identity lookup endpoint.
-- Cron rotation requires `Authorization: Bearer $CRON_SECRET`.
+- Cron rotation accepts GET or POST at `/api/cron/rotation` with `Authorization: Bearer $CRON_SECRET`. Vercel Cron sends GET.
 - RLS is enabled on all application tables: `anon`/`authenticated` PostgREST access is denied by default; Prisma uses a privileged DB role. `Profile` allows self-select for `auth.uid()`.
 - Temporary passwords are emailed only — never included in SMS. Users should change them via `/update-password` (also linked from forgot-password email).
 - Enable Supabase Auth redirect URLs for `/api/auth/callback` and password recovery.

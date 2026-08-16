@@ -1,30 +1,18 @@
-import { notFound } from "next/navigation";
-import { Role } from "@prisma/client";
+import { notFound, redirect } from "next/navigation";
 import { prisma } from "@/lib/prisma";
 import { StatusBadge } from "@/components/shared/StatusBadge";
 import { displayText } from "@/lib/utils/displayText";
-import { createClient } from "@/lib/supabase/server";
+import { getAuthProfile } from "@/lib/auth/session";
+import { andWhere, reportScope } from "@/lib/auth/scope";
 import { PageHeader } from "@/components/shared/PageHeader";
 import { SectionPanel } from "@/components/shared/Panels";
 
 export default async function ReportDetailPage({ params }: { params: Promise<{ id: string }> }) {
   const { id } = await params;
-  const supabase = await createClient();
-  const { data } = await supabase.auth.getUser();
-  const profile = data.user
-    ? await prisma.profile.findUnique({ where: { supabaseUid: data.user.id }, select: { role: true, universityId: true, departmentId: true } })
-    : null;
-  const isSuperAdmin = profile?.role === Role.SUPER_ADMIN;
-  const isDepartmentScope = profile?.role === Role.HOD || profile?.role === Role.HOD_ASSISTANT;
+  const profile = await getAuthProfile();
+  if (!profile) redirect("/login");
   const report = await prisma.lectureReport.findFirst({
-    where: {
-      id,
-      ...(isSuperAdmin
-        ? {}
-        : isDepartmentScope
-          ? { course: { departmentId: profile?.departmentId ?? "__none__" } }
-          : { course: { department: { faculty: { universityId: profile?.universityId ?? "__none__" } } } })
-    },
+    where: andWhere({ id }, reportScope(profile)),
     include: {
       course: { include: { lecturer: true, schedule: true } },
       schedule: true,

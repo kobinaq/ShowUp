@@ -1,24 +1,16 @@
-import { Role } from "@prisma/client";
 import { prisma } from "@/lib/prisma";
-import { createClient } from "@/lib/supabase/server";
+import { getAuthProfile } from "@/lib/auth/session";
+import { lecturerScope } from "@/lib/auth/scope";
+import { redirect } from "next/navigation";
 import { PageHeader } from "@/components/shared/PageHeader";
 import { SectionPanel } from "@/components/shared/Panels";
 import { LecturerDirectory, type LecturerDirectoryItem } from "@/components/lecturers/LecturerDirectory";
 
 export default async function LecturersPage() {
-  const supabase = await createClient();
-  const { data } = await supabase.auth.getUser();
-  const profile = data.user
-    ? await prisma.profile.findUnique({ where: { supabaseUid: data.user.id }, select: { role: true, universityId: true, departmentId: true } })
-    : null;
-  const isSuperAdmin = profile?.role === Role.SUPER_ADMIN;
-  const isDepartmentScope = profile?.role === Role.HOD || profile?.role === Role.HOD_ASSISTANT;
+  const profile = await getAuthProfile();
+  if (!profile) redirect("/login");
   const lecturers = await prisma.lecturer.findMany({
-    where: isSuperAdmin
-      ? {}
-      : isDepartmentScope
-        ? { departmentId: profile?.departmentId ?? "__none__" }
-        : { department: { faculty: { universityId: profile?.universityId ?? "__none__" } } },
+    where: lecturerScope(profile),
     include: { department: true, courses: true, flags: true },
     orderBy: { lastName: "asc" }
   });

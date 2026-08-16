@@ -2,16 +2,19 @@ import { AidType, Prisma, Role } from "@prisma/client";
 import { prisma } from "@/lib/prisma";
 import { andWhere, courseScope, reportScope, startOfSessionDay, timeOnSessionDate } from "@/lib/auth/scope";
 import { withAuth, json, badRequest, forbidden } from "@/lib/middleware/withAuth";
-import { reportSchema } from "@/lib/validators/report";
-import { flagService } from "@/lib/services/flag.service";
-import { coverageService } from "@/lib/services/coverage.service";
+import { presenceStatusSchema, reportSchema } from "@/lib/validators/report";
+import { createFlagsForReport, notifyAbsenceForReport } from "@/lib/services/flag.service";
+import { recalculateAndFlag } from "@/lib/services/coverage.service";
 import { handlePostClassPingEscalation } from "@/lib/services/ping.service";
 
 export const GET = withAuth(async (request, { profile }) => {
   const url = new URL(request.url);
+  const presence = url.searchParams.get("presence");
+  const parsedPresence = presence ? presenceStatusSchema.safeParse(presence) : null;
+  if (parsedPresence && !parsedPresence.success) return badRequest("Invalid presence filter", parsedPresence.error.flatten());
   const where = andWhere(reportScope(profile), {
     ...(url.searchParams.get("courseId") ? { courseId: url.searchParams.get("courseId")! } : {}),
-    ...(url.searchParams.get("presence") ? { lecturerPresent: url.searchParams.get("presence") as never } : {})
+    ...(parsedPresence?.success ? { lecturerPresent: parsedPresence.data } : {})
   });
   const reports = await prisma.lectureReport.findMany({
     where,
@@ -60,8 +63,11 @@ export const POST = withAuth(async (request, { profile }) => {
     if (now > windowClosedAt) return forbidden("The reporting window for this session has closed");
   }
 
-  const isAbsent = parsed.data.lecturerPresent === "ABSENT";
-  const { topicIds, teachingAids, ...data } = parsed.data;
+  const payload = parsed.data;
+  const isAbsent = payload.lecturerPresent === "ABSENT";
+  const { topicIds, teachingAids: _postedAids, wasInteractive: _postedInteractive, ...data } = payload;
+  const teachingAids = isAbsent ? [AidType.NONE] : payload.teachingAids;
+  const wasInteractive = isAbsent ? "NO" : payload.wasInteractive;
   if (!isAbsent && topicIds.length > 0) {
     const allowedTopics = await prisma.outlineTopic.count({ where: { id: { in: topicIds }, outline: { courseId: course.id } } });
     if (allowedTopics !== new Set(topicIds).size) return badRequest("One or more selected topics do not belong to this course");
@@ -69,23 +75,27 @@ export const POST = withAuth(async (request, { profile }) => {
 
   let report;
   try {
-    report = await prisma.lectureReport.create({
-      data: {
-        ...data,
-        lectureDate,
-        arrivalStatus: isAbsent ? undefined : data.arrivalStatus,
-        lateMinutes: isAbsent ? undefined : data.lateMinutes,
-        earlyDismissal: isAbsent ? false : data.earlyDismissal,
-        dismissedEarlyMinutes: isAbsent ? undefined : data.dismissedEarlyMinutes,
-        previousTopicsRevisited: isAbsent ? false : data.previousTopicsRevisited,
-        wasInteractive: isAbsent ? "NO" : data.wasInteractive!,
-        studentCount: isAbsent ? undefined : data.studentCount,
-        submittedById: profile.id,
-        windowClosedAt,
-        topicsCovered: { create: isAbsent ? [] : Array.from(new Set(topicIds)).map((topicId) => ({ topicId })) },
-        teachingAids: { create: (isAbsent ? [AidType.NONE] : teachingAids).map((type) => ({ type })) }
-      },
-      include: { topicsCovered: true, teachingAids: true }
+    report = await prisma.$transaction(async (tx) => {
+      const created = await tx.lectureReport.create({
+        data: {
+          ...data,
+          lectureDate,
+          arrivalStatus: isAbsent ? undefined : data.arrivalStatus,
+          lateMinutes: isAbsent ? undefined : data.lateMinutes,
+          earlyDismissal: isAbsent ? false : Boolean(data.earlyDismissal),
+          dismissedEarlyMinutes: isAbsent ? undefined : data.dismissedEarlyMinutes,
+          previousTopicsRevisited: isAbsent ? false : Boolean(data.previousTopicsRevisited),
+          wasInteractive,
+          studentCount: isAbsent ? undefined : data.studentCount,
+          submittedById: profile.id,
+          windowClosedAt,
+          topicsCovered: { create: isAbsent ? [] : Array.from(new Set(topicIds)).map((topicId) => ({ topicId })) },
+          teachingAids: { create: teachingAids.map((type) => ({ type })) }
+        },
+        include: { topicsCovered: true, teachingAids: true }
+      });
+      await createFlagsForReport(tx, created.id);
+      return created;
     });
   } catch (error) {
     if (error instanceof Prisma.PrismaClientKnownRequestError && error.code === "P2002") {
@@ -93,8 +103,8 @@ export const POST = withAuth(async (request, { profile }) => {
     }
     throw error;
   }
-  await flagService.evaluateReport(report.id);
-  await coverageService.recalculateAndFlag(report.courseId);
+  await notifyAbsenceForReport(report.id);
+  await recalculateAndFlag(report.courseId);
   await handlePostClassPingEscalation(report.courseId, report.lectureDate, report.lecturerPresent, report.id);
   return json({ data: report }, { status: 201 });
 }, [Role.CLASS_REP, Role.SUPER_ADMIN, Role.HOD, Role.HOD_ASSISTANT]);

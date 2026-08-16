@@ -1,11 +1,12 @@
 import { randomUUID } from "crypto";
-import { NotificationChannel } from "@prisma/client";
+import { DeliveryStatus, NotificationChannel } from "@prisma/client";
 import { type NextRequest } from "next/server";
 import { z } from "zod";
 import { DEMO_COOKIE, parseDemoSession } from "@/lib/auth/demo";
 import { badRequest, json } from "@/lib/middleware/withAuth";
 import { notificationService } from "@/lib/services/notification.service";
 import { prisma } from "@/lib/prisma";
+import { startOfSessionDay } from "@/lib/utils/sessionTime";
 
 const schema = z.object({
   phone: z.string().min(8).max(20).optional(),
@@ -31,7 +32,7 @@ export async function POST(request: NextRequest) {
       phone,
       "ShowUp live demo: SMS notifications are working. This is a test from the ShowUp pitch demo."
     );
-    return json({ ok: status === "sent", status, kind: "test", phone });
+    return json({ ok: status === DeliveryStatus.SENT, status, kind: "test", phone });
   }
 
   const course = await prisma.course.findFirst({
@@ -59,7 +60,7 @@ export async function POST(request: NextRequest) {
       }
     });
     return json({
-      ok: status === "sent",
+      ok: status === DeliveryStatus.SENT,
       status,
       kind: "absence",
       phone,
@@ -67,7 +68,16 @@ export async function POST(request: NextRequest) {
     });
   }
 
-  // late_ping — bypass schedule timing so pitches work any time of day
+  return sendPitchLatePingAnytime({ course, schedule, lecturerName, phone, appUrl });
+}
+
+async function sendPitchLatePingAnytime(input: {
+  course: { id: string; code: string; title: string; lecturerId: string };
+  schedule: { id: string; startTime: string; venue: string | null };
+  lecturerName: string;
+  phone: string;
+  appUrl: string;
+}) {
   const qa = await prisma.profile.findFirst({
     where: { id: "atu_profile_qa", isActive: true },
     select: { id: true }
@@ -78,39 +88,34 @@ export async function POST(request: NextRequest) {
   const threshold = 30;
   const ping = await prisma.latePing.create({
     data: {
-      courseId: course.id,
-      scheduleId: schedule.id,
+      courseId: input.course.id,
+      scheduleId: input.schedule.id,
       sentById: qa.id,
-      lectureDate: startOfDay(new Date()),
+      lectureDate: startOfSessionDay(new Date()),
       minutesLate: threshold,
       acknowledgeToken,
-      lecturerSmsStatus: "pending",
-      lecturerEmailStatus: "skipped",
+      lecturerSmsStatus: DeliveryStatus.PENDING,
+      lecturerEmailStatus: DeliveryStatus.SKIPPED,
       qaNotified: false
     }
   });
 
-  const smsMessage = `ShowUp alert: you are ${threshold} minutes late for your ${course.code} class today at ${schedule.startTime}. Venue: ${schedule.venue ?? "scheduled venue"}. Acknowledge: ${appUrl}/api/pings/${acknowledgeToken}/acknowledge`;
-  const smsStatus = await notificationService.sendSms(phone, smsMessage);
+  const smsMessage = `ShowUp alert: you are ${threshold} minutes late for your ${input.course.code} class today at ${input.schedule.startTime}. Venue: ${input.schedule.venue ?? "scheduled venue"}. Acknowledge: ${input.appUrl}/api/pings/${acknowledgeToken}/acknowledge`;
+  const smsStatus = await notificationService.sendSms(input.phone, smsMessage);
 
   const updated = await prisma.latePing.update({
     where: { id: ping.id },
-    data: { lecturerSmsStatus: smsStatus, lecturerEmailStatus: "skipped", qaNotified: false }
+    data: { lecturerSmsStatus: smsStatus, lecturerEmailStatus: DeliveryStatus.SKIPPED, qaNotified: false }
   });
 
   return json({
-    ok: smsStatus === "sent",
+    ok: smsStatus === DeliveryStatus.SENT,
     status: smsStatus,
     kind: "late_ping",
-    phone,
-    acknowledgeUrl: `${appUrl}/api/pings/${acknowledgeToken}/acknowledge`,
+    phone: input.phone,
+    acknowledgeUrl: `${input.appUrl}/api/pings/${acknowledgeToken}/acknowledge`,
     pingId: updated.id,
-    course: { code: course.code, title: course.title, lecturer: lecturerName, venue: schedule.venue }
+    course: { code: input.course.code, title: input.course.title, lecturer: input.lecturerName, venue: input.schedule.venue }
   });
 }
 
-function startOfDay(date: Date) {
-  const copy = new Date(date);
-  copy.setHours(0, 0, 0, 0);
-  return copy;
-}

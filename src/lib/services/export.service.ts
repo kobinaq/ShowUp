@@ -1,17 +1,13 @@
 import Papa from "papaparse";
 
-export class ExportService {
-  reportsCsv(rows: unknown[]) {
-    return Papa.unparse(rows);
-  }
-
-  scorecardPdf(title: string, rows: Array<[string, string | number]>) {
-    const lines = [title, "", ...rows.map(([label, value]) => `${label}: ${value}`)];
-    return minimalPdf(lines);
-  }
+export function reportsCsv(rows: unknown[]) {
+  return Papa.unparse(rows);
 }
 
-export const exportService = new ExportService();
+export function scorecardPdf(title: string, rows: Array<[string, string | number]>) {
+  const lines = [title, "", ...rows.map(([label, value]) => `${label}: ${value}`)];
+  return minimalPdf(lines);
+}
 
 function minimalPdf(lines: string[]) {
   const escaped = lines.map((line) => line.replace(/[()\\]/g, "\\$&"));

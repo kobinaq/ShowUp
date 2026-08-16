@@ -1,24 +1,22 @@
 import { Role } from "@prisma/client";
 import { prisma } from "@/lib/prisma";
-import { createClient } from "@/lib/supabase/server";
+import { getAuthProfile } from "@/lib/auth/session";
+import { redirect } from "next/navigation";
 import { PageHeader } from "@/components/shared/PageHeader";
 import { SectionPanel } from "@/components/shared/Panels";
 import { SupportButton } from "@/components/support/SupportButton";
 import { SupportTicketList, type SupportTicketListItem } from "@/components/support/SupportTicketList";
 
 export default async function SupportPage() {
-  const supabase = await createClient();
-  const { data } = await supabase.auth.getUser();
-  const profile = data.user
-    ? await prisma.profile.findUnique({ where: { supabaseUid: data.user.id }, select: { id: true, role: true, universityId: true } })
-    : null;
-  const role = profile?.role ?? Role.HOD;
+  const profile = await getAuthProfile();
+  if (!profile) redirect("/login");
+  const role = profile.role;
   const canManage = role === Role.IT || role === Role.SUPER_ADMIN;
   const where = role === Role.SUPER_ADMIN
     ? {}
     : role === Role.IT
-      ? { universityId: profile?.universityId ?? "__none__" }
-      : { requesterId: profile?.id ?? "__none__" };
+      ? { universityId: profile.universityId }
+      : { requesterId: profile.id };
   const tickets = await prisma.supportTicket.findMany({
     where,
     include: {

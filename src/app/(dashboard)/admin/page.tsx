@@ -1,6 +1,8 @@
 import { Role } from "@prisma/client";
 import { prisma } from "@/lib/prisma";
-import { createClient } from "@/lib/supabase/server";
+import { getAuthProfile } from "@/lib/auth/session";
+import { activityLogScope, courseScope, departmentScope, facultyScope, isDepartmentRole, lecturerScope, profileScope, semesterScope } from "@/lib/auth/scope";
+import { redirect } from "next/navigation";
 import { AdminSetupPanel } from "@/components/admin/AdminSetupPanel";
 import { displayText } from "@/lib/utils/displayText";
 import { SectionPanel } from "@/components/shared/Panels";
@@ -8,62 +10,33 @@ import { SupportTicketList, type SupportTicketListItem } from "@/components/supp
 import { UserLifecyclePanel, type UserLifecycleItem } from "@/components/admin/UserLifecyclePanel";
 
 export default async function AdminPage() {
-  const supabase = await createClient();
-  const { data } = await supabase.auth.getUser();
-  const profile = data.user
-    ? await prisma.profile.findUnique({
-        where: { supabaseUid: data.user.id },
-        select: {
-          role: true,
-          universityId: true,
-          departmentId: true,
-          university: { select: { name: true } },
-          department: { select: { name: true } }
-        }
-      })
-    : null;
+  const profile = await getAuthProfile();
+  if (!profile) redirect("/login");
 
-  const role = profile?.role ?? Role.HOD;
+  const role = profile.role;
   const isSuperAdmin = role === Role.SUPER_ADMIN;
   const isIt = role === Role.IT;
-  const isDepartmentRole = role === Role.HOD || role === Role.HOD_ASSISTANT;
-  const universityId = profile?.universityId ?? "__none__";
-  const departmentId = profile?.departmentId ?? "__none__";
+  const departmentScoped = isDepartmentRole(role);
   const scopeLabel = isSuperAdmin
     ? "all universities"
-    : isDepartmentRole
-      ? `${profile?.department?.name ?? "your department"} at ${profile?.university?.name ?? "your university"}`
-      : profile?.university?.name ?? "your university";
-
-  const departmentWhere = isSuperAdmin
-    ? {}
-    : isDepartmentRole
-      ? { id: departmentId }
-      : { faculty: { universityId } };
-  const lecturerWhere = isSuperAdmin
-    ? {}
-    : isDepartmentRole
-      ? { departmentId }
-      : { department: { faculty: { universityId } } };
-  const semesterWhere = isSuperAdmin ? {} : { universityId };
-  const facultyWhere = isSuperAdmin ? {} : { universityId };
-  const profileWhere = isSuperAdmin ? {} : { universityId };
-  const logWhere = isSuperAdmin ? {} : { universityId };
+    : departmentScoped
+      ? `${profile.department?.name ?? "your department"} at ${profile.university?.name ?? "your university"}`
+      : profile.university?.name ?? "your university";
 
   const [universities, faculties, departments, lecturers, semesters, profiles, logs, courses, tickets] = await Promise.all([
-    prisma.university.findMany({ where: isSuperAdmin ? {} : { id: universityId }, orderBy: { name: "asc" } }),
-    prisma.faculty.findMany({ where: facultyWhere, orderBy: { name: "asc" } }),
-    prisma.department.findMany({ where: departmentWhere, orderBy: { name: "asc" } }),
-    prisma.lecturer.findMany({ where: lecturerWhere, orderBy: { lastName: "asc" } }),
-    prisma.semester.findMany({ where: semesterWhere, orderBy: { startDate: "desc" } }),
-    prisma.profile.findMany({ where: profileWhere, orderBy: { createdAt: "desc" } }),
-    prisma.activityLog.findMany({ where: logWhere, orderBy: { createdAt: "desc" }, take: 20 }),
+    prisma.university.findMany({ where: isSuperAdmin ? {} : { id: profile.universityId }, orderBy: { name: "asc" } }),
+    prisma.faculty.findMany({ where: facultyScope(profile), orderBy: { name: "asc" } }),
+    prisma.department.findMany({ where: departmentScope(profile), orderBy: { name: "asc" } }),
+    prisma.lecturer.findMany({ where: lecturerScope(profile), orderBy: { lastName: "asc" } }),
+    prisma.semester.findMany({ where: semesterScope(profile), orderBy: { startDate: "desc" } }),
+    prisma.profile.findMany({ where: profileScope(profile), orderBy: { createdAt: "desc" } }),
+    prisma.activityLog.findMany({ where: activityLogScope(profile), orderBy: { createdAt: "desc" }, take: 20 }),
     prisma.course.findMany({
-      where: isSuperAdmin ? {} : { department: { faculty: { universityId } } },
+      where: courseScope(profile),
       include: { schedule: true, outline: true, repAssignments: { where: { isActive: true } } }
     }),
     prisma.supportTicket.findMany({
-      where: isSuperAdmin ? {} : { universityId },
+      where: isSuperAdmin ? {} : { universityId: profile.universityId },
       include: {
         requester: { select: { displayName: true, email: true, role: true } },
         assignedTo: { select: { displayName: true, email: true } }
@@ -109,7 +82,7 @@ export default async function AdminPage() {
         <p className="mt-1 text-sm text-muted">Managing {scopeLabel}.</p>
       </header>
       <section className="grid gap-4 md:grid-cols-3">
-        {isSuperAdmin ? <Metric label="Universities" value={universities.length} /> : <Metric label={isDepartmentRole ? "Department" : "University"} value={1} />}
+        {isSuperAdmin ? <Metric label="Universities" value={universities.length} /> : <Metric label={departmentScoped ? "Department" : "University"} value={1} />}
         <Metric label="Semesters" value={semesters.length} />
         <Metric label="Users" value={profiles.length} />
       </section>

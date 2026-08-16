@@ -1,26 +1,19 @@
 import Link from "next/link";
 import { Role } from "@prisma/client";
 import { prisma } from "@/lib/prisma";
-import { createClient } from "@/lib/supabase/server";
+import { getAuthProfile } from "@/lib/auth/session";
+import { courseScope } from "@/lib/auth/scope";
+import { redirect } from "next/navigation";
 import { PageHeader } from "@/components/shared/PageHeader";
 import { SectionPanel } from "@/components/shared/Panels";
 import { CourseDirectory, type CourseDirectoryItem } from "@/components/courses/CourseDirectory";
 
 export default async function CoursesPage() {
-  const supabase = await createClient();
-  const { data } = await supabase.auth.getUser();
-  const profile = data.user
-    ? await prisma.profile.findUnique({ where: { supabaseUid: data.user.id }, select: { role: true, universityId: true, departmentId: true } })
-    : null;
-  const isSuperAdmin = profile?.role === Role.SUPER_ADMIN;
-  const canManageSetup = profile?.role === Role.SUPER_ADMIN || profile?.role === Role.IT;
-  const isDepartmentScope = profile?.role === Role.HOD || profile?.role === Role.HOD_ASSISTANT;
+  const profile = await getAuthProfile();
+  if (!profile) redirect("/login");
+  const canManageSetup = profile.role === Role.SUPER_ADMIN || profile.role === Role.IT;
   const courses = await prisma.course.findMany({
-    where: isSuperAdmin
-      ? {}
-      : isDepartmentScope
-        ? { departmentId: profile?.departmentId ?? "__none__" }
-        : { department: { faculty: { universityId: profile?.universityId ?? "__none__" } } },
+    where: courseScope(profile),
     include: { lecturer: true, department: true, schedule: true, outline: { include: { topics: true } } },
     orderBy: { code: "asc" }
   });

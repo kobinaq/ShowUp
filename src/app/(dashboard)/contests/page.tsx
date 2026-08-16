@@ -1,6 +1,7 @@
 import { prisma } from "@/lib/prisma";
 import { contestScope } from "@/lib/auth/scope";
-import { createClient } from "@/lib/supabase/server";
+import { getAuthProfile } from "@/lib/auth/session";
+import { redirect } from "next/navigation";
 import { displayText } from "@/lib/utils/displayText";
 import { PageHeader } from "@/components/shared/PageHeader";
 import { SectionPanel } from "@/components/shared/Panels";
@@ -15,14 +16,9 @@ const columns: DataTableColumn[] = [
 ];
 
 export default async function ContestsPage() {
-  const supabase = await createClient();
-  const { data } = await supabase.auth.getUser();
-  const profile = data.user
-    ? await prisma.profile.findUnique({ where: { supabaseUid: data.user.id }, select: { id: true, role: true, universityId: true, departmentId: true } })
-    : null;
-  const contests = profile
-    ? await prisma.contest.findMany({ where: contestScope(profile), include: { report: { include: { course: true } }, raisedBy: true }, orderBy: { raisedAt: "desc" } })
-    : [];
+  const profile = await getAuthProfile();
+  if (!profile) redirect("/login");
+  const contests = await prisma.contest.findMany({ where: contestScope(profile), include: { report: { include: { course: true } }, raisedBy: true }, orderBy: { raisedAt: "desc" } });
   const rows: DataTableRow[] = contests.map((contest) => ({
     id: contest.id,
     href: `/reports/${contest.reportId}`,

@@ -1,6 +1,7 @@
 "use client";
 
 import { useEffect, useState } from "react";
+import { timeOnSessionDate } from "@/lib/utils/sessionTime";
 
 type PingWindowState = {
   status: "pre-class" | "waiting" | "ping-available" | "class-ended";
@@ -15,8 +16,8 @@ export function usePingWindow(classStartTime: string, classEndTime: string, thre
   useEffect(() => {
     function calculate() {
       const now = new Date();
-      const classStart = timeOnDate(lectureDate, classStartTime);
-      const classEnd = timeOnDate(lectureDate, classEndTime);
+      const classStart = timeOnSessionDate(lectureDate, classStartTime);
+      const classEnd = timeOnSessionDate(lectureDate, classEndTime);
       const pingAvailableAt = new Date(classStart.getTime() + thresholdMinutes * 60 * 1000);
 
       if (now < classStart) return setState({ status: "pre-class", minutesUntilPing: null, minutesLate: null, canPing: false });
@@ -35,11 +36,4 @@ export function usePingWindow(classStartTime: string, classEndTime: string, thre
   }, [classStartTime, classEndTime, lectureDate, pingAlreadySent, thresholdMinutes]);
 
   return state;
-}
-
-function timeOnDate(date: Date, time: string) {
-  const [hour, minute] = time.split(":").map(Number);
-  const value = new Date(date);
-  value.setHours(hour, minute, 0, 0);
-  return value;
 }
