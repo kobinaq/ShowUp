@@ -12,6 +12,23 @@ describe("ping acknowledge route publicity", () => {
   });
 });
 
+describe("cron route methods", () => {
+  it("exports GET and POST as the same handler", async () => {
+    const route = await import("@/app/api/cron/rotation/route");
+    expect(route.GET).toBe(route.POST);
+    expect(typeof route.GET).toBe("function");
+  });
+});
+
+import { presenceStatusSchema } from "@/lib/validators/report";
+
+describe("presence filter", () => {
+  it("accepts PresenceStatus values and rejects others", () => {
+    expect(presenceStatusSchema.safeParse("ABSENT").success).toBe(true);
+    expect(presenceStatusSchema.safeParse("late").success).toBe(false);
+  });
+});
+
 describe("cron auth contract", () => {
   function authorizeCron(header: string | null, secret: string | undefined) {
     if (!secret || header !== `Bearer ${secret}`) return false;

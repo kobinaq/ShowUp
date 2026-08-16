@@ -4,19 +4,54 @@ import { prisma } from "@/lib/prisma";
 import { generateAlias, generatePassword } from "@/lib/utils/aliasGenerator";
 import { notificationService } from "@/lib/services/notification.service";
 
+const WEEK_MS = 1000 * 60 * 60 * 24 * 7;
+
+export function assignmentIsDue(
+  assignment: { endDate: Date | null; startDate: Date; rotationWeeks: number },
+  now: Date
+) {
+  if (assignment.endDate && assignment.endDate.getTime() <= now.getTime()) return true;
+  const weeks = assignment.rotationWeeks > 0 ? assignment.rotationWeeks : 4;
+  return assignment.startDate.getTime() <= now.getTime() - weeks * WEEK_MS;
+}
+
+export function nextSealedPerson<T extends { anonymousAlias: string; realEmail: string; createdAt: Date }>(
+  pool: T[],
+  outgoingAlias?: string
+) {
+  const firstByEmail = new Map<string, T>();
+  for (const row of [...pool].sort((a, b) => a.createdAt.getTime() - b.createdAt.getTime())) {
+    if (!firstByEmail.has(row.realEmail)) firstByEmail.set(row.realEmail, row);
+  }
+  const people = [...firstByEmail.values()];
+  if (people.length === 0) return undefined;
+  const outgoingEmail = outgoingAlias
+    ? pool.find((row) => row.anonymousAlias === outgoingAlias)?.realEmail
+    : undefined;
+  return people.find((person) => person.realEmail !== outgoingEmail) ?? people[0];
+}
+
 export class RotationService {
   async rotateDueReps(now = new Date()) {
-    const due = await prisma.repAssignment.findMany({
-      where: {
-        isActive: true,
-        OR: [{ endDate: { lte: now } }, { startDate: { lte: new Date(now.getTime() - 1000 * 60 * 60 * 24 * 7 * 4) } }]
-      },
-      include: { profile: true, course: true }
+    const active = await prisma.repAssignment.findMany({
+      where: { isActive: true },
+      include: { profile: true }
     });
-
+    const due = active.filter((assignment) => assignmentIsDue(assignment, now));
     const results = [];
     for (const assignment of due) {
-      results.push(await this.rotateCourse(assignment.courseId, assignment.assignedById, assignment.profile.anonymousAlias ?? undefined));
+      try {
+        results.push(
+          await this.rotateCourse(assignment.courseId, assignment.assignedById, assignment.profile.anonymousAlias ?? undefined)
+        );
+      } catch (error) {
+        results.push({
+          courseId: assignment.courseId,
+          outgoingAlias: assignment.profile.anonymousAlias ?? null,
+          incomingAlias: null,
+          error: error instanceof Error ? error.message : String(error)
+        });
+      }
     }
     return results;
   }
@@ -36,7 +71,7 @@ export class RotationService {
     const password = generatePassword();
     const course = await prisma.course.findUnique({ where: { id: courseId } });
     if (!course) throw new Error("Course not found");
-    const identity = sealedPool.find((item) => item.anonymousAlias !== outgoingAliasForLog) ?? sealedPool[0];
+    const identity = nextSealedPerson(sealedPool, outgoingAliasForLog);
     if (!identity) throw new Error("No sealed identities available for this course");
 
     const supabaseUid = await this.createSupabaseUser(`${alias}@showup.internal`, password);
@@ -45,6 +80,7 @@ export class RotationService {
         await tx.repAssignment.update({ where: { id: outgoingAssignment.id }, data: { isActive: false, endDate: new Date() } });
         await tx.profile.update({ where: { id: outgoingAssignment.profileId }, data: { isActive: false } });
       }
+      const maxOrder = await tx.repAssignment.aggregate({ where: { courseId }, _max: { rotationOrder: true } });
       const profile = await tx.profile.create({
         data: {
           supabaseUid,
@@ -60,7 +96,8 @@ export class RotationService {
           profileId: profile.id,
           assignedById,
           startDate: new Date(),
-          rotationOrder: 1,
+          rotationOrder: (maxOrder._max.rotationOrder ?? 0) + 1,
+          rotationWeeks: outgoingAssignment?.rotationWeeks ?? 4,
           isActive: true
         }
       });
@@ -84,7 +121,7 @@ export class RotationService {
 
   private async createSupabaseUser(email: string, password: string) {
     if (!process.env.NEXT_PUBLIC_SUPABASE_URL || !process.env.SUPABASE_SERVICE_ROLE_KEY) {
-      return `local-${email}`;
+      throw new Error("Supabase admin credentials are required to rotate reporter accounts");
     }
     const supabase = createClient(process.env.NEXT_PUBLIC_SUPABASE_URL, process.env.SUPABASE_SERVICE_ROLE_KEY);
     const { data, error } = await supabase.auth.admin.createUser({ email, password, email_confirm: true });
