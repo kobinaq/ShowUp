@@ -43,7 +43,7 @@ export function roleHomeForDemo(role: Role) {
 }
 
 function signingSecret() {
-  return process.env.DEMO_ACCESS_TOKEN?.trim() ?? "";
+  return process.env.DEMO_SESSION_SECRET?.trim() ?? "";
 }
 
 async function hmacSign(encoded: string) {
@@ -93,7 +93,7 @@ export async function signDemoSession(payload: Omit<DemoSessionPayload, "exp"> &
   };
   const encoded = utf8ToBase64Url(JSON.stringify(body));
   const sig = await hmacSign(encoded);
-  if (!sig) throw new Error("DEMO_ACCESS_TOKEN is not configured");
+  if (!sig) throw new Error("DEMO_SESSION_SECRET is not configured");
   return `${encoded}.${sig}`;
 }
 

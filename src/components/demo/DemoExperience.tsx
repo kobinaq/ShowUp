@@ -122,7 +122,7 @@ export function DemoExperience() {
     return (
       <div className="rounded-2xl border border-amber-200 bg-amber-50 p-6 text-sm text-amber-950">
         <p className="font-semibold">Live demo is not enabled on this deployment.</p>
-        <p className="mt-2">Set <code className="rounded bg-white px-1.5 py-0.5">DEMO_ACCESS_TOKEN</code> in the environment, seed the ATU demo data, and configure Arkesel for SMS.</p>
+        <p className="mt-2">Set <code className="rounded bg-white px-1.5 py-0.5">DEMO_ACCESS_TOKEN</code> and <code className="rounded bg-white px-1.5 py-0.5">DEMO_SESSION_SECRET</code> in the environment, seed the ATU demo data, and configure Arkesel for SMS.</p>
       </div>
     );
   }
