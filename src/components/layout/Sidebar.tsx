@@ -3,7 +3,7 @@
 import Link from "next/link";
 import { usePathname } from "next/navigation";
 import type { Role } from "@prisma/client";
-import { BarChart3, BookOpen, Flag, Gauge, GraduationCap, LayoutDashboard, LifeBuoy, Settings, ShieldCheck, Users } from "lucide-react";
+import { BarChart3, BookOpen, Flag, Gauge, GraduationCap, LayoutDashboard, LifeBuoy, RefreshCw, Search, Settings, ShieldCheck, Users } from "lucide-react";
 import { cn } from "@/lib/utils/cn";
 import { pathRoles, roleHome } from "@/lib/auth/roles";
 
@@ -32,6 +32,10 @@ const groups: Array<{
     items: [
       { href: "/flags", label: "Flags", icon: Flag },
       { href: "/contests", label: "Contests", icon: ShieldCheck },
+      { href: "/roster", label: "Roster", icon: Users },
+      { href: "/rotation", label: "Rotation", icon: RefreshCw },
+      { href: "/discrepancies", label: "Discrepancies", icon: ShieldCheck },
+      { href: "/lookups", label: "Lookups", icon: Search },
       { href: "/support", label: "IT Support", icon: LifeBuoy }
     ]
   },

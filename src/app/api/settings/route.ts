@@ -15,6 +15,9 @@ const settingsSchema = z.object({
   latePingEmailEnabled: z.boolean(),
   qaLatePingEmailEnabled: z.boolean(),
   showUpAiEnabled: z.boolean(),
+  contestSlaDays: z.coerce.number().int().min(1).max(30),
+  notificationMaxRetries: z.coerce.number().int().min(1).max(8),
+  lecturerDigestEnabled: z.boolean(),
   activeSemesterId: z.string().nullable().optional(),
   newSemester: z
     .object({

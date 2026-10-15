@@ -6,6 +6,7 @@ import { presenceStatusSchema, reportSchema } from "@/lib/validators/report";
 import { createFlagsForReport, notifyAbsenceForReport } from "@/lib/services/flag.service";
 import { recalculateAndFlag } from "@/lib/services/coverage.service";
 import { handlePostClassPingEscalation } from "@/lib/services/ping.service";
+import { presenceDisagrees } from "@/lib/services/report-discrepancy";
 
 export const GET = withAuth(async (request, { profile }) => {
   const url = new URL(request.url);
@@ -102,6 +103,22 @@ export const POST = withAuth(async (request, { profile }) => {
       return json({ error: "A report has already been submitted for this class session" }, { status: 409 });
     }
     throw error;
+  }
+  const peer = await prisma.lectureReport.findFirst({
+    where: { scheduleId: report.scheduleId, lectureDate: report.lectureDate, id: { not: report.id }, isVoided: false }
+  });
+  if (peer && presenceDisagrees(peer.lecturerPresent, report.lecturerPresent)) {
+    await prisma.reportDiscrepancy.upsert({
+      where: { scheduleId_lectureDate: { scheduleId: report.scheduleId, lectureDate: report.lectureDate } },
+      create: {
+        courseId: report.courseId,
+        scheduleId: report.scheduleId,
+        lectureDate: report.lectureDate,
+        firstReportId: peer.id,
+        secondReportId: report.id
+      },
+      update: {}
+    });
   }
   await notifyAbsenceForReport(report.id);
   await recalculateAndFlag(report.courseId);

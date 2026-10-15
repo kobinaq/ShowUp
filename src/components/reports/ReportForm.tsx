@@ -4,6 +4,7 @@ import { useEffect, useMemo, useState } from "react";
 import toast from "react-hot-toast";
 import { CheckCircle2, Send } from "lucide-react";
 import { PingCard } from "@/components/reports/PingCard";
+import { parseReportDrafts, removeReportDraft, REPORT_DRAFTS_KEY, upsertReportDraft } from "@/lib/reports/offline-draft";
 import { displayText } from "@/lib/utils/displayText";
 
 type SchedulePayload = {
@@ -88,6 +89,11 @@ export function ReportForm({
     };
   }, []);
 
+  useEffect(() => {
+    if (!online || typeof window === "undefined") return;
+    void flushStoredDrafts();
+  }, [online]);
+
   function handleCourseChange(courseId: string) {
     const nextCourse = assignments.find((assignment) => assignment.course.id === courseId)?.course;
     const nextSchedule = nextCourse?.schedule.find((schedule) => schedule.dayOfWeek === todayDay) ?? nextCourse?.schedule[0];
@@ -130,6 +136,12 @@ export function ReportForm({
 
   async function submitConfirmed() {
     if (!pendingPayload) return;
+    if (!navigator.onLine) {
+      persistDraft(pendingPayload);
+      setPendingPayload(null);
+      toast.success("Saved on this device. It will send when you are back online.");
+      return;
+    }
     setSubmitting(true);
     const response = await fetch("/api/reports", {
       method: "POST",
@@ -142,6 +154,7 @@ export function ReportForm({
       const body = await response.json().catch(() => null);
       return toast.error(reportErrorMessage(body));
     }
+    forgetDraft(pendingPayload);
     setSubmitted(true);
     toast.success("Report submitted");
   }
@@ -165,7 +178,7 @@ export function ReportForm({
   return (
     <>
       <form onSubmit={prepareSubmit} className="space-y-4 pb-24">
-        {!online ? <div className="sticky top-0 z-10 rounded-md bg-warning px-4 py-3 text-sm font-semibold">Offline. Reconnect before submitting.</div> : null}
+        {!online ? <div className="sticky top-0 z-10 rounded-md bg-warning px-4 py-3 text-sm font-semibold">Offline. Submit will save on this device and send when you reconnect.</div> : null}
         <Header course={selectedCourse} schedule={selectedSchedule} />
         <Stepper steps={steps} activeStep={step} />
         <div className={step === 0 ? "space-y-4" : "hidden"}>
@@ -238,8 +251,8 @@ export function ReportForm({
           {step < reviewStep ? (
             <button type="button" onClick={goNext} disabled={alreadySubmitted} className="h-12 flex-1 rounded-md bg-navy px-4 font-semibold text-white disabled:opacity-60">Next</button>
           ) : (
-            <button disabled={submitting || !online || alreadySubmitted} className="flex h-12 flex-1 items-center justify-center gap-2 rounded-md bg-accent px-4 font-semibold text-navy disabled:opacity-60">
-              <Send className="h-5 w-5" aria-hidden /> {submitting ? "Submitting..." : alreadySubmitted ? "Already submitted" : "Submit"}
+            <button disabled={submitting || alreadySubmitted} className="flex h-12 flex-1 items-center justify-center gap-2 rounded-md bg-accent px-4 font-semibold text-navy disabled:opacity-60">
+              <Send className="h-5 w-5" aria-hidden /> {submitting ? "Submitting..." : alreadySubmitted ? "Already submitted" : online ? "Submit" : "Save offline"}
             </button>
           )}
         </div>
@@ -306,6 +319,43 @@ function formatClosingTime(endTime: string, windowHours: number) {
   const close = new Date();
   close.setHours(hour + windowHours, minute, 0, 0);
   return close.toLocaleTimeString([], { hour: "numeric", minute: "2-digit" });
+}
+
+function persistDraft(payload: ReportPayload) {
+  if (typeof window === "undefined") return;
+  const drafts = upsertReportDraft(parseReportDrafts(window.localStorage.getItem(REPORT_DRAFTS_KEY)), {
+    payload: {
+      ...payload,
+      courseId: payload.courseId,
+      scheduleId: payload.scheduleId,
+      lectureDate: payload.lectureDate,
+      lecturerPresent: typeof payload.lecturerPresent === "string" ? payload.lecturerPresent : null
+    },
+    savedAt: new Date().toISOString()
+  });
+  window.localStorage.setItem(REPORT_DRAFTS_KEY, JSON.stringify(drafts));
+}
+
+function forgetDraft(payload: Pick<ReportPayload, "courseId" | "scheduleId" | "lectureDate">) {
+  if (typeof window === "undefined") return;
+  const drafts = removeReportDraft(parseReportDrafts(window.localStorage.getItem(REPORT_DRAFTS_KEY)), payload);
+  window.localStorage.setItem(REPORT_DRAFTS_KEY, JSON.stringify(drafts));
+}
+
+async function flushStoredDrafts() {
+  if (typeof window === "undefined") return;
+  const drafts = parseReportDrafts(window.localStorage.getItem(REPORT_DRAFTS_KEY));
+  for (const draft of drafts) {
+    const response = await fetch("/api/reports", {
+      method: "POST",
+      headers: { "content-type": "application/json" },
+      body: JSON.stringify(draft.payload)
+    });
+    if (response.ok || response.status === 409) {
+      forgetDraft(draft.payload);
+      if (response.ok) toast.success("Saved report sent");
+    }
+  }
 }
 
 function reportErrorMessage(body: unknown) {

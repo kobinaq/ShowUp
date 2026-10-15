@@ -21,6 +21,9 @@ type SettingsState = {
   latePingEmailEnabled: boolean;
   qaLatePingEmailEnabled: boolean;
   showUpAiEnabled: boolean;
+  contestSlaDays: number;
+  notificationMaxRetries: number;
+  lecturerDigestEnabled: boolean;
   activeSemesterId: string | null;
 };
 
@@ -135,6 +138,8 @@ export function SettingsForm({ initialSettings, semesters }: Props) {
           <div className="grid gap-3">
             <Toggle label="Send lecturer SMS for absences" checked={settings.lecturerAbsenceSmsEnabled} onChange={(value) => update("lecturerAbsenceSmsEnabled", value)} />
             <Toggle label="Send lecturer email for absences" checked={settings.lecturerAbsenceEmailEnabled} onChange={(value) => update("lecturerAbsenceEmailEnabled", value)} />
+            <Toggle label="Allow daily lecturer notice digests" checked={settings.lecturerDigestEnabled} onChange={(value) => update("lecturerDigestEnabled", value)} />
+            <NumberField label="Failed notice retries" helper="How many times to resend a failed SMS or email." value={settings.notificationMaxRetries} min={1} max={8} onChange={(value) => update("notificationMaxRetries", value)} />
           </div>
           <div className="rounded-lg border border-slate-200 bg-slate-50 p-4 text-sm leading-6 text-slate-700">
             <p className="font-bold text-navy">Absence message preview</p>
@@ -147,6 +152,7 @@ export function SettingsForm({ initialSettings, semesters }: Props) {
 
       <SectionPanel title="Quality Rules" description="Thresholds used when ShowUp flags repeat issues and topic coverage risk.">
         <div className="grid gap-4 md:grid-cols-3">
+          <NumberField label="Contest review SLA" helper="Pending contests older than this are overdue." value={settings.contestSlaDays} min={1} max={30} suffix="days" onChange={(value) => update("contestSlaDays", value)} />
           <NumberField label="Repeat issue threshold" helper="Repeated absence/lateness flag count." value={settings.flagRepeatThreshold} min={2} max={10} onChange={(value) => update("flagRepeatThreshold", value)} />
           <NumberField label="Week 6 coverage" helper="Minimum topic coverage by week 6." value={settings.flagCoverageWeek6} min={0} max={100} suffix="%" onChange={(value) => update("flagCoverageWeek6", value)} />
           <NumberField label="Week 10 coverage" helper="Minimum topic coverage by week 10." value={settings.flagCoverageWeek10} min={0} max={100} suffix="%" onChange={(value) => update("flagCoverageWeek10", value)} />

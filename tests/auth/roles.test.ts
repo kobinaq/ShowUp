@@ -26,6 +26,8 @@ describe("canAccessPath", () => {
     expect(canAccessPath(Role.HOD, "/settings")).toBe(false);
     expect(canAccessPath(Role.HOD, "/flags")).toBe(false);
     expect(canAccessPath(Role.HOD, "/contests")).toBe(true);
+    expect(canAccessPath(Role.HOD, "/roster")).toBe(true);
+    expect(canAccessPath(Role.HOD, "/lookups")).toBe(false);
   });
 
   it("locks class reps to reporter surfaces", () => {

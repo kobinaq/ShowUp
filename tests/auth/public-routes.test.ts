@@ -14,9 +14,12 @@ describe("ping acknowledge route publicity", () => {
 
 describe("cron route methods", () => {
   it("exports GET and POST as the same handler", async () => {
-    const route = await import("@/app/api/cron/rotation/route");
-    expect(route.GET).toBe(route.POST);
-    expect(typeof route.GET).toBe("function");
+    const rotation = await import("@/app/api/cron/rotation/route");
+    const ops = await import("@/app/api/cron/ops/route");
+    expect(rotation.GET).toBe(rotation.POST);
+    expect(ops.GET).toBe(ops.POST);
+    expect(typeof rotation.GET).toBe("function");
+    expect(typeof ops.GET).toBe("function");
   });
 });
 
@@ -29,11 +32,9 @@ describe("presence filter", () => {
   });
 });
 
+import { authorizeCron } from "@/lib/cron/authorize";
+
 describe("cron auth contract", () => {
-  function authorizeCron(header: string | null, secret: string | undefined) {
-    if (!secret || header !== `Bearer ${secret}`) return false;
-    return true;
-  }
 
   it("rejects missing or wrong bearer tokens", () => {
     expect(authorizeCron(null, "secret")).toBe(false);

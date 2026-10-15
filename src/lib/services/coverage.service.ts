@@ -1,5 +1,6 @@
 import { FlagType } from "@prisma/client";
 import { prisma } from "@/lib/prisma";
+import { flagEventForCreate } from "@/lib/services/flag-events";
 import { getSemesterWeek } from "@/lib/utils/semesterWeek";
 
 export type CoverageSummary = {
@@ -50,13 +51,14 @@ export async function recalculateAndFlag(courseId: string, now = new Date()) {
       where: { lecturerId: course.lecturerId, type: FlagType.COVERAGE_LAG, isResolved: false }
     });
     if (!existing) {
-      await prisma.flag.create({
+      const flag = await prisma.flag.create({
         data: {
           lecturerId: course.lecturerId,
           type: FlagType.COVERAGE_LAG,
           message: `${course.code} coverage is ${summary.coveragePercent}% in week ${week}.`
         }
       });
+      await prisma.flagEvent.create({ data: { flagId: flag.id, ...flagEventForCreate() } });
     }
   }
   return summary;

@@ -75,6 +75,19 @@ export function latePingScope(profile: ScopedProfile): Prisma.LatePingWhereInput
   return { course: courseScope(profile) };
 }
 
+export function rosterProposalScope(profile: ScopedProfile): Prisma.RosterProposalWhereInput {
+  return { course: courseScope(profile) };
+}
+
+export function identityLookupScope(profile: ScopedProfile): Prisma.IdentityLookupWhereInput {
+  if (profile.role === Role.SUPER_ADMIN) return {};
+  return { performedBy: { universityId: profile.universityId } };
+}
+
+export function reportDiscrepancyScope(profile: ScopedProfile): Prisma.ReportDiscrepancyWhereInput {
+  return { course: courseScope(profile) };
+}
+
 export function activityLogScope(profile: ScopedProfile): Prisma.ActivityLogWhereInput {
   if (profile.role === Role.SUPER_ADMIN) return {};
   return { universityId: profile.universityId };

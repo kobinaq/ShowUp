@@ -1,6 +1,7 @@
 import { FlagType, PresenceStatus, ArrivalStatus, DeliveryStatus, type Prisma } from "@prisma/client";
 import { prisma } from "@/lib/prisma";
 import { notificationService } from "@/lib/services/notification.service";
+import { flagEventForCreate, flagEventForResolution } from "@/lib/services/flag-events";
 import { formatClassTime } from "@/lib/utils/sessionTime";
 
 export async function createFlagsForReport(tx: Prisma.TransactionClient, reportId: string) {
@@ -54,15 +55,23 @@ export async function notifyAbsenceForReport(reportId: string) {
   }
 }
 
-export async function resolveFlag(flagId: string, internalNotes?: string) {
-  return prisma.flag.update({
-    where: { id: flagId },
-    data: { isResolved: true, internalNotes }
+export async function resolveFlag(flagId: string, internalNotes?: string, actorId?: string) {
+  return prisma.$transaction(async (tx) => {
+    const flag = await tx.flag.update({
+      where: { id: flagId },
+      data: { isResolved: true, internalNotes }
+    });
+    await tx.flagEvent.create({
+      data: { flagId, actorId, ...flagEventForResolution(internalNotes) }
+    });
+    return flag;
   });
 }
 
 async function createFlag(tx: Prisma.TransactionClient, lecturerId: string, reportId: string, type: FlagType, message: string) {
-  return tx.flag.create({ data: { lecturerId, reportId, type, message } });
+  const flag = await tx.flag.create({ data: { lecturerId, reportId, type, message } });
+  await tx.flagEvent.create({ data: { flagId: flag.id, ...flagEventForCreate() } });
+  return flag;
 }
 
 async function createRepeatedFlagIfNeeded(
@@ -79,7 +88,7 @@ async function createRepeatedFlagIfNeeded(
   ]);
   if (existing || count < threshold) return;
   const label = repeatedType === FlagType.REPEATED_ABSENCE ? "absence" : "lateness";
-  await tx.flag.create({
+  const flag = await tx.flag.create({
     data: {
       lecturerId,
       reportId,
@@ -87,4 +96,5 @@ async function createRepeatedFlagIfNeeded(
       message: `Repeated ${label} threshold reached (${count} reports).`
     }
   });
+  await tx.flagEvent.create({ data: { flagId: flag.id, ...flagEventForCreate(`Repeated ${label} threshold`) } });
 }

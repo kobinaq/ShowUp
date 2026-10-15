@@ -8,7 +8,9 @@ import { MetricCard, SectionPanel, Tabs } from "@/components/shared/Panels";
 import { StatusBadge } from "@/components/shared/StatusBadge";
 import { EmptyState } from "@/components/shared/EmptyState";
 import { ReporterAssignmentForm } from "@/components/courses/ReporterAssignmentForm";
+import { RosterProposalForm } from "@/components/courses/RosterProposalForm";
 import { OutlineUploadForm } from "@/components/courses/OutlineUploadForm";
+import { rosterFairness } from "@/lib/services/roster-fairness";
 import { getAuthProfile } from "@/lib/auth/session";
 import { andWhere, courseScope } from "@/lib/auth/scope";
 
@@ -17,6 +19,7 @@ export default async function CourseDetailPage({ params }: { params: Promise<{ i
   const profile = await getAuthProfile();
   if (!profile) redirect("/login");
   const canManageReporter = profile.role === Role.SUPER_ADMIN || profile.role === Role.QA_OFFICER || profile.role === Role.QA_ASSISTANT || profile.role === Role.IT;
+  const canProposeRoster = profile.role === Role.HOD || profile.role === Role.HOD_ASSISTANT || canManageReporter;
   const canUploadOutline = profile.role === Role.SUPER_ADMIN || profile.role === Role.IT;
   const course = await prisma.course.findFirst({
     where: andWhere({ id }, courseScope(profile)),
@@ -26,7 +29,7 @@ export default async function CourseDetailPage({ params }: { params: Promise<{ i
       schedule: true,
       outline: { include: { topics: { orderBy: { order: "asc" } } } },
       reports: { include: { course: { include: { lecturer: true } }, flags: true, contest: true, latePing: true }, orderBy: { lectureDate: "desc" } },
-      repAssignments: { include: { profile: true }, orderBy: { createdAt: "desc" } },
+      repAssignments: { include: { profile: true, sealedIdentity: { select: { id: true, realName: true } } }, orderBy: { createdAt: "desc" } },
       latePings: true
     }
   });
@@ -39,6 +42,14 @@ export default async function CourseDetailPage({ params }: { params: Promise<{ i
     ? Math.round((studentCountReports.reduce((sum, report) => sum + (report.studentCount ?? 0), 0) / (studentCountReports.length * course.classSize)) * 100)
     : null;
   const activeReps = course.repAssignments.filter((item) => item.isActive);
+  const fairness = rosterFairness(course.repAssignments.map((assignment) => ({
+    sealedIdentityId: assignment.sealedIdentityId,
+    createdAt: assignment.createdAt
+  })));
+  const personName = new Map(course.repAssignments.map((assignment) => [
+    assignment.sealedIdentityId,
+    canManageReporter ? assignment.sealedIdentity.realName : `Member ${assignment.sealedIdentityId.slice(-4)}`
+  ]));
 
   return (
     <div className="space-y-6">
@@ -110,6 +121,16 @@ export default async function CourseDetailPage({ params }: { params: Promise<{ i
               </div>
             )) : <p className="text-sm text-muted">No reporter assignments yet.</p>}
             {canManageReporter && activeReps.length < 2 ? <ReporterAssignmentForm courseId={course.id} /> : null}
+            {canProposeRoster ? <RosterProposalForm courseId={course.id} /> : null}
+            <div className="rounded-lg border border-slate-200 bg-slate-50 p-3">
+              <p className="text-sm font-bold text-navy">Roster fairness</p>
+              <p className="mt-1 text-sm text-muted">{fairness.totalCycles} assignment cycles. {fairness.concentrated ? "The last four cycles concentrated on one person." : "Recent cycles are spread across the roster."}</p>
+              <ul className="mt-2 space-y-1 text-sm">
+                {fairness.byPerson.map((person) => (
+                  <li key={person.sealedIdentityId}>{personName.get(person.sealedIdentityId) ?? "Roster member"} · {person.cycles} cycle{person.cycles === 1 ? "" : "s"}</li>
+                ))}
+              </ul>
+            </div>
             {canManageReporter ? <p className="text-sm text-muted">For replacements and comparison review, open <a href="/students" className="font-semibold text-navy underline">Students</a>.</p> : null}
           </div>
         </SectionPanel>

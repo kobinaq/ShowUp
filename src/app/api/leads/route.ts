@@ -3,6 +3,7 @@ import { z } from "zod";
 import { prisma } from "@/lib/prisma";
 import { notificationService } from "@/lib/services/notification.service";
 import { allowRateLimit } from "@/lib/rate-limit";
+import { clientIpFromHeaders } from "@/lib/http/client-ip";
 
 const leadSchema = z.object({
   fullName: z.string().min(2).max(100),
@@ -16,7 +17,7 @@ const limit = 5;
 const windowMs = 60 * 60 * 1000;
 
 export async function POST(request: NextRequest) {
-  const ip = getClientIp(request);
+  const ip = clientIpFromHeaders(request.headers);
   const body = await request.json().catch(() => ({}));
   const parsed = leadSchema.safeParse(body);
   if (!parsed.success) {
@@ -46,11 +47,6 @@ export async function POST(request: NextRequest) {
   }
 
   return NextResponse.json({ success: true, id: lead.id });
-}
-
-function getClientIp(request: NextRequest) {
-  const forwarded = request.headers.get("x-forwarded-for")?.split(",")[0]?.trim();
-  return forwarded || request.headers.get("x-real-ip") || request.headers.get("cf-connecting-ip") || "unknown";
 }
 
 function leadEmail(lead: z.infer<typeof leadSchema>) {

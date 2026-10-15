@@ -13,6 +13,8 @@ import {
   type DemoRole
 } from "@/lib/auth/demo";
 import { badRequest, json } from "@/lib/middleware/withAuth";
+import { clientIpFromHeaders } from "@/lib/http/client-ip";
+import { allowRateLimit } from "@/lib/rate-limit";
 
 const roleSchema = z.enum([
   Role.QA_OFFICER,
@@ -43,6 +45,10 @@ export async function GET() {
 
 export async function POST(request: NextRequest) {
   if (!isDemoModeEnabled()) return json({ error: "Live demo is not enabled on this deployment" }, { status: 503 });
+  const ip = clientIpFromHeaders(request.headers);
+  if (!(await allowRateLimit(`demo:ip:${ip}`, 10, 60 * 60 * 1000))) {
+    return json({ error: "Too many demo sign-in attempts. Try again later." }, { status: 429 });
+  }
 
   const body = startSchema.safeParse(await request.json().catch(() => null));
   if (!body.success) return badRequest("Invalid demo session request", body.error.flatten());

@@ -37,6 +37,9 @@ model UniversitySettings {
   latePingEmailEnabled        Boolean @default(true)
   qaLatePingEmailEnabled      Boolean @default(true)
   showUpAiEnabled             Boolean @default(true)
+  contestSlaDays              Int     @default(5)
+  notificationMaxRetries      Int     @default(3)
+  lecturerDigestEnabled       Boolean @default(false)
   updatedById              String?
   updatedAt                DateTime   @updatedAt
 }
@@ -94,6 +97,9 @@ model Profile {
   activityLogs    ActivityLog[]
   supportTicketsRequested SupportTicket[] @relation("SupportRequester")
   supportTicketsAssigned  SupportTicket[] @relation("SupportAssignee")
+  rosterProposalsMade     RosterProposal[] @relation("RosterProposedBy")
+  rosterProposalsReviewed RosterProposal[] @relation("RosterReviewedBy")
+  flagEvents              FlagEvent[]
   isActive        Boolean          @default(true)
   createdAt       DateTime         @default(now())
 }
@@ -122,6 +128,32 @@ model SealedRepIdentity {
   @@unique([courseId, realEmail])
 }
 
+enum RosterProposalStatus {
+  PENDING
+  APPROVED
+  REJECTED
+}
+
+model RosterProposal {
+  id           String               @id @default(cuid())
+  courseId     String
+  course       Course               @relation(fields: [courseId], references: [id], onDelete: Cascade)
+  realName     String
+  realEmail    String
+  realPhone    String
+  proposedById String
+  proposedBy   Profile              @relation("RosterProposedBy", fields: [proposedById], references: [id])
+  status       RosterProposalStatus @default(PENDING)
+  reviewedById String?
+  reviewedBy   Profile?             @relation("RosterReviewedBy", fields: [reviewedById], references: [id])
+  reviewNote   String?
+  createdAt    DateTime             @default(now())
+  reviewedAt   DateTime?
+
+  @@index([courseId, status])
+  @@index([status, createdAt])
+}
+
 model Lecturer {
   id           String                 @id @default(cuid())
   firstName    String
@@ -134,6 +166,7 @@ model Lecturer {
   courses      Course[]
   flags        Flag[]
   notifications LecturerNotification[]
+  digestEmailEnabled Boolean            @default(false)
   createdAt    DateTime               @default(now())
 }
 
@@ -153,6 +186,8 @@ model Course {
   latePings      LatePing[]
   repAssignments RepAssignment[]
   sealedIdentities SealedRepIdentity[]
+  rosterProposals  RosterProposal[]
+  discrepancies    ReportDiscrepancy[]
   creditHours    Int
   classSize      Int?
   createdAt      DateTime        @default(now())
@@ -247,6 +282,8 @@ model LectureReport {
   contest                  Contest?
   latePing                 LatePing?
   flags                    Flag[]
+  discrepanciesAsFirst     ReportDiscrepancy[] @relation("DiscrepancyFirst")
+  discrepanciesAsSecond    ReportDiscrepancy[] @relation("DiscrepancySecond")
   submittedAt              DateTime         @default(now())
   windowClosedAt           DateTime
 
@@ -339,6 +376,7 @@ model Contest {
   resolutionNote String?
   raisedAt       DateTime      @default(now())
   resolvedAt     DateTime?
+  escalatedAt    DateTime?
 
   @@index([status, raisedAt])
 }
@@ -361,9 +399,29 @@ model Flag {
   isResolved       Boolean        @default(false)
   notificationSent Boolean        @default(false)
   createdAt        DateTime       @default(now())
+  events           FlagEvent[]
 
   @@index([isResolved, createdAt])
   @@index([lecturerId, createdAt])
+}
+
+enum FlagEventType {
+  CREATED
+  RESOLVED
+  REOPENED
+}
+
+model FlagEvent {
+  id        String        @id @default(cuid())
+  flagId    String
+  flag      Flag          @relation(fields: [flagId], references: [id], onDelete: Cascade)
+  type      FlagEventType
+  actorId   String?
+  actor     Profile?      @relation(fields: [actorId], references: [id], onDelete: SetNull)
+  note      String?
+  createdAt DateTime      @default(now())
+
+  @@index([flagId, createdAt])
 }
 
 enum FlagType {
@@ -380,9 +438,15 @@ model LecturerNotification {
   lecturerId String
   lecturer   Lecturer            @relation(fields: [lecturerId], references: [id], onDelete: Cascade)
   channel    NotificationChannel
-  message    String
-  sentAt     DateTime            @default(now())
-  status     DeliveryStatus
+  message       String
+  subject       String?
+  sentAt        DateTime            @default(now())
+  status        DeliveryStatus
+  attemptCount  Int                 @default(1)
+  lastAttemptAt DateTime            @default(now())
+  nextRetryAt   DateTime?
+
+  @@index([status, nextRetryAt])
 }
 
 enum NotificationChannel {
@@ -415,7 +479,30 @@ model RotationLog {
   outgoingAlias  String?
   incomingAlias  String?
   action         String
+  error          String?
   createdAt      DateTime      @default(now())
+}
+
+enum ReportDiscrepancyStatus {
+  OPEN
+  RESOLVED
+}
+
+model ReportDiscrepancy {
+  id             String                   @id @default(cuid())
+  courseId       String
+  course         Course                   @relation(fields: [courseId], references: [id], onDelete: Cascade)
+  scheduleId     String
+  lectureDate    DateTime
+  firstReportId  String
+  firstReport    LectureReport            @relation("DiscrepancyFirst", fields: [firstReportId], references: [id], onDelete: Cascade)
+  secondReportId String
+  secondReport   LectureReport            @relation("DiscrepancySecond", fields: [secondReportId], references: [id], onDelete: Cascade)
+  status         ReportDiscrepancyStatus  @default(OPEN)
+  createdAt      DateTime                 @default(now())
+
+  @@unique([scheduleId, lectureDate])
+  @@index([status, createdAt])
 }
 
 model ActivityLog {

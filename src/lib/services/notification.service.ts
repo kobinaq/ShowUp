@@ -1,6 +1,7 @@
 import { DeliveryStatus, NotificationChannel, type Lecturer } from "@prisma/client";
 import { Resend } from "resend";
 import { prisma } from "@/lib/prisma";
+import { nextNotificationRetryAt } from "@/lib/services/notification-retry";
 
 type MessageTarget = Pick<Lecturer, "id" | "firstName" | "lastName" | "email" | "phone">;
 type ChannelOptions = { emailEnabled?: boolean; smsEnabled?: boolean };
@@ -11,10 +12,29 @@ export class NotificationService {
   async notifyLecturer(target: MessageTarget, subject: string, message: string, options: ChannelOptions = {}) {
     const email = options.emailEnabled === false ? DeliveryStatus.SKIPPED : await this.sendEmail(target.email, subject, this.wrapEmail(target.firstName, message));
     const sms = options.smsEnabled === false ? DeliveryStatus.SKIPPED : await this.sendSms(target.phone, message);
+    const now = new Date();
     await prisma.lecturerNotification.createMany({
       data: [
-        { lecturerId: target.id, channel: NotificationChannel.EMAIL, message, status: email },
-        { lecturerId: target.id, channel: NotificationChannel.SMS, message, status: sms }
+        {
+          lecturerId: target.id,
+          channel: NotificationChannel.EMAIL,
+          subject,
+          message,
+          status: email,
+          attemptCount: 1,
+          lastAttemptAt: now,
+          nextRetryAt: email === DeliveryStatus.FAILED ? nextNotificationRetryAt(1, now) : null
+        },
+        {
+          lecturerId: target.id,
+          channel: NotificationChannel.SMS,
+          subject,
+          message,
+          status: sms,
+          attemptCount: 1,
+          lastAttemptAt: now,
+          nextRetryAt: sms === DeliveryStatus.FAILED ? nextNotificationRetryAt(1, now) : null
+        }
       ]
     });
     return { email, sms };
@@ -54,6 +74,10 @@ export class NotificationService {
          Please change it after signing in: <a href="${changeUrl}">${changeUrl}</a>.`
       )
     );
+  }
+
+  async sendLecturerDigest(to: string, firstName: string, body: string) {
+    return this.sendEmail(to, "ShowUp daily notice digest", this.wrapEmail(firstName, body.replaceAll("\n", "<br/>")));
   }
 
   async contestResolved(to: string, course: string, date: string, status: string, note: string) {

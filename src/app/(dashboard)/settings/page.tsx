@@ -35,6 +35,9 @@ export default async function SettingsPage() {
           latePingEmailEnabled: settings.latePingEmailEnabled,
           qaLatePingEmailEnabled: settings.qaLatePingEmailEnabled,
           showUpAiEnabled: settings.showUpAiEnabled,
+          contestSlaDays: settings.contestSlaDays,
+          notificationMaxRetries: settings.notificationMaxRetries,
+          lecturerDigestEnabled: settings.lecturerDigestEnabled,
           activeSemesterId: activeSemester?.id ?? null
         }}
         semesters={semesters.map((semester) => ({ id: semester.id, name: semester.name }))}
