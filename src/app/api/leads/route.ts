@@ -39,7 +39,7 @@ export async function POST(request: NextRequest) {
   try {
     await notificationService.sendEmail(
       process.env.LEAD_NOTIFICATION_EMAIL ?? "info@weareubic.com",
-      `New ShowUp demo request - ${parsed.data.institution}`,
+      `New Meridiqa demo request - ${parsed.data.institution}`,
       leadEmail(parsed.data)
     );
   } catch (error) {
@@ -53,7 +53,7 @@ function leadEmail(lead: z.infer<typeof leadSchema>) {
   const message = lead.message ? `<p><strong>Message:</strong> ${escapeHtml(lead.message)}</p>` : "";
   return `
     <div style="font-family:Inter,Arial,sans-serif;color:#0D1F3C;line-height:1.6">
-      <h1 style="margin:0 0 16px">New ShowUp demo request</h1>
+      <h1 style="margin:0 0 16px">New Meridiqa demo request</h1>
       <p><strong>${escapeHtml(lead.fullName)}</strong> (${escapeHtml(lead.role)}) at <strong>${escapeHtml(lead.institution)}</strong> requested a demo.</p>
       <p><strong>Email:</strong> ${escapeHtml(lead.email)}</p>
       ${message}

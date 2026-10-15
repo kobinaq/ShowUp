@@ -14,11 +14,29 @@ export const askQueryTypes = [
 
 export type AskQueryType = (typeof askQueryTypes)[number];
 
+export const askPeriods = [
+  "today",
+  "yesterday",
+  "week",
+  "last_week",
+  "month",
+  "last_month",
+  "semester",
+  "previous_semester",
+  "year",
+  "unrecognized"
+] as const;
+
+export type AskPeriod = (typeof askPeriods)[number];
+
 export type QueryPlanParams = {
   lecturerId?: string;
   courseId?: string;
   departmentId?: string;
   semesterId?: string;
+  period?: AskPeriod;
+  from?: string;
+  to?: string;
   type?: FlagType;
   threshold?: number;
   limit?: number;

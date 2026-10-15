@@ -9,7 +9,7 @@ export default function DemoPage() {
       <div className="mx-auto max-w-3xl px-4 py-10 md:px-6">
         <div className="mb-8">
           <Link href="/" className="text-sm font-semibold text-muted hover:text-navy">
-            ← Back to ShowUp
+            ← Back to Meridiqa
           </Link>
           <h1 className="mt-4 font-display text-4xl font-bold text-navy">Live demo</h1>
           <p className="mt-2 max-w-2xl text-sm text-muted md:text-base">

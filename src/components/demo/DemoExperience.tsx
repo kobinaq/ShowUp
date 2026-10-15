@@ -7,7 +7,7 @@ import toast from "react-hot-toast";
 type DemoRole = "QA_OFFICER" | "VC" | "HOD" | "CLASS_REP" | "SUPER_ADMIN" | "IT";
 
 const ROLE_OPTIONS: Array<{ role: DemoRole; label: string; blurb: string }> = [
-  { role: "QA_OFFICER", label: "QA Officer", blurb: "Command center, flags, late pings, ShowUp AI" },
+  { role: "QA_OFFICER", label: "QA Officer", blurb: "Command center, flags, late pings, Meridiqa AI" },
   { role: "VC", label: "Vice Chancellor", blurb: "Leadership analytics across the university" },
   { role: "HOD", label: "Head of Department", blurb: "Department courses, contests, coverage" },
   { role: "CLASS_REP", label: "Class Reporter", blurb: "Anonymous lecture report submission" },

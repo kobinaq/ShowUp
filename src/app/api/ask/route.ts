@@ -15,17 +15,25 @@ export const POST = withAuth(async (request, { profile }) => {
   const settings = await prisma.universitySettings.findUnique({ where: { universityId: profile.universityId }, select: { showUpAiEnabled: true } });
   if (settings?.showUpAiEnabled === false) {
     return json({
-      answer: "ShowUp AI is currently disabled for this university."
+      answer: "Meridiqa AI is currently disabled for this university."
     });
   }
 
   try {
     const plan = await parseQuestion(parsed.data.question);
 
+    if (plan.params.period === "unrecognized") {
+      return json({
+        answer:
+          "I can answer for today, yesterday, this week, last week, this month, last month, this semester, last semester, or this academic year.",
+        plan
+      });
+    }
+
     if (plan.queryType === "unsupported") {
       return json({
         answer:
-          "I can only answer questions about lecturer attendance, topic coverage, flags, and department performance in ShowUp."
+          "I can only answer questions about lecturer attendance, topic coverage, flags, and department performance in Meridiqa."
       });
     }
 
@@ -39,20 +47,20 @@ export const POST = withAuth(async (request, { profile }) => {
       universityId: profile.universityId,
       departmentId: profile.departmentId
     });
-    const answer = await formatAnswer(parsed.data.question, data);
+    const answer = await formatAnswer(parsed.data.question, data, plan.params.period, plan.params);
 
     return json({ answer, data, plan });
   } catch (error) {
-    console.error("ShowUp AI request failed", classifyAskError(error));
+    console.error("Meridiqa AI request failed", classifyAskError(error));
     if (error instanceof Error && error.message === "RATE_LIMIT_EXCEEDED") {
       return json({
-        answer: "ShowUp AI is handling a lot of questions right now. Please try again in a moment."
+        answer: "Meridiqa AI is handling a lot of questions right now. Please try again in a moment."
       });
     }
     return json(
       {
-        error: "ShowUp AI is unavailable",
-        answer: "ShowUp AI could not answer that right now. Please check the Groq API key and try again."
+        error: "Meridiqa AI is unavailable",
+        answer: "Meridiqa AI could not answer that right now. Please check the Groq API key and try again."
       },
       { status: 503 }
     );

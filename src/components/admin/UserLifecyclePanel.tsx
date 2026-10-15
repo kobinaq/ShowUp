@@ -2,7 +2,7 @@
 
 import { useState } from "react";
 import toast from "react-hot-toast";
-import { displayText } from "@/lib/utils/displayText";
+import { displayAccount, displayText } from "@/lib/utils/displayText";
 
 export type UserLifecycleItem = {
   id: string;
@@ -35,8 +35,8 @@ export function UserLifecyclePanel({ users }: { users: UserLifecycleItem[] }) {
       {items.length ? items.map((user) => (
         <div key={user.id} className="flex flex-col gap-3 rounded-lg border border-slate-200 px-3 py-3 text-sm sm:flex-row sm:items-center sm:justify-between">
           <div>
-            <p className="font-semibold text-navy">{user.displayName ?? user.email ?? "Unnamed user"}</p>
-            <p className="mt-1 text-xs text-muted">{displayText(user.role)}{user.email ? ` - ${user.email}` : ""}</p>
+            <p className="font-semibold text-navy">{user.displayName ?? (user.email ? displayAccount(user.email) : "Unnamed user")}</p>
+            <p className="mt-1 text-xs text-muted">{displayText(user.role)}{user.email ? ` - ${displayAccount(user.email)}` : ""}</p>
           </div>
           <button
             type="button"

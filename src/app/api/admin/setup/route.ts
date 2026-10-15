@@ -196,7 +196,7 @@ export const POST = withAuth(async (request, { profile }): Promise<Response> => 
     if (data.phone) {
       await notificationService.sendSms(
         data.phone,
-        `ShowUp: your staff account was created for ${data.email}. Check your email for login details — the password is not sent by SMS.`
+        `Meridiqa: your staff account was created for ${data.email}. Check your email for login details — the password is not sent by SMS.`
       );
     }
     await prisma.activityLog.create({

@@ -5,6 +5,7 @@ import { AskPanel } from "@/components/ask/AskPanel";
 import { DemoBanner } from "@/components/demo/DemoBanner";
 import { canAccessPath, roleHome } from "@/lib/auth/roles";
 import { getAuthProfile } from "@/lib/auth/session";
+import { displayAccount } from "@/lib/utils/displayText";
 import { headers } from "next/headers";
 import { redirect } from "next/navigation";
 
@@ -32,7 +33,7 @@ export default async function DashboardLayout({ children }: { children: React.Re
         {profile.isDemo ? <DemoBanner role={profile.role} /> : null}
         <TopBar
           role={profile.role}
-          email={profile.isDemo ? `demo · ${profile.email ?? profile.role}` : profile.email}
+          email={profile.isDemo ? `demo · ${displayAccount(profile.email) || profile.role}` : displayAccount(profile.email)}
           university={profile.university?.name}
           department={profile.department?.name}
           isDemo={profile.isDemo}

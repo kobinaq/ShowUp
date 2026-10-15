@@ -60,9 +60,9 @@ export function Hero() {
             <div className="grid min-h-[720px] bg-[#f7f9f8] lg:grid-cols-[270px_1fr]">
               <aside className="hidden border-r border-[#d9e8e4] bg-white lg:block">
                 <div className="flex items-center gap-3 border-b border-[#dff3ef] px-6 py-5">
-                  <div className="grid h-10 w-10 place-items-center rounded-lg bg-[#12203a] font-black text-white shadow-[0_10px_24px_rgba(18,32,58,0.18)]">S</div>
+                  <div className="grid h-10 w-10 place-items-center rounded-lg bg-[#12203a] font-black text-white shadow-[0_10px_24px_rgba(18,32,58,0.18)]">M</div>
                   <div>
-                    <p className="text-xl font-black tracking-[-0.04em] text-[#12203a]">ShowUp</p>
+                    <p className="text-xl font-black tracking-[-0.04em] text-[#12203a]">Meridiqa</p>
                     <p className="text-xs text-[#667085]">Quality assurance</p>
                   </div>
                 </div>

@@ -139,7 +139,7 @@ export default async function DashboardPage({ searchParams }: { searchParams?: P
         </SectionPanel>
         <SectionPanel
           title="Workspace insight"
-          description={`A deterministic summary from scoped data ${periodLabel}, without calling ShowUp AI.`}
+          description={`A deterministic summary from scoped data ${periodLabel}, without calling Meridiqa AI.`}
           action={<Link href="/analytics" className="inline-flex items-center gap-2 text-sm font-semibold text-navy">Open analytics <ArrowRight className="h-4 w-4" aria-hidden /></Link>}
         >
           <div className="space-y-3">

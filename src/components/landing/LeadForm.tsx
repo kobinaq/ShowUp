@@ -46,7 +46,7 @@ export function LeadForm() {
       <div className="reveal mx-auto grid max-w-6xl gap-8 rounded-[36px] bg-[#12203a] p-7 text-white shadow-[0_24px_70px_rgba(18,32,58,0.16)] lg:grid-cols-[0.9fr_1fr] lg:items-start lg:p-10">
         <div>
           <p className="font-mono text-xs font-black uppercase tracking-[0.18em] text-[#8df2de]">Request access</p>
-          <h2 className="mt-4 text-4xl font-black leading-[1] tracking-[-0.065em] sm:text-5xl">See how ShowUp can strengthen academic quality assurance in your institution.</h2>
+          <h2 className="mt-4 text-4xl font-black leading-[1] tracking-[-0.065em] sm:text-5xl">See how Meridiqa can strengthen academic quality assurance in your institution.</h2>
           <p className="mt-5 text-lg leading-8 text-white/68">
             Tell us a bit about your university and we will reach out to set up a walkthrough.
           </p>
@@ -58,7 +58,7 @@ export function LeadForm() {
                 <CheckCircle2 className="h-7 w-7" aria-hidden />
               </div>
               <h3 className="mt-5 text-2xl font-black tracking-[-0.04em]">Thank you. We will be in touch within 1-2 business days.</h3>
-              <p className="mt-3 text-sm leading-6 text-[#6B7280]">Your request has been received by the ShowUp team.</p>
+              <p className="mt-3 text-sm leading-6 text-[#6B7280]">Your request has been received by the Meridiqa team.</p>
             </div>
           ) : (
             <form onSubmit={form.handleSubmit(onSubmit)} className="space-y-4">

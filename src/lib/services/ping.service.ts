@@ -65,13 +65,13 @@ export async function sendLatePing(courseId: string, scheduleId: string, sentByI
     ? DeliveryStatus.SKIPPED
     : await notificationService.sendSms(
         course.lecturer.phone,
-        `ShowUp alert: you are ${threshold} minutes late for your ${course.code} class today at ${formatClassTime(schedule.startTime)}. Venue: ${schedule.venue ?? "scheduled venue"}. Please check your email. Do not reply to this message.`
+        `Meridiqa alert: you are ${threshold} minutes late for your ${course.code} class today at ${formatClassTime(schedule.startTime)}. Venue: ${schedule.venue ?? "scheduled venue"}. Please check your email. Do not reply to this message.`
       );
   const lecturerEmailStatus = settings?.latePingEmailEnabled === false
     ? DeliveryStatus.SKIPPED
     : await notificationService.sendEmail(
         course.lecturer.email,
-        `ShowUp late alert - ${course.code}`,
+        `Meridiqa late alert - ${course.code}`,
         buildPingEmailHtml({
           lecturerName,
           courseCode: course.code,
@@ -88,7 +88,7 @@ export async function sendLatePing(courseId: string, scheduleId: string, sentByI
       qaOfficers.map((qa) =>
         notificationService.sendEmail(
           qa.email!,
-          `ShowUp late alert - ${course.code}`,
+          `Meridiqa late alert - ${course.code}`,
           `<p>A late alert was sent to ${lecturerName} for <strong>${course.code}</strong> at ${formatClassTime(schedule.startTime)} on ${lectureDate.toDateString()}.</p>`
         )
       )
@@ -136,7 +136,7 @@ export async function handlePostClassPingEscalation(courseId: string, lectureDat
     if (hod?.email) {
       await notificationService.sendEmail(
         hod.email,
-        `ShowUp absence after alert - ${ping.course.code}`,
+        `Meridiqa absence after alert - ${ping.course.code}`,
         `<p>${ping.course.lecturer.firstName} ${ping.course.lecturer.lastName} was still marked absent for <strong>${ping.course.code}</strong> after a late alert had been sent.</p>`
       );
     }
@@ -154,7 +154,7 @@ export async function handlePostClassPingEscalation(courseId: string, lectureDat
 
 function buildPingEmailHtml(params: { lecturerName: string; courseCode: string; courseTitle: string; minutesLate: number; venue: string; acknowledgeUrl: string }) {
   return `<div style="font-family:Inter,Arial,sans-serif;color:#0D1F3C">
-    <h1>ShowUp late alert</h1>
+    <h1>Meridiqa late alert</h1>
     <p>Dear ${params.lecturerName},</p>
     <p>Your class <strong>${params.courseCode} - ${params.courseTitle}</strong> started ${params.minutesLate} minutes ago and students are waiting at <strong>${params.venue}</strong>.</p>
     <p><a href="${params.acknowledgeUrl}" style="display:inline-block;background:#00C48C;color:#0D1F3C;padding:12px 18px;border-radius:8px;font-weight:700;text-decoration:none">I'm on my way</a></p>
