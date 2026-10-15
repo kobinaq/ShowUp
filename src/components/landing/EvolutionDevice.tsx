@@ -8,7 +8,7 @@ export function EvolutionDevice() {
           <div className="showup-kicker">From informal reporting to defensible evidence</div>
           <h2 className="showup-section-title">Replace uncertainty with structured academic visibility.</h2>
           <p className="mt-5 text-lg leading-8 text-[#475467]">
-            Most institutions already rely on informal class rep feedback. ShowUp makes that process anonymous, auditable, measurable, and useful for leadership decisions.
+            Most institutions already rely on informal class rep feedback. Meridiqa makes that process anonymous, auditable, measurable, and useful for leadership decisions.
           </p>
         </div>
 
@@ -29,7 +29,7 @@ export function EvolutionDevice() {
             </div>
 
             <div>
-              <p className="mb-5 font-mono text-[11px] font-black uppercase tracking-[0.28em] text-white/42">THE SHOWUP WAY</p>
+              <p className="mb-5 font-mono text-[11px] font-black uppercase tracking-[0.28em] text-white/42">THE MERIDIQA WAY</p>
               <div className="max-w-md rounded-[10px] bg-white px-5 py-4 text-[#12203a] shadow-[0_20px_44px_rgba(0,0,0,0.16)]">
                 <div className="flex items-center justify-between gap-4">
                   <p className="text-sm font-semibold text-[#667085]">CS301 — Dr. Mensah</p>
@@ -56,7 +56,7 @@ export function EvolutionDevice() {
             <p className="mt-3 leading-7 text-[#667085]">Reports are scattered across chats, often delayed, and difficult to defend.</p>
           </article>
           <article className="reveal rounded-[32px] border border-[rgba(16,24,40,0.08)] bg-white/85 p-7 shadow-[0_16px_40px_rgba(18,32,58,0.08)]">
-            <h3 className="text-2xl font-black tracking-[-0.045em] text-[#12203a]">The ShowUp way</h3>
+            <h3 className="text-2xl font-black tracking-[-0.045em] text-[#12203a]">The Meridiqa way</h3>
             <p className="mt-3 leading-7 text-[#667085]">Every lecture report becomes clean, structured evidence for QA, HODs, and executive leadership.</p>
           </article>
         </div>

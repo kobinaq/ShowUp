@@ -21,7 +21,7 @@ export async function retryFailedNotifications(now = new Date()) {
       notice.channel === NotificationChannel.EMAIL
         ? await notificationService.sendEmail(
             notice.lecturer.email,
-            notice.subject ?? "ShowUp notice",
+            notice.subject ?? "Meridiqa notice",
             `<div style="font-family:Inter,Arial,sans-serif;color:#0D1F3C"><p>${notice.message}</p></div>`
           )
         : await notificationService.sendSms(notice.lecturer.phone, notice.message);
