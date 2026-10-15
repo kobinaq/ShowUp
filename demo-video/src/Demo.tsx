@@ -1,10 +1,19 @@
-import { AbsoluteFill } from "remotion";
+import { AbsoluteFill, Audio, staticFile } from "remotion";
 import { TransitionSeries, linearTiming } from "@remotion/transitions";
 import { fade } from "@remotion/transitions/fade";
 import { FontFaces } from "./fonts";
 import { fadeFrames } from "./theme";
+import { scenePlan } from "./timing";
 import { Caption, Card, Headline, KenBurns, Kicker, Laptop, Phone, Rise, ShotStack, Stage, Wordmark } from "./ui";
 import { color, font } from "./theme";
+
+function cue(sceneId: string, key: string) {
+  return scenePlan.find((scene) => scene.id === sceneId)?.cues[key] ?? 0;
+}
+
+function shotAt(sceneId: string, key: string) {
+  return scenePlan.find((scene) => scene.id === sceneId)?.shots[key] ?? 0;
+}
 
 const fadeTiming = linearTiming({ durationInFrames: fadeFrames });
 
@@ -59,9 +68,9 @@ function Hook() {
     <DarkCopy
       kicker="Accra Technical University"
       lines={[
-        { text: "The class was due at 8.", delay: 8 },
-        { text: "The hall is full.", delay: 28 },
-        { text: "The lecturer has not arrived.", delay: 52, amber: true }
+        { text: "The class was due at 8.", delay: cue("hook", "0") },
+        { text: "The hall is full.", delay: cue("hook", "1") },
+        { text: "The lecturer has not arrived.", delay: cue("hook", "2"), amber: true }
       ]}
     />
   );
@@ -81,13 +90,13 @@ function Origin() {
         </Rise>
       </div>
       <div style={{ position: "absolute", left: 96, top: 340, width: 820, display: "flex", flexDirection: "column", gap: 16 }}>
-        <Bubble delay={20} text="Sir, the lecturer is not in class." />
-        <Bubble delay={36} text="We are still waiting." mine />
+        <Bubble delay={cue("origin", "1")} text="Sir, the lecturer is not in class." />
+        <Bubble delay={cue("origin", "2")} text="We are still waiting." mine />
       </div>
       <div style={{ position: "absolute", left: 96, right: 96, bottom: 90 }}>
-        <Rise delay={70}>
+        <Rise delay={cue("origin", "3")}>
           <div style={{ fontSize: 36, lineHeight: 1.35, maxWidth: 1400, color: "rgba(255,255,255,0.9)" }}>
-            Lateness fell once lecturers knew someone was paying attention. It lived on one phone. It was not anonymous, and it left no record leadership could act on.
+            Lateness fell once lecturers knew someone was watching. It lived on one phone, and leadership had nothing they could act on.
           </div>
         </Rise>
       </div>
@@ -201,9 +210,9 @@ function Rep() {
       title="A short report, filed from the phone."
       caption="The reporter signs in under an alias. The report follows the session on the timetable."
       shots={[
-        { src: "captures/rep-session.png", at: 0, focusX: 50, focusY: 28, zoom: 1.08 },
-        { src: "captures/rep-presence.png", at: 130, focusX: 50, focusY: 42, zoom: 1.12 },
-        { src: "captures/rep-topics.png", at: 250, focusX: 50, focusY: 35, zoom: 1.08 }
+        { src: "captures/rep-session.png", at: shotAt("rep", "0"), focusX: 50, focusY: 28, zoom: 1.08 },
+        { src: "captures/rep-presence.png", at: shotAt("rep", "1"), focusX: 50, focusY: 42, zoom: 1.12 },
+        { src: "captures/rep-topics.png", at: shotAt("rep", "2"), focusX: 50, focusY: 35, zoom: 1.08 }
       ]}
     />
   );
@@ -214,11 +223,11 @@ function Alert() {
     <PhoneScene
       kicker="During the class"
       title="The live late alert."
-      caption="Past the late threshold, the rep alerts the lecturer. Opening “I’m on my way” records the response."
+      caption="Once the lecturer is late, the representative sends an alert. “I’m on my way” is kept on the record."
       shots={[
-        { src: "captures/rep-ping.png", at: 0, focusX: 50, focusY: 62, zoom: 1.18 },
-        { src: "captures/rep-ping-sent.png", at: 120, focusX: 50, focusY: 58, zoom: 1.14 },
-        { src: "captures/acknowledge.png", at: 240, focusX: 50, focusY: 46, zoom: 1.06 }
+        { src: "captures/rep-ping.png", at: shotAt("alert", "0"), focusX: 50, focusY: 62, zoom: 1.18 },
+        { src: "captures/rep-ping-sent.png", at: shotAt("alert", "1"), focusX: 50, focusY: 58, zoom: 1.14 },
+        { src: "captures/acknowledge.png", at: shotAt("alert", "2"), focusX: 50, focusY: 46, zoom: 1.06 }
       ]}
     />
   );
@@ -259,10 +268,10 @@ function Flags() {
     <LaptopScene
       kicker="Automatic flags"
       title="Rules raise the issue. People decide it."
-      caption="Absence, lateness, early dismissal, and syllabus lag are flagged from the report."
+      caption="Absence, lateness, leaving early, and falling behind the outline are marked from the report."
       shots={[
-        { src: "captures/qa-flags.png", at: 0, focusX: 62, focusY: 38, zoom: 1.12 },
-        { src: "captures/qa-flags-late.png", at: 110, focusX: 68, focusY: 48, zoom: 1.22 }
+        { src: "captures/qa-flags.png", at: shotAt("flags", "0"), focusX: 62, focusY: 38, zoom: 1.12 },
+        { src: "captures/qa-flags-late.png", at: shotAt("flags", "1"), focusX: 68, focusY: 48, zoom: 1.22 }
       ]}
     />
   );
@@ -273,7 +282,7 @@ function Coverage() {
     <LaptopScene
       kicker="Syllabus"
       title="Topics taught, against the outline."
-      caption="CENG301 shows 9 of 12 topics covered, in line with what this point in the semester expects."
+      caption="Nine of twelve topics are covered, in line with this point in the semester."
       shots={[{ src: "captures/course-coverage.png", at: 0, focusX: 68, focusY: 46, zoom: 1.16 }]}
     />
   );
@@ -283,11 +292,11 @@ function Appeal() {
   return (
     <LaptopScene
       kicker="Due process"
-      title="The head of department appeals. QA decides."
-      caption="Computer Engineering has a pending contest. The reason is on the record. The review window is 5 days."
+      title="A head of department can appeal."
+      caption="Quality assurance decides. One appeal is waiting. The reason is written down. Five days to review."
       shots={[
-        { src: "captures/contests.png", at: 0, focusX: 66, focusY: 42, zoom: 1.18 },
-        { src: "captures/contest-report.png", at: 140, focusX: 62, focusY: 36, zoom: 1.12 }
+        { src: "captures/contests.png", at: shotAt("appeal", "0"), focusX: 66, focusY: 42, zoom: 1.18 },
+        { src: "captures/contest-report.png", at: shotAt("appeal", "1"), focusX: 62, focusY: 36, zoom: 1.12 }
       ]}
     />
   );
@@ -307,8 +316,8 @@ function Privacy() {
         <Laptop>
           <ShotStack
             shots={[
-              { src: "captures/students-sealed.png", at: 0, focusX: 58, focusY: 58, zoom: 1.12 },
-              { src: "captures/lookups.png", at: 120, focusX: 64, focusY: 40, zoom: 1.1 }
+              { src: "captures/students-sealed.png", at: shotAt("privacy", "0"), focusX: 58, focusY: 58, zoom: 1.12 },
+              { src: "captures/lookups.png", at: shotAt("privacy", "1"), focusX: 64, focusY: 40, zoom: 1.1 }
             ]}
           />
         </Laptop>
@@ -326,31 +335,31 @@ function Privacy() {
           borderTop: `6px solid ${color.amber}`
         }}
       >
-        <Rise delay={8}>
+        <Rise delay={cue("privacy", "2")}>
           <div style={{ fontSize: 22, fontWeight: 700, letterSpacing: "0.14em", textTransform: "uppercase", color: color.deep }}>
             What the reveal returned
           </div>
         </Rise>
-        <Rise delay={16}>
+        <Rise delay={cue("privacy", "2") + 8}>
           <div style={{ marginTop: 16, fontFamily: font.display, fontWeight: 700, fontSize: 48, letterSpacing: "-0.04em", color: color.slate }}>
             ATU Class Rep 1
           </div>
         </Rise>
-        <Rise delay={26}>
+        <Rise delay={cue("privacy", "2") + 16}>
           <div style={{ marginTop: 8, fontSize: 30, fontWeight: 600, color: color.deep }}>rep1@atu.edu.gh</div>
         </Rise>
-        <Rise delay={40}>
+        <Rise delay={cue("privacy", "1")}>
           <div style={{ marginTop: 22, fontSize: 28, lineHeight: 1.35, color: "#3d4854" }}>
             Reason written down: Quality review of a contested session.
           </div>
         </Rise>
-        <Rise delay={54}>
+        <Rise delay={cue("privacy", "3")}>
           <div style={{ marginTop: 14, fontSize: 28, lineHeight: 1.35, color: "#3d4854" }}>
-            The audit log keeps that reason. The student list keeps the alias.
+            The student list still shows only the stand-in name.
           </div>
         </Rise>
       </div>
-      <Caption>QA asked for the name. The answer came back once, with a reason, and that reason is now on the audit log.</Caption>
+      <Caption>The real name stays sealed until there is a reason. The reason is written down.</Caption>
     </Stage>
   );
 }
@@ -359,13 +368,13 @@ function Roles() {
   return (
     <LaptopScene
       kicker="Who sees what"
-      title="Each role sees only its own scope."
-      caption="QA runs the day. A head of department sees one department. The Vice-Chancellor sees the university. IT sets the rules."
+      title="Each person sees only their own part."
+      caption="Quality assurance runs the day. A head of department sees one department. The Vice-Chancellor sees the university. The technology team sets the rules."
       shots={[
-        { src: "captures/qa-dashboard.png", at: 0, focusX: 64, focusY: 36, zoom: 1.14 },
-        { src: "captures/hod-dashboard.png", at: 110, focusX: 64, focusY: 36, zoom: 1.14 },
-        { src: "captures/vc-analytics.png", at: 220, focusX: 66, focusY: 34, zoom: 1.12 },
-        { src: "captures/it-settings-ai.png", at: 340, focusX: 62, focusY: 55, zoom: 1.16 }
+        { src: "captures/qa-dashboard.png", at: shotAt("roles", "0"), focusX: 64, focusY: 36, zoom: 1.14 },
+        { src: "captures/hod-dashboard.png", at: shotAt("roles", "1"), focusX: 64, focusY: 36, zoom: 1.14 },
+        { src: "captures/vc-analytics.png", at: shotAt("roles", "2"), focusX: 66, focusY: 34, zoom: 1.12 },
+        { src: "captures/it-settings-ai.png", at: shotAt("roles", "3"), focusX: 62, focusY: 55, zoom: 1.16 }
       ]}
     />
   );
@@ -394,9 +403,9 @@ function Ask() {
         <Laptop>
           <ShotStack
             shots={[
-              { src: "captures/ask-open.png", at: 0, focusX: 78, focusY: 48, zoom: 1.12 },
-              { src: "captures/ask-question.png", at: 70, focusX: 78, focusY: 52, zoom: 1.16 },
-              { src: "captures/ask-answer.png", at: 150, focusX: 80, focusY: 58, zoom: 1.2 }
+              { src: "captures/ask-open.png", at: shotAt("ask", "0"), focusX: 78, focusY: 48, zoom: 1.12 },
+              { src: "captures/ask-question.png", at: shotAt("ask", "1"), focusX: 78, focusY: 52, zoom: 1.16 },
+              { src: "captures/ask-answer.png", at: shotAt("ask", "2"), focusX: 80, focusY: 58, zoom: 1.2 }
             ]}
           />
         </Laptop>
@@ -421,7 +430,7 @@ function Ask() {
         </Rise>
         <div style={{ marginTop: 16, display: "flex", flexDirection: "column", gap: 8 }}>
           {lateThisWeek.map(([name, course], index) => (
-            <Rise key={course} delay={22 + index * 10}>
+            <Rise key={course} delay={cue("ask", String(3 + index))}>
               <div
                 style={{
                   display: "flex",
@@ -438,7 +447,7 @@ function Ask() {
             </Rise>
           ))}
         </div>
-        <Rise delay={90}>
+        <Rise delay={cue("ask", "2")}>
           <div style={{ marginTop: 14, fontSize: 24, color: "#3d4854" }}>Each was recorded late once, in this week’s reports.</div>
         </Rise>
       </div>
@@ -484,7 +493,7 @@ function ExportScene() {
           15 Oct 2026 · STAT301 · Present · 10 min late · 1 flag
         </div>
       </div>
-      <Caption>Staff can export the report list: date, course, presence, minutes late, and flags.</Caption>
+      <Caption>The record can leave as a spreadsheet: date, course, presence, minutes late, and any marks.</Caption>
     </Stage>
   );
 }
@@ -494,7 +503,7 @@ function Fairness() {
     <LaptopScene
       kicker="Two reporters"
       title="A disagreement stays visible."
-      caption="If two reporters disagree on presence, Meridiqa opens a discrepancy. This sample has none open."
+      caption="If two representatives disagree, that disagreement stays visible. This sample has none open."
       shots={[{ src: "captures/discrepancies.png", at: 0, focusX: 64, focusY: 40, zoom: 1.12 }]}
     />
   );
@@ -514,8 +523,8 @@ function Roadmap() {
         </Rise>
       </div>
       <div style={{ position: "absolute", left: 96, right: 96, top: 380, display: "grid", gridTemplateColumns: "1fr 1fr", gap: 28 }}>
-        <RoadCard delay={20} step="Next" title="Hybrid" body="Classroom cameras and vision sit beside the class-rep report. Two witnesses, one record." />
-        <RoadCard delay={34} step="Later" title="Camera-led" body="When ATU is ready, monitoring can lead with the room itself. The audit trail stays." />
+        <RoadCard delay={20} step="Next" title="Hybrid" body="A camera in the room would sit beside the class representative’s report. Two witnesses, one record." />
+        <RoadCard delay={34} step="Later" title="Camera-led" body="When the university is ready, the camera can lead. The record of every decision stays. Not a feature today." />
       </div>
     </Stage>
   );
@@ -554,24 +563,30 @@ function Close() {
   );
 }
 
-const scenes: Array<{ id: string; frames: number; Component: React.FC }> = [
-  { id: "hook", frames: 270, Component: Hook },
-  { id: "origin", frames: 510, Component: Origin },
-  { id: "problem", frames: 330, Component: Problem },
-  { id: "meet", frames: 240, Component: Meet },
-  { id: "rep", frames: 420, Component: Rep },
-  { id: "alert", frames: 390, Component: Alert },
-  { id: "flags", frames: 270, Component: Flags },
-  { id: "coverage", frames: 270, Component: Coverage },
-  { id: "appeal", frames: 300, Component: Appeal },
-  { id: "privacy", frames: 300, Component: Privacy },
-  { id: "roles", frames: 480, Component: Roles },
-  { id: "ask", frames: 420, Component: Ask },
-  { id: "export", frames: 240, Component: ExportScene },
-  { id: "fairness", frames: 270, Component: Fairness },
-  { id: "roadmap", frames: 330, Component: Roadmap },
-  { id: "close", frames: 270, Component: Close }
-];
+const sceneComponents: Record<string, React.FC> = {
+  hook: Hook,
+  origin: Origin,
+  problem: Problem,
+  meet: Meet,
+  rep: Rep,
+  alert: Alert,
+  flags: Flags,
+  coverage: Coverage,
+  appeal: Appeal,
+  privacy: Privacy,
+  roles: Roles,
+  ask: Ask,
+  export: ExportScene,
+  fairness: Fairness,
+  roadmap: Roadmap,
+  close: Close
+};
+
+const scenes = scenePlan.map((scene) => ({
+  id: scene.id,
+  frames: scene.frames,
+  Component: sceneComponents[scene.id]
+}));
 
 export const demoDuration = scenes.reduce((sum, scene) => sum + scene.frames, 0) - fadeFrames * (scenes.length - 1);
 
@@ -579,6 +594,7 @@ export function Demo() {
   return (
     <AbsoluteFill>
       <FontFaces />
+      <Audio src={staticFile("audio/mix.m4a")} />
       <TransitionSeries>
         {scenes.map((scene, index) => (
           <TransitionSeries.Sequence key={scene.id} durationInFrames={scene.frames}>

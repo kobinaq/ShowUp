@@ -2,7 +2,7 @@
 
 A self-contained Remotion film for the Accra Technical University pitch. It does not change the Next.js app build. Screens are stills captured from a local run of the seeded app.
 
-The film is silent. No royalty-free music track is bundled.
+The film has narration and an original piano bed. See `NARRATION.md` for the script, the voice, and the music licence.
 
 ## Render
 
@@ -13,7 +13,13 @@ npm install
 npm run render
 ```
 
-Output: `demo-video/out/meridiqa-atu-demo.mp4` (1920×1080, 30 fps, about 2 minutes 50 seconds).
+Output: `demo-video/out/meridiqa-atu-demo.mp4` (1920×1080, 30 fps, a little under 3 minutes, with narration and music).
+
+The mixed audio is `public/audio/mix.m4a`, already loudness-matched to about −16 LUFS. To rebuild the voice and music (needs network for edge-tts, and FluidSynth with FluidR3_GM):
+
+```bash
+python3 scripts/build_audio.py
+```
 
 Chrome is expected at `/usr/local/bin/google-chrome`. If that path differs, change `browserExecutable` in `remotion.config.ts`.
 
