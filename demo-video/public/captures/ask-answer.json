@@ -1,0 +1,69 @@
+{
+  "question": "Which lecturers have been late this week?",
+  "plan": {
+    "queryType": "top_late",
+    "params": {
+      "semesterId": "active",
+      "period": "week"
+    },
+    "intent": "Find lecturers with repeated lateness"
+  },
+  "rows": [
+    {
+      "courseId": "atu_course_acct_1",
+      "course": "ACCT301",
+      "title": "Accounting and Finance Professional Practice 1",
+      "lecturer": "Abena Mensah",
+      "department": "Accounting and Finance",
+      "count": 1,
+      "period": "this week"
+    },
+    {
+      "courseId": "atu_course_ceng_1",
+      "course": "CENG301",
+      "title": "Computer Engineering Professional Practice 1",
+      "lecturer": "Akua Mensah",
+      "department": "Computer Engineering",
+      "count": 1,
+      "period": "this week"
+    },
+    {
+      "courseId": "atu_course_civ_1",
+      "course": "CIV301",
+      "title": "Civil Engineering Professional Practice 1",
+      "lecturer": "Ama Addo",
+      "department": "Civil Engineering",
+      "count": 1,
+      "period": "this week"
+    },
+    {
+      "courseId": "atu_course_est_1",
+      "course": "EST301",
+      "title": "Estate Management Professional Practice 1",
+      "lecturer": "Adjoa Agyemang",
+      "department": "Estate Management",
+      "count": 1,
+      "period": "this week"
+    },
+    {
+      "courseId": "atu_course_proc_1",
+      "course": "PROC301",
+      "title": "Procurement and Supply Chain Professional Practice 1",
+      "lecturer": "Efua Addo",
+      "department": "Procurement and Supply Chain",
+      "count": 1,
+      "period": "this week"
+    },
+    {
+      "courseId": "atu_course_stat_1",
+      "course": "STAT301",
+      "title": "Statistics Professional Practice 1",
+      "lecturer": "Esi Agyemang",
+      "department": "Statistics",
+      "count": 1,
+      "period": "this week"
+    }
+  ],
+  "answer": "This week, 6 lecturers were each recorded late once: Abena Mensah for ACCT301, Akua Mensah for CENG301, Ama Addo for CIV301, Adjoa Agyemang for EST301, Efua Addo for PROC301, and Esi Agyemang for STAT301.",
+  "groq": false
+}

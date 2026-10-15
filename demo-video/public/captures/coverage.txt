@@ -1,0 +1,16 @@
+Outline coverage
+
+9/12 topics covered. Expected by now: 9.
+
+Week 1: Computer Engineering Topic 1
+Week 2: Computer Engineering Topic 2
+Week 3: Computer Engineering Topic 3
+Week 4: Computer Engineering Topic 4
+Week 5: Computer Engineering Topic 5
+Week 6: Computer Engineering Topic 6
+Week 7: Computer Engineering Topic 7
+Week 8: Computer Engineering Topic 8
+Week 9: Computer Engineering Topic 9
+Week 10: Computer Engineering Topic 10
+Week 11: Computer Engineering Topic 11
+Week 12: Computer Engineering Topic 12

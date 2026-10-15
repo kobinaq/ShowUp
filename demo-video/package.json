@@ -1,0 +1,16 @@
+{
+  "name": "meridiqa-demo-video",
+  "private": true,
+  "version": "1.0.0",
+  "scripts": {
+    "studio": "remotion studio src/index.ts",
+    "render": "remotion render src/index.ts MeridiqaDemo out/meridiqa-atu-demo.mp4 --codec=h264 --image-format=png"
+  },
+  "dependencies": {
+    "@remotion/cli": "4.0.372",
+    "@remotion/transitions": "4.0.372",
+    "react": "19.0.0",
+    "react-dom": "19.0.0",
+    "remotion": "4.0.372"
+  }
+}

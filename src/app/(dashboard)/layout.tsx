@@ -14,8 +14,10 @@ export const dynamic = "force-dynamic";
 export default async function DashboardLayout({ children }: { children: React.ReactNode }) {
   const profile = await getAuthProfile();
   if (!profile) redirect("/login");
-  const pathname = (await headers()).get("x-showup-pathname") ?? "/dashboard";
-  if (!canAccessPath(profile.role, pathname)) redirect(roleHome[profile.role]);
+  const pathname = (await headers()).get("x-showup-pathname");
+  // Next.js 16 dev does not always forward this middleware header. Falling back to
+  // "/dashboard" redirect-loops roles whose home is not the command center.
+  if (pathname && !canAccessPath(profile.role, pathname)) redirect(roleHome[profile.role]);
 
   const canAsk =
     profile.role === "QA_OFFICER" ||
