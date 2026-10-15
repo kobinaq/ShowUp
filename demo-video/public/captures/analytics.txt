@@ -1,0 +1,167 @@
+Accra Technical University
+
+Analytics
+
+Executive indicators for attendance, topic coverage, late alerts, flags, and contested reports.
+
+Attendance rate
+
+Healthy
+
+92%
+
+192 reports analyzed
+192 reports analyzed
+
+Average coverage
+
+Review
+
+75%
+
+24 courses in scope
+24 courses in scope
+
+Absences
+
+Review
+
+16
+
+Total absence reports
+Total absence reports
+
+Lateness
+
+Review
+
+48
+
+Total late reports
+Total late reports
+
+Open flags
+
+Review
+
+64
+
+64 total flags
+64 total flags
+
+Open contests
+
+Review
+
+1
+
+Pending challenge reviews
+Pending challenge reviews
+
+Ping acknowledgement
+
+Review
+
+0%
+
+0/1 late pings acknowledged
+0/1 late pings acknowledged
+
+Student attendance
+
+Review
+
+79%
+
+192 sessions with class size
+192 sessions with class size
+
+Courses
+
+24
+
+Course records in scope
+Course records in scope
+Attendance by department
+
+Higher bars indicate stronger reported attendance.
+
+Courses
+0
+25
+50
+75
+100
+Flag type distribution
+
+Flag volume shows the dominant quality issues.
+
+Lateness
+Absence
+0
+15
+30
+45
+60
+Coverage status
+
+Behind courses should be reviewed first.
+
+On Track
+0
+6
+12
+18
+24
+Student attendance by course
+
+Reporter headcounts compared with HOD-entered class sizes.
+
+STAT301
+CS301
+CIV301
+BT301
+CENG302
+EENG301
+0
+20
+40
+60
+80
+Student attendance trend
+
+Average reported student attendance across recent sessions.
+
+Oct 13
+Oct 7
+Oct 1
+Sep 24
+Sep 17
+Sep 11
+Sep 7
+Sep 1
+Aug 24
+0
+25
+50
+75
+100
+Attendance %
+Top flagged lecturers
+Fiifi Ofori
+3 flags
+Adjoa Agyemang
+3 flags
+Adjoa Appiah
+3 flags
+Kwesi Nyarko
+3 flags
+Kwesi Darko
+3 flags
+Courses behind coverage
+
+No records in this category.
+
+Recent contested reports
+CENG301 - Lecturer provided attendance evidence for the session.
+Pending
