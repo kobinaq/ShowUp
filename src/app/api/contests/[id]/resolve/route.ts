@@ -1,4 +1,4 @@
-import { ContestStatus, Role } from "@prisma/client";
+import { ContestStatus, FlagEventType, Role } from "@prisma/client";
 import { prisma } from "@/lib/prisma";
 import { andWhere, contestScope } from "@/lib/auth/scope";
 import { withAuth, json, badRequest } from "@/lib/middleware/withAuth";
@@ -38,7 +38,18 @@ export const PUT = withAuth<Params>(async (request, { params, profile }) => {
       data: reportFlagsForResolution(accepted)
     });
     if (accepted) {
+      const flags = await tx.flag.findMany({ where: { reportId: resolved.reportId }, select: { id: true } });
       await tx.flag.updateMany({ where: { reportId: resolved.reportId }, data: { isResolved: true, internalNotes: "Contest accepted" } });
+      if (flags.length) {
+        await tx.flagEvent.createMany({
+          data: flags.map((flag) => ({
+            flagId: flag.id,
+            type: FlagEventType.RESOLVED,
+            actorId: profile.id,
+            note: "Contest accepted"
+          }))
+        });
+      }
     }
     return resolved;
   });

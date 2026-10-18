@@ -5,6 +5,7 @@ export type ScopedProfile = {
   role: Role;
   universityId: string;
   departmentId: string | null;
+  lecturerId?: string | null;
 };
 
 const noAccessId = "__no_access__";
@@ -19,6 +20,7 @@ export function isUniversityRole(role: Role) {
 
 export function courseScope(profile: ScopedProfile): Prisma.CourseWhereInput {
   if (profile.role === Role.SUPER_ADMIN) return {};
+  if (profile.role === Role.LECTURER) return { lecturerId: profile.lecturerId ?? noAccessId };
   if (isDepartmentRole(profile.role)) return { departmentId: profile.departmentId ?? noAccessId };
   if (isUniversityRole(profile.role)) return { department: { faculty: { universityId: profile.universityId } } };
   return { repAssignments: { some: { profileId: profile.id, isActive: true } } };
@@ -26,6 +28,7 @@ export function courseScope(profile: ScopedProfile): Prisma.CourseWhereInput {
 
 export function lecturerScope(profile: ScopedProfile): Prisma.LecturerWhereInput {
   if (profile.role === Role.SUPER_ADMIN) return {};
+  if (profile.role === Role.LECTURER) return { id: profile.lecturerId ?? noAccessId };
   if (isDepartmentRole(profile.role)) return { departmentId: profile.departmentId ?? noAccessId };
   if (isUniversityRole(profile.role)) return { department: { faculty: { universityId: profile.universityId } } };
   return { id: noAccessId };
@@ -72,6 +75,19 @@ export function contestScope(profile: ScopedProfile): Prisma.ContestWhereInput {
 }
 
 export function latePingScope(profile: ScopedProfile): Prisma.LatePingWhereInput {
+  return { course: courseScope(profile) };
+}
+
+export function rosterProposalScope(profile: ScopedProfile): Prisma.RosterProposalWhereInput {
+  return { course: courseScope(profile) };
+}
+
+export function identityLookupScope(profile: ScopedProfile): Prisma.IdentityLookupWhereInput {
+  if (profile.role === Role.SUPER_ADMIN) return {};
+  return { performedBy: { universityId: profile.universityId } };
+}
+
+export function reportDiscrepancyScope(profile: ScopedProfile): Prisma.ReportDiscrepancyWhereInput {
   return { course: courseScope(profile) };
 }
 

@@ -14,6 +14,6 @@ export const PUT = withAuth<Params>(async (request, { params, profile }) => {
   if (!parsed.success) return badRequest("Invalid flag resolution payload", parsed.error.flatten());
   const existing = await prisma.flag.findFirst({ where: andWhere({ id }, flagScope(profile)), select: { id: true } });
   if (!existing) return json({ error: "Not found" }, { status: 404 });
-  const flag = await resolveFlag(id, parsed.data.internalNotes);
+  const flag = await resolveFlag(id, parsed.data.internalNotes, profile.id);
   return json({ data: flag });
 }, [Role.SUPER_ADMIN, Role.QA_OFFICER, Role.QA_ASSISTANT]);

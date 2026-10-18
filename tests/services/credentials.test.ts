@@ -2,7 +2,7 @@ import { Role } from "@prisma/client";
 
 /** Mirrors notification.service sendRepCredentials SMS contract — passwords must never appear in SMS. */
 function buildRepSms(realEmail: string) {
-  return `ShowUp: you were assigned as a course reporter. Check your email (${realEmail}) for login details. Do not share credentials.`;
+  return `Meridiqa: you were assigned as a course reporter. Check your email (${realEmail}) for login details. Do not share credentials.`;
 }
 
 function buildRepEmail(aliasEmail: string, password: string) {

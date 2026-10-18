@@ -2,7 +2,7 @@
 
 import { useMemo, useState } from "react";
 import toast from "react-hot-toast";
-import { displayText } from "@/lib/utils/displayText";
+import { displayAccount, displayText } from "@/lib/utils/displayText";
 import { cn } from "@/lib/utils/cn";
 
 export type SupportTicketListItem = {
@@ -66,7 +66,7 @@ export function SupportTicketList({ tickets, canManage }: { tickets: SupportTick
                   <Badge>{displayText(ticket.priority)}</Badge>
                 </div>
                 <p className="mt-1 text-sm text-muted">
-                  {displayText(ticket.category)} by {ticket.requester.displayName ?? ticket.requester.email ?? displayText(ticket.requester.role)}
+                  {displayText(ticket.category)} by {ticket.requester.displayName ?? (ticket.requester.email ? displayAccount(ticket.requester.email) : displayText(ticket.requester.role))}
                 </p>
               </div>
               {canManage ? (

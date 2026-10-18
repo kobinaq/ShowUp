@@ -4,12 +4,13 @@ import { useEffect, useState } from "react";
 import { useRouter } from "next/navigation";
 import toast from "react-hot-toast";
 
-type DemoRole = "QA_OFFICER" | "VC" | "HOD" | "CLASS_REP" | "SUPER_ADMIN" | "IT";
+type DemoRole = "QA_OFFICER" | "VC" | "HOD" | "LECTURER" | "CLASS_REP" | "SUPER_ADMIN" | "IT";
 
 const ROLE_OPTIONS: Array<{ role: DemoRole; label: string; blurb: string }> = [
-  { role: "QA_OFFICER", label: "QA Officer", blurb: "Command center, flags, late pings, ShowUp AI" },
+  { role: "QA_OFFICER", label: "QA Officer", blurb: "Command center, flags, late pings, Meridiqa AI" },
   { role: "VC", label: "Vice Chancellor", blurb: "Leadership analytics across the university" },
   { role: "HOD", label: "Head of Department", blurb: "Department courses, contests, coverage" },
+  { role: "LECTURER", label: "Lecturer", blurb: "Own courses, class roster, manual attendance marking" },
   { role: "CLASS_REP", label: "Class Reporter", blurb: "Anonymous lecture report submission" },
   { role: "SUPER_ADMIN", label: "Super Admin", blurb: "University setup and staff provisioning" },
   { role: "IT", label: "IT Officer", blurb: "Support tickets and admin tools" }

@@ -11,6 +11,7 @@ export type ApiContext = {
     role: Role;
     universityId: string;
     departmentId: string | null;
+    lecturerId: string | null;
   };
 };
 
@@ -36,7 +37,7 @@ export function withAuth<T>(handler: ApiHandler<T>, roles?: Role[]) {
     if (!error && data.user) {
       const profile = await prisma.profile.findUnique({
         where: { supabaseUid: data.user.id },
-        select: { id: true, supabaseUid: true, role: true, universityId: true, departmentId: true, isActive: true }
+        select: { id: true, supabaseUid: true, role: true, universityId: true, departmentId: true, lecturerId: true, isActive: true }
       });
       if (profile?.isActive) {
         if (roles && !roles.includes(profile.role)) return forbidden();
@@ -45,7 +46,9 @@ export function withAuth<T>(handler: ApiHandler<T>, roles?: Role[]) {
       }
     }
 
-    const demo = await parseDemoSession(request.cookies.get(DEMO_COOKIE)?.value);
+    const demo =
+      (await parseDemoSession(request.cookies.get(DEMO_COOKIE)?.value)) ??
+      (await parseDemoSession(request.cookies.get("showup_demo")?.value));
     if (demo) {
       const profile = await resolveDemoProfile(demo);
       if (profile) {

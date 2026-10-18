@@ -32,11 +32,22 @@ export async function rotateDueReps(now = new Date()) {
     try {
       results.push(await rotateCourse(assignment.courseId, assignment.assignedById, assignment.id));
     } catch (error) {
+      const message = error instanceof Error ? error.message : String(error);
+      await prisma.rotationLog.create({
+        data: {
+          courseId: assignment.courseId,
+          assignmentId: assignment.id,
+          outgoingAlias: assignment.profile.anonymousAlias,
+          incomingAlias: null,
+          action: "failed",
+          error: message
+        }
+      });
       results.push({
         courseId: assignment.courseId,
         outgoingAlias: assignment.profile.anonymousAlias ?? null,
         incomingAlias: null,
-        error: error instanceof Error ? error.message : String(error)
+        error: message
       });
     }
   }

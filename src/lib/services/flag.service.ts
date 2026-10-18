@@ -1,27 +1,73 @@
 import { FlagType, PresenceStatus, ArrivalStatus, DeliveryStatus, type Prisma } from "@prisma/client";
 import { prisma } from "@/lib/prisma";
 import { notificationService } from "@/lib/services/notification.service";
+import { flagEventForCreate, flagEventForResolution } from "@/lib/services/flag-events";
+import { applyLateGrace } from "@/lib/services/session-status";
+import { isFlagSuppressedByBlackout } from "@/lib/services/timetable";
 import { formatClassTime } from "@/lib/utils/sessionTime";
 
 export async function createFlagsForReport(tx: Prisma.TransactionClient, reportId: string) {
   const report = await tx.lectureReport.findUnique({
     where: { id: reportId },
-    include: { schedule: true, course: { include: { lecturer: true, department: { include: { faculty: true } } } } }
+    include: {
+      schedule: true,
+      lectureSession: true,
+      course: { include: { lecturer: true, department: { include: { faculty: true } } } }
+    }
   });
   if (!report || report.isVoided) return [];
-  const settings = await tx.universitySettings.findUnique({ where: { universityId: report.course.department.faculty.universityId } });
+  const universityId = report.course.department.faculty.universityId;
+  const settings = await tx.universitySettings.findUnique({ where: { universityId } });
   const repeatThreshold = settings?.flagRepeatThreshold ?? 3;
+  const graceMinutes = settings?.lateGraceMinutes ?? 10;
 
+  if (
+    await isFlagSuppressedByBlackout({
+      universityId,
+      departmentId: report.course.departmentId,
+      lectureDate: report.lectureDate,
+      tx
+    })
+  ) {
+    return [];
+  }
+
+  const facilitiesAttributed = Boolean(report.lectureSession?.attributedToFacilities);
   const created = [];
-  if (report.lecturerPresent === PresenceStatus.ABSENT) {
+  if (report.lecturerPresent === PresenceStatus.ABSENT && !facilitiesAttributed) {
     created.push(await createFlag(tx, report.course.lecturerId, report.id, FlagType.ABSENCE, `Absent from ${report.course.code}.`));
     await createRepeatedFlagIfNeeded(tx, report.course.lecturerId, report.id, FlagType.ABSENCE, FlagType.REPEATED_ABSENCE, repeatThreshold);
   }
-  if (report.arrivalStatus === ArrivalStatus.LATE && report.lateMinutes) {
-    created.push(await createFlag(tx, report.course.lecturerId, report.id, FlagType.LATENESS, `Late by ${report.lateMinutes} minutes for ${report.course.code}.`));
-    await createRepeatedFlagIfNeeded(tx, report.course.lecturerId, report.id, FlagType.LATENESS, FlagType.REPEATED_LATENESS, repeatThreshold);
+
+  const late = applyLateGrace({ lateMinutes: report.lateMinutes, graceMinutes });
+  if (report.arrivalStatus === ArrivalStatus.LATE || late.arrivalStatus === "LATE") {
+    if (late.arrivalStatus === "LATE" && late.lateMinutes) {
+      if (facilitiesAttributed) {
+        created.push(
+          await createFlag(
+            tx,
+            report.course.lecturerId,
+            report.id,
+            FlagType.LATENESS,
+            `Delayed by facilities (${late.lateMinutes} min) for ${report.course.code}.`,
+            true
+          )
+        );
+      } else {
+        created.push(
+          await createFlag(
+            tx,
+            report.course.lecturerId,
+            report.id,
+            FlagType.LATENESS,
+            `Late by ${late.lateMinutes} minutes for ${report.course.code}.`
+          )
+        );
+        await createRepeatedFlagIfNeeded(tx, report.course.lecturerId, report.id, FlagType.LATENESS, FlagType.REPEATED_LATENESS, repeatThreshold);
+      }
+    }
   }
-  if (report.earlyDismissal && report.dismissedEarlyMinutes) {
+  if (report.earlyDismissal && report.dismissedEarlyMinutes && !facilitiesAttributed) {
     created.push(await createFlag(tx, report.course.lecturerId, report.id, FlagType.EARLY_DISMISSAL, `${report.course.code} ended ${report.dismissedEarlyMinutes} minutes early.`));
   }
   return created;
@@ -42,7 +88,7 @@ export async function notifyAbsenceForReport(reportId: string) {
   const settings = await prisma.universitySettings.findUnique({ where: { universityId: report.course.department.faculty.universityId } });
   const delivery = await notificationService.notifyLecturer(
     report.course.lecturer,
-    "ShowUp absence report",
+    "Meridiqa absence report",
     `You were reported absent for your ${report.course.code} class today at ${formatClassTime(report.schedule.startTime)}. Contact your HOD if incorrect. Do not reply to this message.`,
     {
       emailEnabled: settings?.lecturerAbsenceEmailEnabled ?? true,
@@ -54,15 +100,30 @@ export async function notifyAbsenceForReport(reportId: string) {
   }
 }
 
-export async function resolveFlag(flagId: string, internalNotes?: string) {
-  return prisma.flag.update({
-    where: { id: flagId },
-    data: { isResolved: true, internalNotes }
+export async function resolveFlag(flagId: string, internalNotes?: string, actorId?: string) {
+  return prisma.$transaction(async (tx) => {
+    const flag = await tx.flag.update({
+      where: { id: flagId },
+      data: { isResolved: true, internalNotes }
+    });
+    await tx.flagEvent.create({
+      data: { flagId, actorId, ...flagEventForResolution(internalNotes) }
+    });
+    return flag;
   });
 }
 
-async function createFlag(tx: Prisma.TransactionClient, lecturerId: string, reportId: string, type: FlagType, message: string) {
-  return tx.flag.create({ data: { lecturerId, reportId, type, message } });
+async function createFlag(
+  tx: Prisma.TransactionClient,
+  lecturerId: string,
+  reportId: string,
+  type: FlagType,
+  message: string,
+  attributedToFacilities = false
+) {
+  const flag = await tx.flag.create({ data: { lecturerId, reportId, type, message, attributedToFacilities } });
+  await tx.flagEvent.create({ data: { flagId: flag.id, ...flagEventForCreate() } });
+  return flag;
 }
 
 async function createRepeatedFlagIfNeeded(
@@ -79,7 +140,7 @@ async function createRepeatedFlagIfNeeded(
   ]);
   if (existing || count < threshold) return;
   const label = repeatedType === FlagType.REPEATED_ABSENCE ? "absence" : "lateness";
-  await tx.flag.create({
+  const flag = await tx.flag.create({
     data: {
       lecturerId,
       reportId,
@@ -87,4 +148,5 @@ async function createRepeatedFlagIfNeeded(
       message: `Repeated ${label} threshold reached (${count} reports).`
     }
   });
+  await tx.flagEvent.create({ data: { flagId: flag.id, ...flagEventForCreate(`Repeated ${label} threshold`) } });
 }

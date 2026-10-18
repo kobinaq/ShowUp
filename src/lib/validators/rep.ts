@@ -1,3 +1,4 @@
+import { RepDutyRole } from "@prisma/client";
 import { z } from "zod";
 
 export const createRepSchema = z.object({
@@ -6,5 +7,6 @@ export const createRepSchema = z.object({
   realEmail: z.string().email(),
   realPhone: z.string().min(8),
   rotationOrder: z.number().int().min(1),
-  rotationWeeks: z.number().int().min(1).max(16).default(4)
+  rotationWeeks: z.number().int().min(1).max(16).default(4),
+  dutyRole: z.nativeEnum(RepDutyRole).default(RepDutyRole.PRIMARY)
 });

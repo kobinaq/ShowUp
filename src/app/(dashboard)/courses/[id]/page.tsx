@@ -8,7 +8,12 @@ import { MetricCard, SectionPanel, Tabs } from "@/components/shared/Panels";
 import { StatusBadge } from "@/components/shared/StatusBadge";
 import { EmptyState } from "@/components/shared/EmptyState";
 import { ReporterAssignmentForm } from "@/components/courses/ReporterAssignmentForm";
+import { RosterProposalForm } from "@/components/courses/RosterProposalForm";
 import { OutlineUploadForm } from "@/components/courses/OutlineUploadForm";
+import { CourseAttendancePanel } from "@/components/attendance/CourseAttendancePanel";
+import { rosterFairness } from "@/lib/services/roster-fairness";
+import { courseAttendanceSummary } from "@/lib/services/student-attendance";
+import { attendanceManagers } from "@/lib/auth/roles";
 import { getAuthProfile } from "@/lib/auth/session";
 import { andWhere, courseScope } from "@/lib/auth/scope";
 
@@ -17,7 +22,9 @@ export default async function CourseDetailPage({ params }: { params: Promise<{ i
   const profile = await getAuthProfile();
   if (!profile) redirect("/login");
   const canManageReporter = profile.role === Role.SUPER_ADMIN || profile.role === Role.QA_OFFICER || profile.role === Role.QA_ASSISTANT || profile.role === Role.IT;
+  const canProposeRoster = profile.role === Role.HOD || profile.role === Role.HOD_ASSISTANT || canManageReporter;
   const canUploadOutline = profile.role === Role.SUPER_ADMIN || profile.role === Role.IT;
+  const canManageAttendance = attendanceManagers.includes(profile.role);
   const course = await prisma.course.findFirst({
     where: andWhere({ id }, courseScope(profile)),
     include: {
@@ -26,19 +33,42 @@ export default async function CourseDetailPage({ params }: { params: Promise<{ i
       schedule: true,
       outline: { include: { topics: { orderBy: { order: "asc" } } } },
       reports: { include: { course: { include: { lecturer: true } }, flags: true, contest: true, latePing: true }, orderBy: { lectureDate: "desc" } },
-      repAssignments: { include: { profile: true }, orderBy: { createdAt: "desc" } },
-      latePings: true
+      repAssignments: { include: { profile: true, sealedIdentity: { select: { id: true, realName: true } } }, orderBy: { createdAt: "desc" } },
+      latePings: true,
+      enrollments: { include: { student: true }, orderBy: { student: { fullName: "asc" } } },
+      attendanceSessions: {
+        include: { records: { select: { status: true } }, _count: { select: { records: true } } },
+        orderBy: { lectureDate: "desc" }
+      },
+      studentAttendanceFlags: { where: { status: "OPEN" } }
     }
   });
   if (!course) notFound();
   const coverage = await calculateCoverage(course.id);
   const presentReports = course.reports.filter((report) => report.lecturerPresent !== "ABSENT").length;
   const attendanceRate = course.reports.length ? Math.round((presentReports / course.reports.length) * 100) : 0;
+  const rosterSummary = await courseAttendanceSummary(course.id);
+  const rosterAverage =
+    rosterSummary.length && rosterSummary.some((row) => row.totalSessions > 0)
+      ? Math.round(
+          rosterSummary.filter((row) => row.totalSessions > 0).reduce((sum, row) => sum + row.attendancePercent, 0) /
+            rosterSummary.filter((row) => row.totalSessions > 0).length
+        )
+      : null;
   const studentCountReports = course.classSize ? course.reports.filter((report) => typeof report.studentCount === "number") : [];
-  const studentAttendanceRate = course.classSize && studentCountReports.length
+  const headcountAttendanceRate = course.classSize && studentCountReports.length
     ? Math.round((studentCountReports.reduce((sum, report) => sum + (report.studentCount ?? 0), 0) / (studentCountReports.length * course.classSize)) * 100)
     : null;
+  const studentAttendanceRate = rosterAverage ?? headcountAttendanceRate;
   const activeReps = course.repAssignments.filter((item) => item.isActive);
+  const fairness = rosterFairness(course.repAssignments.map((assignment) => ({
+    sealedIdentityId: assignment.sealedIdentityId,
+    createdAt: assignment.createdAt
+  })));
+  const personName = new Map(course.repAssignments.map((assignment) => [
+    assignment.sealedIdentityId,
+    canManageReporter ? assignment.sealedIdentity.realName : `Member ${assignment.sealedIdentityId.slice(-4)}`
+  ]));
 
   return (
     <div className="space-y-6">
@@ -51,7 +81,18 @@ export default async function CourseDetailPage({ params }: { params: Promise<{ i
       <section className="grid gap-4 md:grid-cols-2 xl:grid-cols-4">
         <MetricCard label="Reports" value={course.reports.length} helper="Submitted sessions" tone="blue" />
         <MetricCard label="Attendance" value={`${attendanceRate}%`} helper="Non-absence reports" tone={attendanceRate >= 85 ? "green" : attendanceRate >= 70 ? "amber" : "red"} />
-        <MetricCard label="Student attendance" value={studentAttendanceRate === null ? "-" : `${studentAttendanceRate}%`} helper={course.classSize ? `Against class size of ${course.classSize}` : "Class size not set"} tone={studentAttendanceRate === null ? "grey" : studentAttendanceRate >= 80 ? "green" : studentAttendanceRate >= 60 ? "amber" : "red"} />
+        <MetricCard
+          label="Student attendance"
+          value={studentAttendanceRate === null ? "-" : `${studentAttendanceRate}%`}
+          helper={
+            rosterAverage !== null
+              ? `${course.enrollments.length} enrolled · ${course.studentAttendanceFlags.length} low flags`
+              : course.classSize
+                ? `Headcount vs class size ${course.classSize}`
+                : "No roster sessions yet"
+          }
+          tone={studentAttendanceRate === null ? "grey" : studentAttendanceRate >= 80 ? "green" : studentAttendanceRate >= 60 ? "amber" : "red"}
+        />
         <MetricCard label="Coverage" value={`${coverage.coveragePercent}%`} helper={coverage.pacingStatus} tone={coverage.pacingStatus === "Behind" ? "amber" : "green"} />
         <MetricCard label="Late pings" value={course.latePings.length} helper="Alerts sent for this course" tone={course.latePings.length ? "amber" : "green"} />
       </section>
@@ -59,6 +100,7 @@ export default async function CourseDetailPage({ params }: { params: Promise<{ i
         { id: "overview", label: "Overview" },
         { id: "reports", label: "Reports", count: course.reports.length },
         { id: "coverage", label: "Coverage", count: course.outline?.topics.length ?? 0 },
+        { id: "attendance", label: "Student attendance", count: course.enrollments.length },
         { id: "reporter", label: "Reporters", count: activeReps.length },
         { id: "schedule", label: "Schedule", count: course.schedule.length }
       ]} />
@@ -85,6 +127,32 @@ export default async function CourseDetailPage({ params }: { params: Promise<{ i
           ) : <p className="text-sm text-muted">No active reporters assigned.</p>}
         </SectionPanel>
       </section>
+      <section id="attendance">
+        <CourseAttendancePanel
+          courseId={course.id}
+          canManage={canManageAttendance}
+          initialStudents={course.enrollments.map((enrollment) => {
+            const summary = rosterSummary.find((row) => row.studentId === enrollment.studentId);
+            return {
+              id: enrollment.student.id,
+              studentNumber: enrollment.student.studentNumber,
+              fullName: enrollment.student.fullName,
+              email: enrollment.student.email,
+              attendancePercent: summary && summary.totalSessions > 0 ? summary.attendancePercent : null,
+              presentLike: summary?.presentLike ?? 0,
+              totalSessions: summary?.totalSessions ?? 0,
+              lowAttendance: course.studentAttendanceFlags.some((flag) => flag.studentId === enrollment.studentId)
+            };
+          })}
+          initialSessions={course.attendanceSessions.map((session) => ({
+            id: session.id,
+            lectureDate: session.lectureDate.toISOString(),
+            status: session.status,
+            presentCount: session.records.filter((record) => record.status === "PRESENT" || record.status === "LATE").length,
+            recordCount: session._count.records
+          }))}
+        />
+      </section>
       <SectionPanel id="reports" title="Reports" description="Click any report row to open the full submitted report.">
         <ReportTable reports={course.reports} />
       </SectionPanel>
@@ -110,6 +178,16 @@ export default async function CourseDetailPage({ params }: { params: Promise<{ i
               </div>
             )) : <p className="text-sm text-muted">No reporter assignments yet.</p>}
             {canManageReporter && activeReps.length < 2 ? <ReporterAssignmentForm courseId={course.id} /> : null}
+            {canProposeRoster ? <RosterProposalForm courseId={course.id} /> : null}
+            <div className="rounded-lg border border-slate-200 bg-slate-50 p-3">
+              <p className="text-sm font-bold text-navy">Roster fairness</p>
+              <p className="mt-1 text-sm text-muted">{fairness.totalCycles} assignment cycles. {fairness.concentrated ? "The last four cycles concentrated on one person." : "Recent cycles are spread across the roster."}</p>
+              <ul className="mt-2 space-y-1 text-sm">
+                {fairness.byPerson.map((person) => (
+                  <li key={person.sealedIdentityId}>{personName.get(person.sealedIdentityId) ?? "Roster member"} · {person.cycles} cycle{person.cycles === 1 ? "" : "s"}</li>
+                ))}
+              </ul>
+            </div>
             {canManageReporter ? <p className="text-sm text-muted">For replacements and comparison review, open <a href="/students" className="font-semibold text-navy underline">Students</a>.</p> : null}
           </div>
         </SectionPanel>

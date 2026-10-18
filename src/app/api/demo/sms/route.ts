@@ -14,7 +14,9 @@ const schema = z.object({
 });
 
 export async function POST(request: NextRequest) {
-  const session = await parseDemoSession(request.cookies.get(DEMO_COOKIE)?.value);
+  const session =
+    (await parseDemoSession(request.cookies.get(DEMO_COOKIE)?.value)) ??
+    (await parseDemoSession(request.cookies.get("showup_demo")?.value));
   if (!session) return json({ error: "Start a live demo session first" }, { status: 401 });
 
   const body = schema.safeParse(await request.json().catch(() => null));
@@ -30,7 +32,7 @@ export async function POST(request: NextRequest) {
   if (body.data.kind === "test") {
     const status = await notificationService.sendSms(
       phone,
-      "ShowUp live demo: SMS notifications are working. This is a test from the ShowUp pitch demo."
+      "Meridiqa live demo: SMS notifications are working. This is a test from the Meridiqa pitch demo."
     );
     return json({ ok: status === DeliveryStatus.SENT, status, kind: "test", phone });
   }
@@ -49,7 +51,7 @@ export async function POST(request: NextRequest) {
   const appUrl = process.env.NEXT_PUBLIC_APP_URL ?? "http://localhost:3000";
 
   if (body.data.kind === "absence") {
-    const message = `ShowUp alert: ${lecturerName} was reported absent for ${course.code} (${course.title}) today. QA has been notified.`;
+    const message = `Meridiqa alert: ${lecturerName} was reported absent for ${course.code} (${course.title}) today. QA has been notified.`;
     const status = await notificationService.sendSms(phone, message);
     await prisma.lecturerNotification.create({
       data: {
@@ -100,7 +102,7 @@ async function sendPitchLatePingAnytime(input: {
     }
   });
 
-  const smsMessage = `ShowUp alert: you are ${threshold} minutes late for your ${input.course.code} class today at ${input.schedule.startTime}. Venue: ${input.schedule.venue ?? "scheduled venue"}. Acknowledge: ${input.appUrl}/api/pings/${acknowledgeToken}/acknowledge`;
+  const smsMessage = `Meridiqa alert: you are ${threshold} minutes late for your ${input.course.code} class today at ${input.schedule.startTime}. Venue: ${input.schedule.venue ?? "scheduled venue"}. Acknowledge: ${input.appUrl}/api/pings/${acknowledgeToken}/acknowledge`;
   const smsStatus = await notificationService.sendSms(input.phone, smsMessage);
 
   const updated = await prisma.latePing.update({

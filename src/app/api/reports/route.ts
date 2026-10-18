@@ -1,4 +1,4 @@
-import { AidType, Prisma, Role } from "@prisma/client";
+import { AidType, DiscrepancyKind, Prisma, Role, SessionReportCoverage, SubmissionSource } from "@prisma/client";
 import { prisma } from "@/lib/prisma";
 import { andWhere, courseScope, reportScope, startOfSessionDay, timeOnSessionDate } from "@/lib/auth/scope";
 import { withAuth, json, badRequest, forbidden } from "@/lib/middleware/withAuth";
@@ -6,6 +6,8 @@ import { presenceStatusSchema, reportSchema } from "@/lib/validators/report";
 import { createFlagsForReport, notifyAbsenceForReport } from "@/lib/services/flag.service";
 import { recalculateAndFlag } from "@/lib/services/coverage.service";
 import { handlePostClassPingEscalation } from "@/lib/services/ping.service";
+import { presenceDisagrees } from "@/lib/services/report-discrepancy";
+import { isWithinLateSubmissionWindow, nextReportCoverage } from "@/lib/services/rep-reliability";
 
 export const GET = withAuth(async (request, { profile }) => {
   const url = new URL(request.url);
@@ -54,13 +56,25 @@ export const POST = withAuth(async (request, { profile }) => {
 
   const settings = await prisma.universitySettings.findUnique({ where: { universityId: course.department.faculty.universityId } });
   const windowHours = settings?.submissionWindowHours ?? Number(process.env.SUBMISSION_WINDOW_HOURS ?? 2);
+  const lateSubmissionHours = settings?.lateSubmissionHours ?? 24;
+  const graceMinutes = settings?.lateGraceMinutes ?? 10;
   const classStartAt = timeOnSessionDate(lectureDate, schedule.startTime);
   const classEndAt = timeOnSessionDate(lectureDate, schedule.endTime);
   const windowClosedAt = new Date(classEndAt.getTime() + windowHours * 60 * 60 * 1000);
   const now = new Date();
+  const url = new URL(request.url);
+  const sourceParam = url.searchParams.get("source");
+  const submissionSource =
+    sourceParam === "offline" ? SubmissionSource.OFFLINE_DRAFT : sourceParam === "sms" ? SubmissionSource.SMS : SubmissionSource.WEB;
+  let isLateSubmission = false;
   if (profile.role === Role.CLASS_REP) {
     if (now < classStartAt) return badRequest("Reports can only be submitted after class starts");
-    if (now > windowClosedAt) return forbidden("The reporting window for this session has closed");
+    if (now > windowClosedAt) {
+      if (!isWithinLateSubmissionWindow(now, windowClosedAt, lateSubmissionHours)) {
+        return forbidden("The reporting window for this session has closed");
+      }
+      isLateSubmission = true;
+    }
   }
 
   const payload = parsed.data;
@@ -73,15 +87,23 @@ export const POST = withAuth(async (request, { profile }) => {
     if (allowedTopics !== new Set(topicIds).size) return badRequest("One or more selected topics do not belong to this course");
   }
 
+  const { applyLateGrace } = await import("@/lib/services/session-status");
+  const { ensureLectureSession } = await import("@/lib/services/timetable");
+  const lateAdjusted = isAbsent
+    ? { arrivalStatus: null as "ON_TIME" | "LATE" | null, lateMinutes: null as number | null }
+    : applyLateGrace({ lateMinutes: data.lateMinutes ?? null, graceMinutes });
+
   let report;
   try {
     report = await prisma.$transaction(async (tx) => {
+      const session = await ensureLectureSession({ scheduleId: schedule.id, lectureDate, tx });
       const created = await tx.lectureReport.create({
         data: {
           ...data,
           lectureDate,
-          arrivalStatus: isAbsent ? undefined : data.arrivalStatus,
-          lateMinutes: isAbsent ? undefined : data.lateMinutes,
+          lectureSessionId: session.id,
+          arrivalStatus: isAbsent ? undefined : (lateAdjusted.arrivalStatus ?? data.arrivalStatus),
+          lateMinutes: isAbsent ? undefined : (lateAdjusted.lateMinutes ?? data.lateMinutes),
           earlyDismissal: isAbsent ? false : Boolean(data.earlyDismissal),
           dismissedEarlyMinutes: isAbsent ? undefined : data.dismissedEarlyMinutes,
           previousTopicsRevisited: isAbsent ? false : Boolean(data.previousTopicsRevisited),
@@ -89,10 +111,21 @@ export const POST = withAuth(async (request, { profile }) => {
           studentCount: isAbsent ? undefined : data.studentCount,
           submittedById: profile.id,
           windowClosedAt,
+          isLateSubmission,
+          submissionSource,
           topicsCovered: { create: isAbsent ? [] : Array.from(new Set(topicIds)).map((topicId) => ({ topicId })) },
           teachingAids: { create: teachingAids.map((type) => ({ type })) }
         },
         include: { topicsCovered: true, teachingAids: true }
+      });
+      await tx.lectureSession.update({
+        where: { id: session.id },
+        data: {
+          reportCoverage: nextReportCoverage(true, isLateSubmission, session.reportCoverage),
+          ...(session.reportCoverage === SessionReportCoverage.NO_DATA
+            ? {}
+            : { noDataMarkedAt: null })
+        }
       });
       await createFlagsForReport(tx, created.id);
       return created;
@@ -102,6 +135,23 @@ export const POST = withAuth(async (request, { profile }) => {
       return json({ error: "A report has already been submitted for this class session" }, { status: 409 });
     }
     throw error;
+  }
+  const peer = await prisma.lectureReport.findFirst({
+    where: { scheduleId: report.scheduleId, lectureDate: report.lectureDate, id: { not: report.id }, isVoided: false }
+  });
+  if (peer && presenceDisagrees(peer.lecturerPresent, report.lecturerPresent)) {
+    await prisma.reportDiscrepancy.upsert({
+      where: { scheduleId_lectureDate: { scheduleId: report.scheduleId, lectureDate: report.lectureDate } },
+      create: {
+        courseId: report.courseId,
+        scheduleId: report.scheduleId,
+        lectureDate: report.lectureDate,
+        kind: DiscrepancyKind.PEER_REPORT,
+        firstReportId: peer.id,
+        secondReportId: report.id
+      },
+      update: {}
+    });
   }
   await notifyAbsenceForReport(report.id);
   await recalculateAndFlag(report.courseId);

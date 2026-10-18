@@ -8,6 +8,8 @@ import { PageHeader } from "@/components/shared/PageHeader";
 import { MetricCard, SectionPanel, Tabs } from "@/components/shared/Panels";
 import { StatusBadge } from "@/components/shared/StatusBadge";
 import { displayText } from "@/lib/utils/displayText";
+import { DigestToggle } from "@/components/lecturers/DigestToggle";
+import { Role } from "@prisma/client";
 
 export default async function LecturerPage({ params }: { params: Promise<{ id: string }> }) {
   const { id } = await params;
@@ -22,7 +24,7 @@ export default async function LecturerPage({ params }: { params: Promise<{ id: s
           reports: { include: { course: { include: { lecturer: true } }, flags: true, contest: true, latePing: true }, orderBy: { lectureDate: "desc" } }
         }
       },
-      flags: true,
+      flags: { include: { events: { orderBy: { createdAt: "desc" }, take: 5 } } },
       notifications: true
     }
   });
@@ -45,6 +47,11 @@ export default async function LecturerPage({ params }: { params: Promise<{ id: s
         eyebrow={lecturer.department.name}
         title={`${lecturer.firstName} ${lecturer.lastName}`}
         description={`${lecturer.email} · ${lecturer.phone}`}
+        actions={
+          profile.role === Role.SUPER_ADMIN || profile.role === Role.QA_OFFICER || profile.role === Role.QA_ASSISTANT || profile.role === Role.IT
+            ? <DigestToggle lecturerId={lecturer.id} enabled={lecturer.digestEmailEnabled} />
+            : undefined
+        }
       />
       <section className="grid gap-4 md:grid-cols-2 xl:grid-cols-4">
         <MetricCard label="Courses" value={lecturer.courses.length} helper="Assigned courses" tone="blue" />
@@ -88,6 +95,12 @@ export default async function LecturerPage({ params }: { params: Promise<{ id: s
                   <StatusBadge tone={flag.isResolved ? "green" : "amber"}>{flag.isResolved ? "Reviewed" : "Open"}</StatusBadge>
                 </div>
                 <p className="mt-1 text-muted">{displayText(flag.message)}</p>
+                {flag.events.length ? (
+                  <p className="mt-1 text-xs text-muted">
+                    {flag.events[0].type} {flag.events[0].createdAt.toLocaleString()}
+                    {flag.events[0].note ? ` · ${flag.events[0].note}` : ""}
+                  </p>
+                ) : null}
               </div>
             )) : <p className="text-sm text-muted">No flags recorded.</p>}
           </div>

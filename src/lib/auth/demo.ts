@@ -4,6 +4,7 @@ import { prisma } from "@/lib/prisma";
 import type { ApiContext } from "@/lib/middleware/withAuth";
 import {
   DEMO_COOKIE,
+  DEMO_COOKIE_CANDIDATES,
   DEMO_ROLES,
   demoCookieOptions,
   hasDemoCookieShape,
@@ -18,6 +19,7 @@ import {
 
 export {
   DEMO_COOKIE,
+  DEMO_COOKIE_CANDIDATES,
   DEMO_ROLES,
   demoCookieOptions,
   hasDemoCookieShape,
@@ -35,13 +37,18 @@ const DEMO_PROFILE_BY_ROLE: Partial<Record<Role, string>> = {
   [Role.VC]: "atu_profile_vc",
   [Role.QA_OFFICER]: "atu_profile_qa",
   [Role.IT]: "atu_profile_it",
+  [Role.LECTURER]: "atu_profile_lecturer_1",
   [Role.CLASS_REP]: "atu_profile_rep_1"
 };
 
 export async function getDemoSessionFromCookies() {
   if (!isDemoModeEnabled()) return null;
   const jar = await cookies();
-  return parseDemoSession(jar.get(DEMO_COOKIE)?.value);
+  for (const name of DEMO_COOKIE_CANDIDATES) {
+    const session = await parseDemoSession(jar.get(name)?.value);
+    if (session) return session;
+  }
+  return null;
 }
 
 export async function resolveDemoProfile(session: DemoSessionPayload): Promise<ApiContext["profile"] | null> {
@@ -49,7 +56,7 @@ export async function resolveDemoProfile(session: DemoSessionPayload): Promise<A
   if (preferredId) {
     const profile = await prisma.profile.findFirst({
       where: { id: preferredId, isActive: true },
-      select: { id: true, supabaseUid: true, role: true, universityId: true, departmentId: true }
+      select: { id: true, supabaseUid: true, role: true, universityId: true, departmentId: true, lecturerId: true }
     });
     if (profile) return profile;
   }
@@ -58,7 +65,7 @@ export async function resolveDemoProfile(session: DemoSessionPayload): Promise<A
     const profile = await prisma.profile.findFirst({
       where: { role: Role.HOD, isActive: true, email: { endsWith: "@atu.showup.demo" } },
       orderBy: { email: "asc" },
-      select: { id: true, supabaseUid: true, role: true, universityId: true, departmentId: true }
+      select: { id: true, supabaseUid: true, role: true, universityId: true, departmentId: true, lecturerId: true }
     });
     if (profile) return profile;
   }
@@ -70,6 +77,6 @@ export async function resolveDemoProfile(session: DemoSessionPayload): Promise<A
       OR: [{ email: { endsWith: "@atu.showup.demo" } }, { anonymousAlias: { startsWith: "reporter_ATU_" } }]
     },
     orderBy: { createdAt: "asc" },
-    select: { id: true, supabaseUid: true, role: true, universityId: true, departmentId: true }
+    select: { id: true, supabaseUid: true, role: true, universityId: true, departmentId: true, lecturerId: true }
   });
 }

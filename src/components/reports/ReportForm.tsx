@@ -4,6 +4,8 @@ import { useEffect, useMemo, useState } from "react";
 import toast from "react-hot-toast";
 import { CheckCircle2, Send } from "lucide-react";
 import { PingCard } from "@/components/reports/PingCard";
+import { parseReportDrafts, removeReportDraft, upsertReportDraft, verifyReportDraft } from "@/lib/reports/offline-draft";
+import { readReportDraftsRaw, writeReportDraftsRaw } from "@/lib/branding/storage-keys";
 import { displayText } from "@/lib/utils/displayText";
 
 type SchedulePayload = {
@@ -49,11 +51,13 @@ type ReportPayload = {
 export function ReportForm({
   assignments,
   pingThresholdMinutes,
-  submissionWindowHours
+  submissionWindowHours,
+  lateSubmissionHours = 24
 }: {
   assignments: AssignmentPayload[];
   pingThresholdMinutes: number;
   submissionWindowHours: number;
+  lateSubmissionHours?: number;
 }) {
   const [online, setOnline] = useState(typeof navigator === "undefined" ? true : navigator.onLine);
   const [submitting, setSubmitting] = useState(false);
@@ -73,8 +77,31 @@ export function ReportForm({
   const alreadySubmitted = Boolean(selectedSchedule?.submittedToday) || submitted;
   const [pendingPayload, setPendingPayload] = useState<ReportPayload | null>(null);
   const [step, setStep] = useState(0);
-  const steps = isAbsent ? ["Session", "Presence", "Notes", "Review"] : ["Session", "Presence", "Teaching", "Notes", "Review"];
+  const [fastMode, setFastMode] = useState(true);
+  const steps = isAbsent
+    ? fastMode
+      ? ["Session", "Presence", "Submit"]
+      : ["Session", "Presence", "Notes", "Review"]
+    : fastMode
+      ? ["Session", "Presence", "Submit"]
+      : ["Session", "Presence", "Teaching", "Notes", "Review"];
   const reviewStep = steps.length - 1;
+  const todaySlots = useMemo(() => {
+    const slots: Array<{ courseId: string; courseCode: string; courseTitle: string; schedule: SchedulePayload }> = [];
+    for (const assignment of assignments) {
+      for (const schedule of assignment.course.schedule) {
+        if (schedule.dayOfWeek === todayDay) {
+          slots.push({
+            courseId: assignment.course.id,
+            courseCode: assignment.course.code,
+            courseTitle: assignment.course.title,
+            schedule
+          });
+        }
+      }
+    }
+    return slots.sort((a, b) => a.schedule.startTime.localeCompare(b.schedule.startTime));
+  }, [assignments, todayDay]);
 
   useEffect(() => {
     if (typeof window === "undefined") return;
@@ -87,6 +114,11 @@ export function ReportForm({
       window.removeEventListener("offline", off);
     };
   }, []);
+
+  useEffect(() => {
+    if (!online || typeof window === "undefined") return;
+    void flushStoredDrafts();
+  }, [online]);
 
   function handleCourseChange(courseId: string) {
     const nextCourse = assignments.find((assignment) => assignment.course.id === courseId)?.course;
@@ -109,20 +141,24 @@ export function ReportForm({
     if (alreadySubmitted) return toast.error("A report has already been submitted for this session");
     const form = new FormData(event.currentTarget);
     const teachingAids = form.getAll("teachingAids");
-    const normalizedTeachingAids = isAbsent || teachingAids.length === 0 || teachingAids.includes("NONE") ? ["NONE"] : teachingAids;
+    const normalizedTeachingAids =
+      isAbsent || teachingAids.length === 0 || teachingAids.includes("NONE")
+        ? ["NONE"]
+        : teachingAids;
+    const fastDefaults = fastMode && !isAbsent;
     setPendingPayload({
       courseId: selectedCourse.id,
       scheduleId: selectedSchedule.id,
       lectureDate: new Date().toISOString(),
-      lecturerPresent: form.get("lecturerPresent"),
-      arrivalStatus: isAbsent ? undefined : form.get("arrivalStatus") || undefined,
+      lecturerPresent: form.get("lecturerPresent") || presence,
+      arrivalStatus: isAbsent ? undefined : form.get("arrivalStatus") || "ON_TIME",
       lateMinutes: isAbsent ? undefined : Number(form.get("lateMinutes") || 0) || undefined,
       earlyDismissal: isAbsent ? false : form.get("earlyDismissal") === "on",
       dismissedEarlyMinutes: isAbsent ? undefined : Number(form.get("dismissedEarlyMinutes") || 0) || undefined,
       topicIds: isAbsent ? [] : form.getAll("topicIds"),
       previousTopicsRevisited: isAbsent ? false : form.get("previousTopicsRevisited") === "on",
-      teachingAids: normalizedTeachingAids,
-      wasInteractive: isAbsent ? undefined : form.get("wasInteractive"),
+      teachingAids: fastDefaults && teachingAids.length === 0 ? ["WHITEBOARD"] : normalizedTeachingAids,
+      wasInteractive: isAbsent ? undefined : form.get("wasInteractive") || (fastDefaults ? "YES" : null),
       studentCount: isAbsent ? undefined : Number(form.get("studentCount") || 0) || undefined,
       additionalNotes: form.get("additionalNotes") || undefined
     });
@@ -130,6 +166,12 @@ export function ReportForm({
 
   async function submitConfirmed() {
     if (!pendingPayload) return;
+    if (!navigator.onLine) {
+      persistDraft(pendingPayload);
+      setPendingPayload(null);
+      toast.success("Saved on this device. It will send when you are back online.");
+      return;
+    }
     setSubmitting(true);
     const response = await fetch("/api/reports", {
       method: "POST",
@@ -142,6 +184,7 @@ export function ReportForm({
       const body = await response.json().catch(() => null);
       return toast.error(reportErrorMessage(body));
     }
+    forgetDraft(pendingPayload);
     setSubmitted(true);
     toast.success("Report submitted");
   }
@@ -165,18 +208,53 @@ export function ReportForm({
   return (
     <>
       <form onSubmit={prepareSubmit} className="space-y-4 pb-24">
-        {!online ? <div className="sticky top-0 z-10 rounded-md bg-warning px-4 py-3 text-sm font-semibold">Offline. Reconnect before submitting.</div> : null}
+        {!online ? <div className="sticky top-0 z-10 rounded-md bg-warning px-4 py-3 text-sm font-semibold">Offline. Submit will save on this device and send when you reconnect.</div> : null}
         <Header course={selectedCourse} schedule={selectedSchedule} />
         <Stepper steps={steps} activeStep={step} />
         <div className={step === 0 ? "space-y-4" : "hidden"}>
-        <Section title="Class session">
-          <Select name="course" options={assignments.map((assignment) => assignment.course.id)} labels={Object.fromEntries(assignments.map((assignment) => [assignment.course.id, `${assignment.course.code} - ${assignment.course.title}`]))} value={selectedCourse.id} onChange={handleCourseChange} />
-          <Select name="schedule" options={selectedCourse.schedule.map((schedule) => schedule.id)} labels={Object.fromEntries(selectedCourse.schedule.map((schedule) => [schedule.id, `${dayName(schedule.dayOfWeek)} ${schedule.startTime}-${schedule.endTime}${schedule.venue ? `, ${schedule.venue}` : ""}`]))} value={selectedSchedule.id} onChange={setSelectedScheduleId} />
-          {selectedSchedule.dayOfWeek !== todayDay ? <p className="rounded-md bg-amber-50 px-3 py-3 text-sm font-medium text-amber-700">This session is not scheduled for today.</p> : null}
+        <Section title="Today’s timetable">
+          {todaySlots.length ? (
+            <div className="grid gap-2">
+              {todaySlots.map((slot) => {
+                const active = selectedCourse.id === slot.courseId && selectedSchedule.id === slot.schedule.id;
+                return (
+                  <button
+                    key={`${slot.courseId}-${slot.schedule.id}`}
+                    type="button"
+                    onClick={() => {
+                      setSelectedCourseId(slot.courseId);
+                      setSelectedScheduleId(slot.schedule.id);
+                      setStep(1);
+                    }}
+                    className={`min-h-14 rounded-md border px-3 py-3 text-left ${active ? "border-navy bg-navy/5" : "border-slate-200 bg-white"} ${slot.schedule.submittedToday ? "opacity-60" : ""}`}
+                  >
+                    <p className="font-mono text-xs text-muted">{slot.courseCode}</p>
+                    <p className="text-sm font-semibold text-navy">{slot.courseTitle}</p>
+                    <p className="text-xs text-muted">
+                      {slot.schedule.startTime}–{slot.schedule.endTime}
+                      {slot.schedule.venue ? ` · ${slot.schedule.venue}` : ""}
+                      {slot.schedule.submittedToday ? " · submitted" : ""}
+                    </p>
+                  </button>
+                );
+              })}
+            </div>
+          ) : (
+            <p className="rounded-md bg-amber-50 px-3 py-3 text-sm text-amber-800">No classes on today’s timetable. Switch to full picker to choose another day.</p>
+          )}
+          <button type="button" className="text-xs font-semibold text-navy underline" onClick={() => setFastMode((value) => !value)}>
+            {fastMode ? "Use full form" : "Use fast 3-tap mode"}
+          </button>
+          {!fastMode ? (
+            <>
+              <Select name="course" options={assignments.map((assignment) => assignment.course.id)} labels={Object.fromEntries(assignments.map((assignment) => [assignment.course.id, `${assignment.course.code} - ${assignment.course.title}`]))} value={selectedCourse.id} onChange={handleCourseChange} />
+              <Select name="schedule" options={selectedCourse.schedule.map((schedule) => schedule.id)} labels={Object.fromEntries(selectedCourse.schedule.map((schedule) => [schedule.id, `${dayName(schedule.dayOfWeek)} ${schedule.startTime}-${schedule.endTime}${schedule.venue ? `, ${schedule.venue}` : ""}`]))} value={selectedSchedule.id} onChange={setSelectedScheduleId} />
+            </>
+          ) : null}
           {alreadySubmitted ? <p className="rounded-md bg-green-50 px-3 py-3 text-sm font-medium text-green-700">A report has already been submitted for this session.</p> : null}
           <p className="rounded-md bg-blue-50 px-3 py-3 text-sm font-medium text-blue-700">
-            Submission opens at class start and closes {formatWindowDuration(submissionWindowHours)} after class ends
-            {formatClosingTime(selectedSchedule.endTime, submissionWindowHours) ? `, around ${formatClosingTime(selectedSchedule.endTime, submissionWindowHours)}` : ""}.
+            Window: {formatWindowDuration(submissionWindowHours)} after class
+            {formatClosingTime(selectedSchedule.endTime, submissionWindowHours) ? ` (≈ ${formatClosingTime(selectedSchedule.endTime, submissionWindowHours)})` : ""}; late tag up to {formatWindowDuration(lateSubmissionHours)} after.
           </p>
         </Section>
         <PingCard
@@ -203,7 +281,7 @@ export function ReportForm({
           )}
         </Section>
         </div>
-        <div className={!isAbsent && step === 2 ? "space-y-4" : "hidden"}>
+        <div className={!fastMode && !isAbsent && step === 2 ? "space-y-4" : "hidden"}>
         {!isAbsent ? (
           <>
             <Section title="Topic coverage">
@@ -218,7 +296,7 @@ export function ReportForm({
           </>
         ) : null}
         </div>
-        <div className={step === (isAbsent ? 2 : 3) ? "space-y-4" : "hidden"}>
+        <div className={!fastMode && step === (isAbsent ? 2 : 3) ? "space-y-4" : "hidden"}>
         <Section title="Notes">
           <textarea name="additionalNotes" className="min-h-28 w-full rounded-md border p-3" maxLength={1200} />
         </Section>
@@ -238,8 +316,8 @@ export function ReportForm({
           {step < reviewStep ? (
             <button type="button" onClick={goNext} disabled={alreadySubmitted} className="h-12 flex-1 rounded-md bg-navy px-4 font-semibold text-white disabled:opacity-60">Next</button>
           ) : (
-            <button disabled={submitting || !online || alreadySubmitted} className="flex h-12 flex-1 items-center justify-center gap-2 rounded-md bg-accent px-4 font-semibold text-navy disabled:opacity-60">
-              <Send className="h-5 w-5" aria-hidden /> {submitting ? "Submitting..." : alreadySubmitted ? "Already submitted" : "Submit"}
+            <button disabled={submitting || alreadySubmitted} className="flex h-12 flex-1 items-center justify-center gap-2 rounded-md bg-accent px-4 font-semibold text-navy disabled:opacity-60">
+              <Send className="h-5 w-5" aria-hidden /> {submitting ? "Submitting..." : alreadySubmitted ? "Already submitted" : online ? "Submit" : "Save offline"}
             </button>
           )}
         </div>
@@ -306,6 +384,48 @@ function formatClosingTime(endTime: string, windowHours: number) {
   const close = new Date();
   close.setHours(hour + windowHours, minute, 0, 0);
   return close.toLocaleTimeString([], { hour: "numeric", minute: "2-digit" });
+}
+
+function persistDraft(payload: ReportPayload) {
+  if (typeof window === "undefined") return;
+  const drafts = upsertReportDraft(parseReportDrafts(readReportDraftsRaw()), {
+    payload: {
+      ...payload,
+      courseId: payload.courseId,
+      scheduleId: payload.scheduleId,
+      lectureDate: payload.lectureDate,
+      lecturerPresent: typeof payload.lecturerPresent === "string" ? payload.lecturerPresent : null
+    },
+    savedAt: new Date().toISOString()
+  });
+  writeReportDraftsRaw(JSON.stringify(drafts));
+}
+
+function forgetDraft(payload: Pick<ReportPayload, "courseId" | "scheduleId" | "lectureDate">) {
+  if (typeof window === "undefined") return;
+  const drafts = removeReportDraft(parseReportDrafts(readReportDraftsRaw()), payload);
+  writeReportDraftsRaw(JSON.stringify(drafts));
+}
+
+async function flushStoredDrafts() {
+  if (typeof window === "undefined") return;
+  const drafts = parseReportDrafts(readReportDraftsRaw());
+  for (const draft of drafts) {
+    const check = verifyReportDraft(draft);
+    if (!check.ok) {
+      if (check.reason === "stale_date" || check.reason === "malformed") forgetDraft(draft.payload);
+      continue;
+    }
+    const response = await fetch("/api/reports?source=offline", {
+      method: "POST",
+      headers: { "content-type": "application/json" },
+      body: JSON.stringify(draft.payload)
+    });
+    if (response.ok || response.status === 409) {
+      forgetDraft(draft.payload);
+      if (response.ok) toast.success("Saved offline report sent");
+    }
+  }
 }
 
 function reportErrorMessage(body: unknown) {

@@ -9,6 +9,12 @@ const replacements: Array<[RegExp, string]> = [
   [/\bseed\b/gi, "setup"]
 ];
 
+/** Screen label for stored login addresses. The address itself is unchanged. */
+export function displayAccount(value: string | null | undefined) {
+  if (!value) return "";
+  return value.replace(/@atu\.showup\.demo/gi, "@atu.demo").replace(/@showup\.internal/gi, "@reporter");
+}
+
 export function displayText(value: string | null | undefined) {
   if (!value) return "";
   const cleaned = replacements.reduce((text, [pattern, replacement]) => text.replace(pattern, replacement), value);

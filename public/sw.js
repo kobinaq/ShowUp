@@ -1,5 +1,5 @@
 self.addEventListener("install", (event) => {
-  event.waitUntil(caches.open("showup-v1").then((cache) => cache.addAll(["/", "/rep/submit", "/manifest.json"])));
+  event.waitUntil(caches.open("meridiqa-v1").then((cache) => cache.addAll(["/", "/rep/submit", "/manifest.json"])));
 });
 
 self.addEventListener("fetch", (event) => {
