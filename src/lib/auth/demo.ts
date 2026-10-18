@@ -4,6 +4,7 @@ import { prisma } from "@/lib/prisma";
 import type { ApiContext } from "@/lib/middleware/withAuth";
 import {
   DEMO_COOKIE,
+  DEMO_COOKIE_CANDIDATES,
   DEMO_ROLES,
   demoCookieOptions,
   hasDemoCookieShape,
@@ -18,6 +19,7 @@ import {
 
 export {
   DEMO_COOKIE,
+  DEMO_COOKIE_CANDIDATES,
   DEMO_ROLES,
   demoCookieOptions,
   hasDemoCookieShape,
@@ -42,7 +44,11 @@ const DEMO_PROFILE_BY_ROLE: Partial<Record<Role, string>> = {
 export async function getDemoSessionFromCookies() {
   if (!isDemoModeEnabled()) return null;
   const jar = await cookies();
-  return parseDemoSession(jar.get(DEMO_COOKIE)?.value);
+  for (const name of DEMO_COOKIE_CANDIDATES) {
+    const session = await parseDemoSession(jar.get(name)?.value);
+    if (session) return session;
+  }
+  return null;
 }
 
 export async function resolveDemoProfile(session: DemoSessionPayload): Promise<ApiContext["profile"] | null> {

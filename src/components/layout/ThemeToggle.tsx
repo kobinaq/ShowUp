@@ -2,15 +2,16 @@
 
 import { Moon, Sun } from "lucide-react";
 import { useEffect, useState } from "react";
+import { readThemePreference, writeThemePreference } from "@/lib/branding/storage-keys";
 
 export function ThemeToggle() {
   const [hasManualChoice, setHasManualChoice] = useState(() => {
     if (typeof window === "undefined") return false;
-    return Boolean(window.localStorage.getItem("showup-theme"));
+    return Boolean(readThemePreference());
   });
   const [isDark, setIsDark] = useState(() => {
     if (typeof window === "undefined") return false;
-    const stored = window.localStorage.getItem("showup-theme");
+    const stored = readThemePreference();
     return stored ? stored === "dark" : window.matchMedia("(prefers-color-scheme: dark)").matches;
   });
 
@@ -26,7 +27,7 @@ export function ThemeToggle() {
   useEffect(() => {
     document.documentElement.classList.toggle("dark", isDark);
     document.documentElement.dataset.theme = isDark ? "dark" : "light";
-    if (hasManualChoice) window.localStorage.setItem("showup-theme", isDark ? "dark" : "light");
+    if (hasManualChoice) writeThemePreference(isDark ? "dark" : "light");
   }, [hasManualChoice, isDark]);
 
   function toggleTheme() {

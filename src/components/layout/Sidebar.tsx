@@ -3,7 +3,7 @@
 import Link from "next/link";
 import { usePathname } from "next/navigation";
 import type { Role } from "@prisma/client";
-import { BarChart3, BookOpen, Flag, Gauge, GraduationCap, LayoutDashboard, LifeBuoy, RefreshCw, Search, Settings, ShieldCheck, Users } from "lucide-react";
+import { BarChart3, BookOpen, CalendarDays, Flag, Gauge, GraduationCap, LayoutDashboard, LifeBuoy, RefreshCw, Search, Settings, ShieldCheck, UserRound, Users, Wrench } from "lucide-react";
 import { cn } from "@/lib/utils/cn";
 import { pathRoles, roleHome } from "@/lib/auth/roles";
 
@@ -15,6 +15,8 @@ const groups: Array<{
     label: "Monitor",
     items: [
       { href: "/dashboard", label: "Command Center", icon: LayoutDashboard },
+      { href: "/lecturer", label: "My home", icon: UserRound },
+      { href: "/insights", label: "Insights", icon: BarChart3 },
       { href: "/analytics", label: "Analytics", icon: BarChart3 }
     ]
   },
@@ -23,6 +25,7 @@ const groups: Array<{
     items: [
       { href: "/reports", label: "Reports", icon: Gauge },
       { href: "/courses", label: "Courses", icon: BookOpen },
+      { href: "/timetable", label: "Timetable", icon: CalendarDays },
       { href: "/students", label: "Students", icon: Users },
       { href: "/lecturers", label: "Lecturers", icon: GraduationCap }
     ]
@@ -35,6 +38,9 @@ const groups: Array<{
       { href: "/roster", label: "Roster", icon: Users },
       { href: "/rotation", label: "Rotation", icon: RefreshCw },
       { href: "/discrepancies", label: "Discrepancies", icon: ShieldCheck },
+      { href: "/reps", label: "Rep reliability", icon: Users },
+      { href: "/facilities", label: "Facilities", icon: Wrench },
+      { href: "/calendar", label: "Calendar", icon: CalendarDays },
       { href: "/lookups", label: "Lookups", icon: Search },
       { href: "/support", label: "IT Support", icon: LifeBuoy }
     ]

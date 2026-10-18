@@ -7,7 +7,7 @@ describe("roleHome", () => {
     expect(roleHome[Role.CLASS_REP]).toBe("/rep/submit");
     expect(roleHome[Role.QA_OFFICER]).toBe("/dashboard");
     expect(roleHome[Role.HOD]).toBe("/courses");
-    expect(roleHome[Role.LECTURER]).toBe("/courses");
+    expect(roleHome[Role.LECTURER]).toBe("/lecturer");
   });
 });
 
@@ -36,10 +36,32 @@ describe("canAccessPath", () => {
     expect(canAccessPath(Role.CLASS_REP, "/dashboard")).toBe(false);
   });
 
-  it("lets lecturers open courses but not analytics", () => {
+  it("lets lecturers open courses and their home but not analytics", () => {
     expect(canAccessPath(Role.LECTURER, "/courses")).toBe(true);
+    expect(canAccessPath(Role.LECTURER, "/lecturer")).toBe(true);
     expect(canAccessPath(Role.LECTURER, "/analytics")).toBe(false);
     expect(canAccessPath(Role.LECTURER, "/dashboard")).toBe(false);
+  });
+
+  it("opens timetable for QA/HOD/lecturer and facilities for lecturers", () => {
+    expect(canAccessPath(Role.QA_OFFICER, "/timetable")).toBe(true);
+    expect(canAccessPath(Role.HOD, "/timetable")).toBe(true);
+    expect(canAccessPath(Role.LECTURER, "/timetable")).toBe(true);
+    expect(canAccessPath(Role.LECTURER, "/facilities")).toBe(true);
+    expect(canAccessPath(Role.VC, "/calendar")).toBe(true);
+  });
+
+  it("opens rep reliability for QA and HOD", () => {
+    expect(canAccessPath(Role.QA_OFFICER, "/reps")).toBe(true);
+    expect(canAccessPath(Role.HOD, "/reps")).toBe(true);
+    expect(canAccessPath(Role.LECTURER, "/reps")).toBe(false);
+    expect(canAccessPath(Role.CLASS_REP, "/reps")).toBe(false);
+  });
+
+  it("opens insights for VC and HOD but not lecturers", () => {
+    expect(canAccessPath(Role.VC, "/insights")).toBe(true);
+    expect(canAccessPath(Role.HOD, "/insights")).toBe(true);
+    expect(canAccessPath(Role.LECTURER, "/insights")).toBe(false);
   });
 });
 

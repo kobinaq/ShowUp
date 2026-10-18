@@ -1,4 +1,4 @@
-export const REPORT_DRAFTS_KEY = "showup:report-drafts";
+export { REPORT_DRAFTS_KEY } from "@/lib/branding/storage-keys";
 
 export type ReportDraftPayload = {
   courseId: string;
@@ -38,6 +38,19 @@ export function removeReportDraft(
 ) {
   const key = draftSessionKey(payload);
   return existing.filter((item) => draftSessionKey(item.payload) !== key);
+}
+
+/** Verify a draft is still valid to flush (same calendar day session + presence set). */
+export function verifyReportDraft(draft: StoredReportDraft, now = new Date()) {
+  if (!isStoredReportDraft(draft)) return { ok: false as const, reason: "malformed" };
+  const presence = draft.payload.lecturerPresent;
+  if (presence !== "PRESENT" && presence !== "ABSENT" && presence !== "SUBSTITUTE") {
+    return { ok: false as const, reason: "missing_presence" };
+  }
+  const day = draft.payload.lectureDate.slice(0, 10);
+  const today = now.toISOString().slice(0, 10);
+  if (day !== today) return { ok: false as const, reason: "stale_date" };
+  return { ok: true as const };
 }
 
 function isStoredReportDraft(value: unknown): value is StoredReportDraft {

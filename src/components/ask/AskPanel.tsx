@@ -4,19 +4,14 @@ import { useState } from "react";
 import { usePathname } from "next/navigation";
 import { Bot, Loader2, MessageSquare, Send, Sparkles, X } from "lucide-react";
 import { cn } from "@/lib/utils/cn";
+import { DEMO_ASK_QUESTIONS } from "@/lib/services/insights.service";
 
 type Message = {
   q: string;
   a: string;
 };
 
-const exampleQuestions = [
-  "Summarize the biggest risks in my scope",
-  "Show unresolved flags",
-  "Which lecturers missed the most classes this semester?",
-  "Which lecturers have been late this week?",
-  "Which courses are behind on their outline?"
-];
+const exampleQuestions = [...DEMO_ASK_QUESTIONS];
 
 export function AskPanel({ universityName }: { universityName?: string | null }) {
   const pathname = usePathname();

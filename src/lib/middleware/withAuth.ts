@@ -46,7 +46,9 @@ export function withAuth<T>(handler: ApiHandler<T>, roles?: Role[]) {
       }
     }
 
-    const demo = await parseDemoSession(request.cookies.get(DEMO_COOKIE)?.value);
+    const demo =
+      (await parseDemoSession(request.cookies.get(DEMO_COOKIE)?.value)) ??
+      (await parseDemoSession(request.cookies.get("showup_demo")?.value));
     if (demo) {
       const profile = await resolveDemoProfile(demo);
       if (profile) {

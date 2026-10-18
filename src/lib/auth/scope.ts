@@ -28,6 +28,7 @@ export function courseScope(profile: ScopedProfile): Prisma.CourseWhereInput {
 
 export function lecturerScope(profile: ScopedProfile): Prisma.LecturerWhereInput {
   if (profile.role === Role.SUPER_ADMIN) return {};
+  if (profile.role === Role.LECTURER) return { id: profile.lecturerId ?? noAccessId };
   if (isDepartmentRole(profile.role)) return { departmentId: profile.departmentId ?? noAccessId };
   if (isUniversityRole(profile.role)) return { department: { faculty: { universityId: profile.universityId } } };
   return { id: noAccessId };

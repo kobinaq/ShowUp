@@ -4,10 +4,13 @@ import { getAuthProfile } from "@/lib/auth/session";
 import { activityLogScope, courseScope, departmentScope, facultyScope, isDepartmentRole, lecturerScope, profileScope, semesterScope } from "@/lib/auth/scope";
 import { redirect } from "next/navigation";
 import { AdminSetupPanel } from "@/components/admin/AdminSetupPanel";
+import { FirstRunWizard } from "@/components/admin/FirstRunWizard";
+import { NeedsAttentionList } from "@/components/home/NeedsAttentionList";
 import { displayText } from "@/lib/utils/displayText";
 import { SectionPanel } from "@/components/shared/Panels";
 import { SupportTicketList, type SupportTicketListItem } from "@/components/support/SupportTicketList";
 import { UserLifecyclePanel, type UserLifecycleItem } from "@/components/admin/UserLifecyclePanel";
+import { buildStaffAttention } from "@/lib/services/role-attention";
 
 export default async function AdminPage() {
   const profile = await getAuthProfile();
@@ -23,7 +26,7 @@ export default async function AdminPage() {
       ? `${profile.department?.name ?? "your department"} at ${profile.university?.name ?? "your university"}`
       : profile.university?.name ?? "your university";
 
-  const [universities, faculties, departments, lecturers, semesters, profiles, logs, courses, tickets] = await Promise.all([
+  const [universities, faculties, departments, lecturers, semesters, profiles, logs, courses, tickets, settings, supportOpen] = await Promise.all([
     prisma.university.findMany({ where: isSuperAdmin ? {} : { id: profile.universityId }, orderBy: { name: "asc" } }),
     prisma.faculty.findMany({ where: facultyScope(profile), orderBy: { name: "asc" } }),
     prisma.department.findMany({ where: departmentScope(profile), orderBy: { name: "asc" } }),
@@ -43,8 +46,23 @@ export default async function AdminPage() {
       },
       orderBy: { createdAt: "desc" },
       take: 8
+    }),
+    prisma.universitySettings.findUnique({ where: { universityId: profile.universityId } }),
+    prisma.supportTicket.count({
+      where: {
+        ...(isSuperAdmin ? {} : { universityId: profile.universityId }),
+        status: { in: ["OPEN", "IN_PROGRESS"] }
+      }
     })
   ]);
+  const itAttention = buildStaffAttention({
+    unresolvedFlags: 0,
+    pendingContests: 0,
+    openDiscrepancies: 0,
+    noDataSessions: 0,
+    repFlags: 0,
+    supportOpen
+  });
   const completeness = [
     { label: "Active semester", value: semesters.some((semester) => semester.isActive) ? 0 : 1 },
     { label: "Courses without class size", value: courses.filter((course) => !course.classSize).length },
@@ -86,6 +104,19 @@ export default async function AdminPage() {
         <Metric label="Semesters" value={semesters.length} />
         <Metric label="Users" value={profiles.length} />
       </section>
+      {(isIt || isSuperAdmin) && (
+        <SectionPanel title="Needs attention today" description="IT prioritizes support tickets and setup gaps.">
+          <NeedsAttentionList items={itAttention} emptyTitle="No open IT tickets." emptyDescription="Support requests will appear here when staff need help." />
+        </SectionPanel>
+      )}
+      {(isIt || isSuperAdmin) && (
+        <div id="setup">
+          <FirstRunWizard
+            completedAt={settings?.setupWizardCompletedAt?.toISOString() ?? null}
+            completeness={completeness}
+          />
+        </div>
+      )}
       <AdminSetupPanel
         role={role}
         scopeLabel={scopeLabel}

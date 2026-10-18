@@ -25,6 +25,15 @@ type SettingsState = {
   notificationMaxRetries: number;
   lecturerDigestEnabled: boolean;
   studentAttendanceThreshold: number;
+  lateGraceMinutes: number;
+  backupEscalateMinutes: number;
+  lateSubmissionHours: number;
+  missedReportFlagThreshold: number;
+  backupNotifySmsEnabled: boolean;
+  repReminderSmsEnabled: boolean;
+  attendanceEditWindowHours: number;
+  monthlyReportEmailEnabled: boolean;
+  monthlyReportDayOfMonth: number;
   activeSemesterId: string | null;
 };
 
@@ -109,6 +118,46 @@ export function SettingsForm({ initialSettings, semesters }: Props) {
               Set as active semester when saved
             </label>
           </div>
+          <NumberField
+            label="Late submission window"
+            helper="After the normal window closes, reps can still submit for this many hours with a late tag. Missing reports become NO_DATA — not missed lectures."
+            value={settings.lateSubmissionHours}
+            min={1}
+            max={48}
+            suffix="hours"
+            onChange={(value) => update("lateSubmissionHours", value)}
+          />
+          <NumberField
+            label="Backup escalate after"
+            helper="If the primary has not reported this many minutes after class ends, SMS the backup rep (Arkesel)."
+            value={settings.backupEscalateMinutes}
+            min={5}
+            max={180}
+            step={5}
+            suffix="minutes"
+            onChange={(value) => update("backupEscalateMinutes", value)}
+          />
+          <NumberField
+            label="Missed-report flag threshold"
+            helper="Flag a primary rep after this many NO_DATA sessions."
+            value={settings.missedReportFlagThreshold}
+            min={1}
+            max={20}
+            onChange={(value) => update("missedReportFlagThreshold", value)}
+          />
+          <NumberField
+            label="Attendance edit window"
+            helper="Lecturers can mark/edit student attendance for this many hours after class ends."
+            value={settings.attendanceEditWindowHours}
+            min={1}
+            max={72}
+            suffix="hours"
+            onChange={(value) => update("attendanceEditWindowHours", value)}
+          />
+          <div className="grid gap-3">
+            <Toggle label="SMS backup when primary is silent" checked={settings.backupNotifySmsEnabled} onChange={(value) => update("backupNotifySmsEnabled", value)} />
+            <Toggle label="SMS primary reminder near window close" checked={settings.repReminderSmsEnabled} onChange={(value) => update("repReminderSmsEnabled", value)} />
+          </div>
           <ReadOnlySetting icon={CheckCircle2} title="Absent report shortcut" description="Enabled. Reporters can submit an absence without teaching details." />
           <ReadOnlySetting icon={Clock} title="Duplicate report policy" description="One report is allowed per schedule and class date." />
         </div>
@@ -125,6 +174,16 @@ export function SettingsForm({ initialSettings, semesters }: Props) {
             step={5}
             suffix="minutes"
             onChange={(value) => update("latePingThresholdMinutes", value)}
+          />
+          <NumberField
+            label="Late grace window"
+            helper="Minutes after start before a lecture counts as late on scorecards."
+            value={settings.lateGraceMinutes}
+            min={0}
+            max={45}
+            step={1}
+            suffix="minutes"
+            onChange={(value) => update("lateGraceMinutes", value)}
           />
           <div className="grid gap-3">
             <Toggle label="Send lecturer SMS for late pings" checked={settings.latePingSmsEnabled} onChange={(value) => update("latePingSmsEnabled", value)} />
@@ -158,6 +217,20 @@ export function SettingsForm({ initialSettings, semesters }: Props) {
           <NumberField label="Week 6 coverage" helper="Minimum topic coverage by week 6." value={settings.flagCoverageWeek6} min={0} max={100} suffix="%" onChange={(value) => update("flagCoverageWeek6", value)} />
           <NumberField label="Week 10 coverage" helper="Minimum topic coverage by week 10." value={settings.flagCoverageWeek10} min={0} max={100} suffix="%" onChange={(value) => update("flagCoverageWeek10", value)} />
           <NumberField label="Student attendance floor" helper="Students below this course attendance % are flagged." value={settings.studentAttendanceThreshold} min={1} max={100} suffix="%" onChange={(value) => update("studentAttendanceThreshold", value)} />
+        </div>
+      </SectionPanel>
+
+      <SectionPanel title="Monthly reports" description="Email VC/HOD a monthly attendance × quality summary via Resend (ops cron).">
+        <div className="grid gap-4 lg:grid-cols-2">
+          <Toggle label="Enable scheduled monthly report emails" checked={settings.monthlyReportEmailEnabled} onChange={(value) => update("monthlyReportEmailEnabled", value)} />
+          <NumberField
+            label="Send on day of month"
+            helper="UTC day when the ops cron may dispatch the previous month’s report."
+            value={settings.monthlyReportDayOfMonth}
+            min={1}
+            max={28}
+            onChange={(value) => update("monthlyReportDayOfMonth", value)}
+          />
         </div>
       </SectionPanel>
 

@@ -9,8 +9,9 @@ import { DataTable, type DataTableColumn, type DataTableRow } from "@/components
 const columns: DataTableColumn[] = [
   { key: "course", label: "Course", mono: true },
   { key: "date", label: "Session" },
-  { key: "first", label: "First report" },
-  { key: "second", label: "Second report" },
+  { key: "kind", label: "Kind" },
+  { key: "first", label: "Rep report" },
+  { key: "second", label: "Second source" },
   { key: "status", label: "Status", badge: { OPEN: "amber", RESOLVED: "green" } }
 ];
 
@@ -22,30 +23,38 @@ export default async function DiscrepanciesPage() {
     include: {
       course: { select: { code: true } },
       firstReport: { select: { id: true, lecturerPresent: true } },
-      secondReport: { select: { id: true, lecturerPresent: true } }
+      secondReport: { select: { id: true, lecturerPresent: true } },
+      confirmation: { select: { presence: true } }
     },
     orderBy: { createdAt: "desc" }
   });
-  const rows: DataTableRow[] = discrepancies.map((item) => ({
-    id: item.id,
-    href: `/reports/${item.secondReportId}`,
-    searchText: `${item.course.code} ${item.firstReport.lecturerPresent} ${item.secondReport.lecturerPresent}`,
-    filters: [item.status],
-    cells: {
-      course: item.course.code,
-      date: item.lectureDate.toLocaleDateString(),
-      first: item.firstReport.lecturerPresent,
-      second: item.secondReport.lecturerPresent,
-      status: item.status
-    }
-  }));
+  const rows: DataTableRow[] = discrepancies.map((item) => {
+    const secondLabel =
+      item.kind === "LECTURER_CONFIRMATION"
+        ? `Lecturer: ${item.confirmation?.presence ?? "—"}`
+        : (item.secondReport?.lecturerPresent ?? "—");
+    return {
+      id: item.id,
+      href: `/reports/${item.firstReportId}`,
+      searchText: `${item.course.code} ${item.kind} ${item.firstReport.lecturerPresent} ${secondLabel}`,
+      filters: [item.status, item.kind],
+      cells: {
+        course: item.course.code,
+        date: item.lectureDate.toLocaleDateString(),
+        kind: item.kind === "LECTURER_CONFIRMATION" ? "Rep vs lecturer" : "Rep vs rep",
+        first: item.firstReport.lecturerPresent,
+        second: secondLabel,
+        status: item.status
+      }
+    };
+  });
 
   return (
     <div className="space-y-6">
       <PageHeader
         eyebrow="Governance"
         title="Reporter discrepancies"
-        description="When two active reporters disagree on presence for the same session, Meridiqa opens a discrepancy instead of silently keeping both answers."
+        description="Opened when two class reps disagree, or when a lecturer/HOD confirmation disagrees with a submitted report. Missing reports are tracked as NO_DATA — not as missed lectures."
       />
       <SectionPanel title="Open disagreements" description={`${discrepancies.filter((item) => item.status === "OPEN").length} still open.`}>
         <DataTable
@@ -55,7 +64,9 @@ export default async function DiscrepanciesPage() {
           emptyTitle="No reporter disagreements."
           filters={[
             { label: "Open", value: "OPEN" },
-            { label: "Resolved", value: "RESOLVED" }
+            { label: "Resolved", value: "RESOLVED" },
+            { label: "Rep vs lecturer", value: "LECTURER_CONFIRMATION" },
+            { label: "Rep vs rep", value: "PEER_REPORT" }
           ]}
         />
       </SectionPanel>

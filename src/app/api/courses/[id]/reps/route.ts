@@ -1,5 +1,5 @@
 import { createClient } from "@supabase/supabase-js";
-import { Role } from "@prisma/client";
+import { RepDutyRole, Role } from "@prisma/client";
 import { prisma } from "@/lib/prisma";
 import { andWhere, courseScope } from "@/lib/auth/scope";
 import { withAuth, json, badRequest } from "@/lib/middleware/withAuth";
@@ -35,6 +35,22 @@ export const POST = withAuth<Params>(async (request, { params, profile }) => {
   if (activeReporterCount >= 2) {
     return json({ error: "This course already has two active reporters. Deactivate one before assigning another." }, { status: 409 });
   }
+  const dutyRole = parsed.data.dutyRole ?? RepDutyRole.PRIMARY;
+  const existingDuty = await prisma.repAssignment.findFirst({
+    where: { courseId: id, isActive: true, dutyRole },
+    select: { id: true }
+  });
+  if (existingDuty) {
+    return json(
+      {
+        error:
+          dutyRole === RepDutyRole.BACKUP
+            ? "This course already has an active backup reporter."
+            : "This course already has an active primary reporter. Assign a backup instead, or deactivate the primary first."
+      },
+      { status: 409 }
+    );
+  }
   const alias = generateAlias();
   const password = generatePassword();
   const email = `${alias}@showup.internal`;
@@ -66,6 +82,7 @@ export const POST = withAuth<Params>(async (request, { params, profile }) => {
         startDate: new Date(),
         rotationOrder: parsed.data.rotationOrder,
         rotationWeeks: parsed.data.rotationWeeks,
+        dutyRole,
         isActive: true
       }
     });

@@ -19,6 +19,15 @@ const settingsSchema = z.object({
   notificationMaxRetries: z.coerce.number().int().min(1).max(8),
   lecturerDigestEnabled: z.boolean(),
   studentAttendanceThreshold: z.coerce.number().int().min(1).max(100),
+  lateGraceMinutes: z.coerce.number().int().min(0).max(45),
+  backupEscalateMinutes: z.coerce.number().int().min(5).max(180),
+  lateSubmissionHours: z.coerce.number().int().min(1).max(48),
+  missedReportFlagThreshold: z.coerce.number().int().min(1).max(20),
+  backupNotifySmsEnabled: z.boolean(),
+  repReminderSmsEnabled: z.boolean(),
+  attendanceEditWindowHours: z.coerce.number().int().min(1).max(72),
+  monthlyReportEmailEnabled: z.boolean(),
+  monthlyReportDayOfMonth: z.coerce.number().int().min(1).max(28),
   activeSemesterId: z.string().nullable().optional(),
   newSemester: z
     .object({

@@ -74,7 +74,12 @@ export default async function RepSubmitPage() {
   }));
   return (
     <div className="space-y-4">
-      <ReportForm assignments={payload} pingThresholdMinutes={settings?.latePingThresholdMinutes ?? 30} submissionWindowHours={settings?.submissionWindowHours ?? 2} />
+      <ReportForm
+        assignments={payload}
+        pingThresholdMinutes={settings?.latePingThresholdMinutes ?? 30}
+        submissionWindowHours={settings?.submissionWindowHours ?? 2}
+        lateSubmissionHours={settings?.lateSubmissionHours ?? 24}
+      />
     </div>
   );
 }

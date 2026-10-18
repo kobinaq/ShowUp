@@ -9,6 +9,10 @@ import { calculateCoverage } from "@/lib/services/coverage.service";
 import { displayText } from "@/lib/utils/displayText";
 import { PageHeader } from "@/components/shared/PageHeader";
 import { MetricCard, SectionPanel } from "@/components/shared/Panels";
+import { NeedsAttentionList } from "@/components/home/NeedsAttentionList";
+import { buildStaffAttention } from "@/lib/services/role-attention";
+import { chartTakeaway } from "@/lib/services/insights.service";
+import { MonthlyExportButtons } from "@/components/insights/MonthlyExportButtons";
 
 export default async function AnalyticsPage() {
   const profile = await getAuthProfile();
@@ -123,10 +127,27 @@ export default async function AnalyticsPage() {
     .sort((a, b) => a.coveragePercent - b.coveragePercent)
     .slice(0, 5);
   const scopeTitle = isSuperAdmin ? "All universities" : isDepartmentScope ? profile.department?.name ?? "Your department" : profile.university?.name ?? "Your university";
+  const vcAttention = buildStaffAttention({
+    unresolvedFlags,
+    pendingContests: openContests,
+    openDiscrepancies: 0,
+    noDataSessions: 0,
+    repFlags: 0
+  });
 
   return (
     <div className="space-y-6">
-      <PageHeader eyebrow={scopeTitle} title="Analytics" description="Executive indicators for attendance, topic coverage, late alerts, flags, and contested reports." />
+      <PageHeader
+        eyebrow={scopeTitle}
+        title="Analytics"
+        description="Executive indicators for attendance, topic coverage, late alerts, flags, and contested reports."
+        actions={<MonthlyExportButtons />}
+      />
+      {(profile.role === "VC" || profile.role === "SUPER_ADMIN") && (
+        <SectionPanel title="Needs attention today" description="Leadership view of open quality risks.">
+          <NeedsAttentionList items={vcAttention} emptyTitle="No executive escalations." emptyDescription="Open flags and contests will surface here for VC review." />
+        </SectionPanel>
+      )}
       <section className="grid gap-4 md:grid-cols-2 xl:grid-cols-4">
         <MetricCard label="Attendance rate" value={`${attendanceRate}%`} helper={`${reports.length} reports analyzed`} tone={attendanceRate >= 85 ? "green" : attendanceRate >= 70 ? "amber" : "red"} />
         <MetricCard label="Average coverage" value={`${averageCoverage}%`} helper={`${courses.length} courses in scope`} tone={averageCoverage >= 80 ? "green" : averageCoverage >= 60 ? "amber" : "red"} />
@@ -139,21 +160,65 @@ export default async function AnalyticsPage() {
         <MetricCard label="Courses" value={courses.length} helper="Course records in scope" tone="grey" />
       </section>
       <section className="grid gap-4 xl:grid-cols-3">
-        <ChartPanel title={isDepartmentScope ? "Attendance by lecturer" : isSuperAdmin ? "Attendance by faculty" : "Attendance by department"} note="Higher bars indicate stronger reported attendance.">
+        <ChartPanel
+          title={isDepartmentScope ? "Attendance by lecturer" : isSuperAdmin ? "Attendance by faculty" : "Attendance by department"}
+          note="Higher bars indicate stronger reported attendance."
+          takeaway={chartTakeaway({
+            title: "Attendance",
+            topLabel: [...attendanceChart].sort((a, b) => (b.attendance ?? 0) - (a.attendance ?? 0))[0]?.name,
+            topValue: [...attendanceChart].sort((a, b) => (b.attendance ?? 0) - (a.attendance ?? 0))[0]?.attendance,
+            emptyMessage: "No attendance series yet for this scope."
+          })}
+        >
           <SimpleBarChart data={attendanceChart} dataKey="attendance" color="var(--primary)" xAxisLabel="Courses" hideCategoryTicks />
         </ChartPanel>
-        <ChartPanel title="Flag type distribution" note="Flag volume shows the dominant quality issues.">
+        <ChartPanel
+          title="Flag type distribution"
+          note="Flag volume shows the dominant quality issues."
+          takeaway={chartTakeaway({
+            title: "Flags",
+            topLabel: [...flagChart].sort((a, b) => b.count - a.count)[0]?.name,
+            topValue: [...flagChart].sort((a, b) => b.count - a.count)[0]?.count,
+            emptyMessage: "No flags in scope — quality looks quiet."
+          })}
+        >
           <SimpleBarChart data={flagChart} dataKey="count" color="var(--chart-2)" />
         </ChartPanel>
-        <ChartPanel title="Coverage status" note="Behind courses should be reviewed first.">
+        <ChartPanel
+          title="Coverage status"
+          note="Behind courses should be reviewed first."
+          takeaway={chartTakeaway({
+            title: "Coverage",
+            topLabel: [...coverageChart].sort((a, b) => b.count - a.count)[0]?.name,
+            topValue: [...coverageChart].sort((a, b) => b.count - a.count)[0]?.count,
+            emptyMessage: "No coverage pacing data yet."
+          })}
+        >
           <SimpleBarChart data={coverageChart} dataKey="count" color="var(--chart-5)" />
         </ChartPanel>
       </section>
       <section className="grid gap-4 xl:grid-cols-2">
-        <ChartPanel title="Student attendance by course" note="Reporter headcounts compared with HOD-entered class sizes.">
+        <ChartPanel
+          title="Student attendance by course"
+          note="Reporter headcounts compared with HOD-entered class sizes."
+          takeaway={chartTakeaway({
+            title: "Lowest student attendance",
+            topLabel: [...studentAttendanceChart].sort((a, b) => a.attendance - b.attendance)[0]?.name,
+            topValue: [...studentAttendanceChart].sort((a, b) => a.attendance - b.attendance)[0]?.attendance,
+            emptyMessage: "Add class sizes to compare student headcounts."
+          })}
+        >
           <SimpleBarChart data={studentAttendanceChart} dataKey="attendance" color="var(--chart-1)" />
         </ChartPanel>
-        <ChartPanel title="Student attendance trend" note="Average reported student attendance across recent sessions.">
+        <ChartPanel
+          title="Student attendance trend"
+          note="Average reported student attendance across recent sessions."
+          takeaway={
+            studentAttendanceTrend.length
+              ? `Latest point is ${studentAttendanceTrend[studentAttendanceTrend.length - 1]?.attendance ?? 0}% — watch dips against late/missed lectures on Insights.`
+              : "No student attendance trend points yet."
+          }
+        >
           <SimpleLineChart data={studentAttendanceTrend} dataKey="attendance" yAxisLabel="Attendance %" />
         </ChartPanel>
       </section>
@@ -258,10 +323,11 @@ function groupByCount<T>(items: T[], getKey: (item: T) => string) {
   }, {});
 }
 
-function ChartPanel({ title, note, children }: { title: string; note: string; children: React.ReactNode }) {
+function ChartPanel({ title, note, takeaway, children }: { title: string; note: string; takeaway?: string; children: React.ReactNode }) {
   return (
     <SectionPanel title={title} description={note}>
       <div className="h-64 min-h-64">{children}</div>
+      {takeaway ? <p className="mt-3 rounded-md bg-slate-50 px-3 py-2 text-xs leading-5 text-muted">{takeaway}</p> : null}
     </SectionPanel>
   );
 }
