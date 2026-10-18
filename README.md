@@ -87,7 +87,6 @@ QA Officers, VCs, HODs, and HOD assistants get a floating `Meridiqa AI` button i
 The seed script creates staff accounts when Supabase admin credentials are configured. Without Supabase env vars, it creates deterministic local IDs so Prisma seed data can still be loaded.
 
 Seed requires `SEED_USER_PASSWORD` in the environment (no default). Enable Supabase leaked-password protection.
-Default seed password for staff: set via `SEED_USER_PASSWORD` (see private handoff; do not use breached passwords). Enable Supabase leaked-password protection.
 
 ## Production Checklist
 
