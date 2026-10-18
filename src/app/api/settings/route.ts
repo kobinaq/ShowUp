@@ -19,6 +19,7 @@ const settingsSchema = z.object({
   notificationMaxRetries: z.coerce.number().int().min(1).max(8),
   lecturerDigestEnabled: z.boolean(),
   studentAttendanceThreshold: z.coerce.number().int().min(1).max(100),
+  lateGraceMinutes: z.coerce.number().int().min(0).max(45),
   activeSemesterId: z.string().nullable().optional(),
   newSemester: z
     .object({

@@ -41,6 +41,14 @@ describe("canAccessPath", () => {
     expect(canAccessPath(Role.LECTURER, "/analytics")).toBe(false);
     expect(canAccessPath(Role.LECTURER, "/dashboard")).toBe(false);
   });
+
+  it("opens timetable for QA/HOD and facilities for lecturers", () => {
+    expect(canAccessPath(Role.QA_OFFICER, "/timetable")).toBe(true);
+    expect(canAccessPath(Role.HOD, "/timetable")).toBe(true);
+    expect(canAccessPath(Role.LECTURER, "/timetable")).toBe(false);
+    expect(canAccessPath(Role.LECTURER, "/facilities")).toBe(true);
+    expect(canAccessPath(Role.VC, "/calendar")).toBe(true);
+  });
 });
 
 describe("pathRoles / rolesForHref", () => {

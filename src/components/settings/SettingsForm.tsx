@@ -25,6 +25,7 @@ type SettingsState = {
   notificationMaxRetries: number;
   lecturerDigestEnabled: boolean;
   studentAttendanceThreshold: number;
+  lateGraceMinutes: number;
   activeSemesterId: string | null;
 };
 
@@ -125,6 +126,16 @@ export function SettingsForm({ initialSettings, semesters }: Props) {
             step={5}
             suffix="minutes"
             onChange={(value) => update("latePingThresholdMinutes", value)}
+          />
+          <NumberField
+            label="Late grace window"
+            helper="Minutes after start before a lecture counts as late on scorecards."
+            value={settings.lateGraceMinutes}
+            min={0}
+            max={45}
+            step={1}
+            suffix="minutes"
+            onChange={(value) => update("lateGraceMinutes", value)}
           />
           <div className="grid gap-3">
             <Toggle label="Send lecturer SMS for late pings" checked={settings.latePingSmsEnabled} onChange={(value) => update("latePingSmsEnabled", value)} />

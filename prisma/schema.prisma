@@ -9,41 +9,45 @@ datasource db {
 }
 
 model University {
-  id        String      @id @default(cuid())
-  name      String
-  logo      String?
-  address   String?
-  createdAt DateTime    @default(now())
-  faculties Faculty[]
-  profiles  Profile[]
-  semesters Semester[]
-  logs      ActivityLog[]
-  settings  UniversitySettings?
-  supportTickets SupportTicket[]
-  students       Student[]
+  id               String              @id @default(cuid())
+  name             String
+  logo             String?
+  address          String?
+  createdAt        DateTime            @default(now())
+  faculties        Faculty[]
+  profiles         Profile[]
+  semesters        Semester[]
+  logs             ActivityLog[]
+  settings         UniversitySettings?
+  supportTickets   SupportTicket[]
+  students         Student[]
+  rooms            Room[]
+  blackouts        AcademicBlackout[]
+  facilitiesIssues FacilitiesIssue[]
 }
 
 model UniversitySettings {
-  id                       String     @id @default(cuid())
-  universityId             String     @unique
-  university               University @relation(fields: [universityId], references: [id], onDelete: Cascade)
-  latePingThresholdMinutes Int        @default(30)
-  submissionWindowHours    Int        @default(2)
-  flagCoverageWeek6        Int        @default(60)
-  flagCoverageWeek10       Int        @default(80)
-  flagRepeatThreshold      Int        @default(3)
-  lecturerAbsenceSmsEnabled   Boolean @default(true)
-  lecturerAbsenceEmailEnabled Boolean @default(true)
-  latePingSmsEnabled          Boolean @default(true)
-  latePingEmailEnabled        Boolean @default(true)
-  qaLatePingEmailEnabled      Boolean @default(true)
-  showUpAiEnabled             Boolean @default(true)
-  contestSlaDays              Int     @default(5)
-  notificationMaxRetries      Int     @default(3)
-  lecturerDigestEnabled       Boolean @default(false)
-  studentAttendanceThreshold  Int     @default(75)
-  updatedById              String?
-  updatedAt                DateTime   @updatedAt
+  id                          String     @id @default(cuid())
+  universityId                String     @unique
+  university                  University @relation(fields: [universityId], references: [id], onDelete: Cascade)
+  latePingThresholdMinutes    Int        @default(30)
+  submissionWindowHours       Int        @default(2)
+  flagCoverageWeek6           Int        @default(60)
+  flagCoverageWeek10          Int        @default(80)
+  flagRepeatThreshold         Int        @default(3)
+  lecturerAbsenceSmsEnabled   Boolean    @default(true)
+  lecturerAbsenceEmailEnabled Boolean    @default(true)
+  latePingSmsEnabled          Boolean    @default(true)
+  latePingEmailEnabled        Boolean    @default(true)
+  qaLatePingEmailEnabled      Boolean    @default(true)
+  showUpAiEnabled             Boolean    @default(true)
+  contestSlaDays              Int        @default(5)
+  notificationMaxRetries      Int        @default(3)
+  lecturerDigestEnabled       Boolean    @default(false)
+  studentAttendanceThreshold  Int        @default(75)
+  lateGraceMinutes            Int        @default(10)
+  updatedById                 String?
+  updatedAt                   DateTime   @updatedAt
 }
 
 model Faculty {
@@ -55,13 +59,14 @@ model Faculty {
 }
 
 model Department {
-  id        String     @id @default(cuid())
+  id        String             @id @default(cuid())
   name      String
   facultyId String
-  faculty   Faculty    @relation(fields: [facultyId], references: [id], onDelete: Cascade)
+  faculty   Faculty            @relation(fields: [facultyId], references: [id], onDelete: Cascade)
   courses   Course[]
   profiles  Profile[]
   lecturers Lecturer[]
+  blackouts AcademicBlackout[]
 }
 
 model Semester {
@@ -77,37 +82,39 @@ model Semester {
 }
 
 model Profile {
-  id              String           @id @default(cuid())
-  supabaseUid     String           @unique
-  anonymousAlias  String?          @unique
-  displayName     String?
-  email           String?
-  phone           String?
-  role            Role
-  departmentId    String?
-  department      Department?      @relation(fields: [departmentId], references: [id])
-  universityId    String
-  university      University       @relation(fields: [universityId], references: [id], onDelete: Cascade)
-  repAssignments  RepAssignment[]
-  submissions     LectureReport[]
-  contestsRaised  Contest[]        @relation("ContestRaisedBy")
-  contestsResolved Contest[]       @relation("ContestResolvedBy")
-  latePingsSent    LatePing[]
-  identityLookups IdentityLookup[] @relation("LookedUpProfile")
-  lookupsMade     IdentityLookup[] @relation("LookupPerformer")
-  uploadedOutlines CourseOutline[]
-  activityLogs    ActivityLog[]
-  supportTicketsRequested SupportTicket[] @relation("SupportRequester")
-  supportTicketsAssigned  SupportTicket[] @relation("SupportAssignee")
-  rosterProposalsMade     RosterProposal[] @relation("RosterProposedBy")
-  rosterProposalsReviewed RosterProposal[] @relation("RosterReviewedBy")
-  flagEvents              FlagEvent[]
-  lecturerId              String?          @unique
-  lecturer                Lecturer?        @relation(fields: [lecturerId], references: [id], onDelete: SetNull)
+  id                       String              @id @default(cuid())
+  supabaseUid              String              @unique
+  anonymousAlias           String?             @unique
+  displayName              String?
+  email                    String?
+  phone                    String?
+  role                     Role
+  departmentId             String?
+  department               Department?         @relation(fields: [departmentId], references: [id])
+  universityId             String
+  university               University          @relation(fields: [universityId], references: [id], onDelete: Cascade)
+  repAssignments           RepAssignment[]
+  submissions              LectureReport[]
+  contestsRaised           Contest[]           @relation("ContestRaisedBy")
+  contestsResolved         Contest[]           @relation("ContestResolvedBy")
+  latePingsSent            LatePing[]
+  identityLookups          IdentityLookup[]    @relation("LookedUpProfile")
+  lookupsMade              IdentityLookup[]    @relation("LookupPerformer")
+  uploadedOutlines         CourseOutline[]
+  activityLogs             ActivityLog[]
+  supportTicketsRequested  SupportTicket[]     @relation("SupportRequester")
+  supportTicketsAssigned   SupportTicket[]     @relation("SupportAssignee")
+  rosterProposalsMade      RosterProposal[]    @relation("RosterProposedBy")
+  rosterProposalsReviewed  RosterProposal[]    @relation("RosterReviewedBy")
+  flagEvents               FlagEvent[]
+  lecturerId               String?             @unique
+  lecturer                 Lecturer?           @relation(fields: [lecturerId], references: [id], onDelete: SetNull)
   attendanceSessionsOpened AttendanceSession[] @relation("AttendanceOpenedBy")
   attendanceRecordsMarked  AttendanceRecord[]  @relation("AttendanceMarkedBy")
-  isActive        Boolean          @default(true)
-  createdAt       DateTime         @default(now())
+  facilitiesIssuesReported FacilitiesIssue[]   @relation("FacilitiesReportedBy")
+  lectureSessionsUpdated   LectureSession[]    @relation("SessionUpdatedBy")
+  isActive                 Boolean             @default(true)
+  createdAt                DateTime            @default(now())
 }
 
 enum Role {
@@ -162,46 +169,49 @@ model RosterProposal {
 }
 
 model Lecturer {
-  id           String                 @id @default(cuid())
-  firstName    String
-  lastName     String
-  email        String                 @unique
-  phone        String
-  staffId      String                 @unique
-  departmentId String
-  department   Department             @relation(fields: [departmentId], references: [id], onDelete: Cascade)
-  courses      Course[]
-  flags        Flag[]
-  notifications LecturerNotification[]
-  digestEmailEnabled Boolean            @default(false)
-  profile      Profile?
-  createdAt    DateTime               @default(now())
+  id                 String                 @id @default(cuid())
+  firstName          String
+  lastName           String
+  email              String                 @unique
+  phone              String
+  staffId            String                 @unique
+  departmentId       String
+  department         Department             @relation(fields: [departmentId], references: [id], onDelete: Cascade)
+  courses            Course[]
+  flags              Flag[]
+  notifications      LecturerNotification[]
+  digestEmailEnabled Boolean                @default(false)
+  profile            Profile?
+  substituteSessions LectureSession[]       @relation("SessionSubstitute")
+  createdAt          DateTime               @default(now())
 }
 
 model Course {
-  id             String          @id @default(cuid())
-  code           String
-  title          String
-  departmentId   String
-  department     Department      @relation(fields: [departmentId], references: [id], onDelete: Cascade)
-  semesterId     String
-  semester       Semester        @relation(fields: [semesterId], references: [id], onDelete: Cascade)
-  lecturerId     String
-  lecturer       Lecturer        @relation(fields: [lecturerId], references: [id])
-  outline        CourseOutline?
-  schedule       ClassSchedule[]
-  reports        LectureReport[]
-  latePings      LatePing[]
-  repAssignments RepAssignment[]
-  sealedIdentities SealedRepIdentity[]
-  rosterProposals  RosterProposal[]
-  discrepancies    ReportDiscrepancy[]
-  enrollments      CourseEnrollment[]
-  attendanceSessions AttendanceSession[]
+  id                     String                  @id @default(cuid())
+  code                   String
+  title                  String
+  departmentId           String
+  department             Department              @relation(fields: [departmentId], references: [id], onDelete: Cascade)
+  semesterId             String
+  semester               Semester                @relation(fields: [semesterId], references: [id], onDelete: Cascade)
+  lecturerId             String
+  lecturer               Lecturer                @relation(fields: [lecturerId], references: [id])
+  outline                CourseOutline?
+  schedule               ClassSchedule[]
+  reports                LectureReport[]
+  latePings              LatePing[]
+  repAssignments         RepAssignment[]
+  sealedIdentities       SealedRepIdentity[]
+  rosterProposals        RosterProposal[]
+  discrepancies          ReportDiscrepancy[]
+  enrollments            CourseEnrollment[]
+  attendanceSessions     AttendanceSession[]
   studentAttendanceFlags StudentAttendanceFlag[]
-  creditHours    Int
-  classSize      Int?
-  createdAt      DateTime        @default(now())
+  classGroups            ClassGroup[]
+  lectureSessions        LectureSession[]
+  creditHours            Int
+  classSize              Int?
+  createdAt              DateTime                @default(now())
 
   @@unique([code, semesterId])
 }
@@ -236,16 +246,24 @@ model OutlineTopic {
 }
 
 model ClassSchedule {
-  id        String          @id @default(cuid())
-  courseId  String
-  course    Course          @relation(fields: [courseId], references: [id], onDelete: Cascade)
-  dayOfWeek Int
-  startTime String
-  endTime   String
-  venue     String?
-  reports   LectureReport[]
-  latePings LatePing[]
+  id                 String              @id @default(cuid())
+  courseId           String
+  course             Course              @relation(fields: [courseId], references: [id], onDelete: Cascade)
+  dayOfWeek          Int
+  startTime          String
+  endTime            String
+  venue              String?
+  roomId             String?
+  room               Room?               @relation(fields: [roomId], references: [id], onDelete: SetNull)
+  classGroupId       String?
+  classGroup         ClassGroup?         @relation(fields: [classGroupId], references: [id], onDelete: SetNull)
+  reports            LectureReport[]
+  latePings          LatePing[]
   attendanceSessions AttendanceSession[]
+  lectureSessions    LectureSession[]
+
+  @@index([roomId])
+  @@index([classGroupId])
 }
 
 model RepAssignment {
@@ -269,35 +287,37 @@ model RepAssignment {
 }
 
 model LectureReport {
-  id                       String           @id @default(cuid())
-  courseId                 String
-  course                   Course           @relation(fields: [courseId], references: [id], onDelete: Cascade)
-  scheduleId               String
-  schedule                 ClassSchedule    @relation(fields: [scheduleId], references: [id])
-  submittedById            String
-  submittedBy              Profile          @relation(fields: [submittedById], references: [id])
-  lectureDate              DateTime
-  lecturerPresent          PresenceStatus
-  substituteNote           String?
-  arrivalStatus            ArrivalStatus?
-  lateMinutes              Int?
-  earlyDismissal           Boolean          @default(false)
-  dismissedEarlyMinutes    Int?
-  topicsCovered            ReportTopic[]
-  previousTopicsRevisited  Boolean          @default(false)
-  teachingAids             TeachingAid[]
-  wasInteractive           InteractiveLevel
-  studentCount             Int?
-  additionalNotes          String?
-  isContested              Boolean          @default(false)
-  isVoided                 Boolean          @default(false)
-  contest                  Contest?
-  latePing                 LatePing?
-  flags                    Flag[]
-  discrepanciesAsFirst     ReportDiscrepancy[] @relation("DiscrepancyFirst")
-  discrepanciesAsSecond    ReportDiscrepancy[] @relation("DiscrepancySecond")
-  submittedAt              DateTime         @default(now())
-  windowClosedAt           DateTime
+  id                      String              @id @default(cuid())
+  courseId                String
+  course                  Course              @relation(fields: [courseId], references: [id], onDelete: Cascade)
+  scheduleId              String
+  schedule                ClassSchedule       @relation(fields: [scheduleId], references: [id])
+  submittedById           String
+  submittedBy             Profile             @relation(fields: [submittedById], references: [id])
+  lectureDate             DateTime
+  lecturerPresent         PresenceStatus
+  substituteNote          String?
+  arrivalStatus           ArrivalStatus?
+  lateMinutes             Int?
+  earlyDismissal          Boolean             @default(false)
+  dismissedEarlyMinutes   Int?
+  topicsCovered           ReportTopic[]
+  previousTopicsRevisited Boolean             @default(false)
+  teachingAids            TeachingAid[]
+  wasInteractive          InteractiveLevel
+  studentCount            Int?
+  additionalNotes         String?
+  isContested             Boolean             @default(false)
+  isVoided                Boolean             @default(false)
+  contest                 Contest?
+  latePing                LatePing?
+  flags                   Flag[]
+  discrepanciesAsFirst    ReportDiscrepancy[] @relation("DiscrepancyFirst")
+  discrepanciesAsSecond   ReportDiscrepancy[] @relation("DiscrepancySecond")
+  lectureSessionId        String?
+  lectureSession          LectureSession?     @relation(fields: [lectureSessionId], references: [id], onDelete: SetNull)
+  submittedAt             DateTime            @default(now())
+  windowClosedAt          DateTime
 
   @@unique([scheduleId, lectureDate, submittedById])
   @@index([courseId, lectureDate])
@@ -400,18 +420,19 @@ enum ContestStatus {
 }
 
 model Flag {
-  id               String         @id @default(cuid())
-  lecturerId       String
-  lecturer         Lecturer       @relation(fields: [lecturerId], references: [id], onDelete: Cascade)
-  reportId         String?
-  report           LectureReport? @relation(fields: [reportId], references: [id], onDelete: SetNull)
-  type             FlagType
-  message          String
-  internalNotes    String?
-  isResolved       Boolean        @default(false)
-  notificationSent Boolean        @default(false)
-  createdAt        DateTime       @default(now())
-  events           FlagEvent[]
+  id                     String         @id @default(cuid())
+  lecturerId             String
+  lecturer               Lecturer       @relation(fields: [lecturerId], references: [id], onDelete: Cascade)
+  reportId               String?
+  report                 LectureReport? @relation(fields: [reportId], references: [id], onDelete: SetNull)
+  type                   FlagType
+  message                String
+  internalNotes          String?
+  isResolved             Boolean        @default(false)
+  notificationSent       Boolean        @default(false)
+  attributedToFacilities Boolean        @default(false)
+  createdAt              DateTime       @default(now())
+  events                 FlagEvent[]
 
   @@index([isResolved, createdAt])
   @@index([lecturerId, createdAt])
@@ -446,10 +467,10 @@ enum FlagType {
 }
 
 model LecturerNotification {
-  id         String              @id @default(cuid())
-  lecturerId String
-  lecturer   Lecturer            @relation(fields: [lecturerId], references: [id], onDelete: Cascade)
-  channel    NotificationChannel
+  id            String              @id @default(cuid())
+  lecturerId    String
+  lecturer      Lecturer            @relation(fields: [lecturerId], references: [id], onDelete: Cascade)
+  channel       NotificationChannel
   message       String
   subject       String?
   sentAt        DateTime            @default(now())
@@ -484,15 +505,15 @@ model IdentityLookup {
 }
 
 model RotationLog {
-  id             String        @id @default(cuid())
-  courseId       String
-  assignmentId   String?
-  assignment     RepAssignment? @relation(fields: [assignmentId], references: [id], onDelete: SetNull)
-  outgoingAlias  String?
-  incomingAlias  String?
-  action         String
-  error          String?
-  createdAt      DateTime      @default(now())
+  id            String         @id @default(cuid())
+  courseId      String
+  assignmentId  String?
+  assignment    RepAssignment? @relation(fields: [assignmentId], references: [id], onDelete: SetNull)
+  outgoingAlias String?
+  incomingAlias String?
+  action        String
+  error         String?
+  createdAt     DateTime       @default(now())
 }
 
 enum ReportDiscrepancyStatus {
@@ -501,17 +522,17 @@ enum ReportDiscrepancyStatus {
 }
 
 model ReportDiscrepancy {
-  id             String                   @id @default(cuid())
+  id             String                  @id @default(cuid())
   courseId       String
-  course         Course                   @relation(fields: [courseId], references: [id], onDelete: Cascade)
+  course         Course                  @relation(fields: [courseId], references: [id], onDelete: Cascade)
   scheduleId     String
   lectureDate    DateTime
   firstReportId  String
-  firstReport    LectureReport            @relation("DiscrepancyFirst", fields: [firstReportId], references: [id], onDelete: Cascade)
+  firstReport    LectureReport           @relation("DiscrepancyFirst", fields: [firstReportId], references: [id], onDelete: Cascade)
   secondReportId String
-  secondReport   LectureReport            @relation("DiscrepancySecond", fields: [secondReportId], references: [id], onDelete: Cascade)
-  status         ReportDiscrepancyStatus  @default(OPEN)
-  createdAt      DateTime                 @default(now())
+  secondReport   LectureReport           @relation("DiscrepancySecond", fields: [secondReportId], references: [id], onDelete: Cascade)
+  status         ReportDiscrepancyStatus @default(OPEN)
+  createdAt      DateTime                @default(now())
 
   @@unique([scheduleId, lectureDate])
   @@index([status, createdAt])
@@ -550,28 +571,28 @@ model RateLimitBucket {
 }
 
 model Student {
-  id            String                   @id @default(cuid())
+  id            String                  @id @default(cuid())
   universityId  String
-  university    University               @relation(fields: [universityId], references: [id], onDelete: Cascade)
+  university    University              @relation(fields: [universityId], references: [id], onDelete: Cascade)
   studentNumber String
   fullName      String
   email         String?
   enrollments   CourseEnrollment[]
   records       AttendanceRecord[]
   flags         StudentAttendanceFlag[]
-  createdAt     DateTime                 @default(now())
+  createdAt     DateTime                @default(now())
 
   @@unique([universityId, studentNumber])
   @@index([universityId, fullName])
 }
 
 model CourseEnrollment {
-  id         String   @id @default(cuid())
-  courseId   String
-  course     Course   @relation(fields: [courseId], references: [id], onDelete: Cascade)
-  studentId  String
-  student    Student  @relation(fields: [studentId], references: [id], onDelete: Cascade)
-  createdAt  DateTime @default(now())
+  id        String   @id @default(cuid())
+  courseId  String
+  course    Course   @relation(fields: [courseId], references: [id], onDelete: Cascade)
+  studentId String
+  student   Student  @relation(fields: [studentId], references: [id], onDelete: Cascade)
+  createdAt DateTime @default(now())
 
   @@unique([courseId, studentId])
   @@index([studentId])
@@ -589,17 +610,17 @@ enum StudentAttendanceMark {
 }
 
 model AttendanceSession {
-  id          String                   @id @default(cuid())
+  id          String                  @id @default(cuid())
   courseId    String
-  course      Course                   @relation(fields: [courseId], references: [id], onDelete: Cascade)
+  course      Course                  @relation(fields: [courseId], references: [id], onDelete: Cascade)
   scheduleId  String?
-  schedule    ClassSchedule?           @relation(fields: [scheduleId], references: [id], onDelete: SetNull)
+  schedule    ClassSchedule?          @relation(fields: [scheduleId], references: [id], onDelete: SetNull)
   lectureDate DateTime
-  status      AttendanceSessionStatus  @default(OPEN)
+  status      AttendanceSessionStatus @default(OPEN)
   openedById  String
-  openedBy    Profile                  @relation("AttendanceOpenedBy", fields: [openedById], references: [id])
+  openedBy    Profile                 @relation("AttendanceOpenedBy", fields: [openedById], references: [id])
   closedAt    DateTime?
-  createdAt   DateTime                 @default(now())
+  createdAt   DateTime                @default(now())
   records     AttendanceRecord[]
 
   @@index([courseId, lectureDate])
@@ -607,16 +628,16 @@ model AttendanceSession {
 }
 
 model AttendanceRecord {
-  id         String                 @id @default(cuid())
+  id         String                @id @default(cuid())
   sessionId  String
-  session    AttendanceSession      @relation(fields: [sessionId], references: [id], onDelete: Cascade)
+  session    AttendanceSession     @relation(fields: [sessionId], references: [id], onDelete: Cascade)
   studentId  String
-  student    Student                @relation(fields: [studentId], references: [id], onDelete: Cascade)
+  student    Student               @relation(fields: [studentId], references: [id], onDelete: Cascade)
   status     StudentAttendanceMark
   markedById String
-  markedBy   Profile                @relation("AttendanceMarkedBy", fields: [markedById], references: [id])
-  createdAt  DateTime               @default(now())
-  updatedAt  DateTime               @updatedAt
+  markedBy   Profile               @relation("AttendanceMarkedBy", fields: [markedById], references: [id])
+  createdAt  DateTime              @default(now())
+  updatedAt  DateTime              @updatedAt
 
   @@unique([sessionId, studentId])
   @@index([studentId, status])
@@ -628,21 +649,20 @@ enum StudentAttendanceFlagStatus {
 }
 
 model StudentAttendanceFlag {
-  id                 String                       @id @default(cuid())
-  studentId          String
-  student            Student                      @relation(fields: [studentId], references: [id], onDelete: Cascade)
-  courseId           String
-  course             Course                       @relation(fields: [courseId], references: [id], onDelete: Cascade)
-  attendancePercent  Int
-  threshold          Int
-  status             StudentAttendanceFlagStatus  @default(OPEN)
-  createdAt          DateTime                     @default(now())
-  resolvedAt         DateTime?
+  id                String                      @id @default(cuid())
+  studentId         String
+  student           Student                     @relation(fields: [studentId], references: [id], onDelete: Cascade)
+  courseId          String
+  course            Course                      @relation(fields: [courseId], references: [id], onDelete: Cascade)
+  attendancePercent Int
+  threshold         Int
+  status            StudentAttendanceFlagStatus @default(OPEN)
+  createdAt         DateTime                    @default(now())
+  resolvedAt        DateTime?
 
   @@unique([studentId, courseId])
   @@index([courseId, status])
 }
-
 
 enum LeadStatus {
   NEW
@@ -652,24 +672,24 @@ enum LeadStatus {
 }
 
 model SupportTicket {
-  id           String                @id @default(cuid())
-  universityId String
-  university   University            @relation(fields: [universityId], references: [id], onDelete: Cascade)
-  requesterId  String
-  requester    Profile               @relation("SupportRequester", fields: [requesterId], references: [id], onDelete: Cascade)
-  assignedToId String?
-  assignedTo   Profile?              @relation("SupportAssignee", fields: [assignedToId], references: [id], onDelete: SetNull)
-  subject      String
-  message      String
-  category     SupportTicketCategory
-  priority     SupportPriority       @default(NORMAL)
-  status       SupportTicketStatus   @default(OPEN)
+  id             String                @id @default(cuid())
+  universityId   String
+  university     University            @relation(fields: [universityId], references: [id], onDelete: Cascade)
+  requesterId    String
+  requester      Profile               @relation("SupportRequester", fields: [requesterId], references: [id], onDelete: Cascade)
+  assignedToId   String?
+  assignedTo     Profile?              @relation("SupportAssignee", fields: [assignedToId], references: [id], onDelete: SetNull)
+  subject        String
+  message        String
+  category       SupportTicketCategory
+  priority       SupportPriority       @default(NORMAL)
+  status         SupportTicketStatus   @default(OPEN)
   resolutionNote String?
-  emailStatus  DeliveryStatus        @default(SKIPPED)
-  smsStatus    DeliveryStatus        @default(SKIPPED)
-  createdAt    DateTime              @default(now())
-  updatedAt    DateTime              @updatedAt
-  resolvedAt   DateTime?
+  emailStatus    DeliveryStatus        @default(SKIPPED)
+  smsStatus      DeliveryStatus        @default(SKIPPED)
+  createdAt      DateTime              @default(now())
+  updatedAt      DateTime              @updatedAt
+  resolvedAt     DateTime?
 }
 
 enum SupportTicketStatus {
@@ -693,4 +713,148 @@ enum SupportPriority {
   NORMAL
   HIGH
   URGENT
+}
+
+enum LectureSessionStatus {
+  SCHEDULED
+  ON_TIME
+  DELAYED
+  ROOM_CHANGED
+  RESCHEDULED
+  CANCELLED_WITH_NOTICE
+  CANCELLED_NO_NOTICE
+  MAKE_UP
+}
+
+enum SessionDisruptionReason {
+  ROOM_NOT_READY
+  POWER_PROJECTOR
+  LECTURER_EMERGENCY
+  UNIVERSITY_EVENT
+  OTHER
+}
+
+enum BlackoutType {
+  HOLIDAY
+  EXAM_WEEK
+  STRIKE
+  CLOSURE
+  OTHER
+}
+
+enum FacilitiesIssueStatus {
+  OPEN
+  RESOLVED
+}
+
+model Room {
+  id               String            @id @default(cuid())
+  universityId     String
+  university       University        @relation(fields: [universityId], references: [id], onDelete: Cascade)
+  code             String
+  name             String
+  building         String?
+  capacity         Int?
+  isActive         Boolean           @default(true)
+  schedules        ClassSchedule[]
+  sessions         LectureSession[]
+  facilitiesIssues FacilitiesIssue[]
+  createdAt        DateTime          @default(now())
+
+  @@unique([universityId, code])
+  @@index([universityId, isActive])
+}
+
+model ClassGroup {
+  id           String                @id @default(cuid())
+  courseId     String
+  course       Course                @relation(fields: [courseId], references: [id], onDelete: Cascade)
+  code         String
+  name         String
+  schedules    ClassSchedule[]
+  sessionLinks LectureSessionGroup[]
+  createdAt    DateTime              @default(now())
+
+  @@unique([courseId, code])
+}
+
+model LectureSession {
+  id                     String                   @id @default(cuid())
+  courseId               String
+  course                 Course                   @relation(fields: [courseId], references: [id], onDelete: Cascade)
+  scheduleId             String
+  schedule               ClassSchedule            @relation(fields: [scheduleId], references: [id], onDelete: Cascade)
+  lectureDate            DateTime
+  status                 LectureSessionStatus     @default(SCHEDULED)
+  reason                 SessionDisruptionReason?
+  reasonNote             String?
+  attributedToFacilities Boolean                  @default(false)
+  roomId                 String?
+  room                   Room?                    @relation(fields: [roomId], references: [id], onDelete: SetNull)
+  substituteLecturerId   String?
+  substituteLecturer     Lecturer?                @relation("SessionSubstitute", fields: [substituteLecturerId], references: [id], onDelete: SetNull)
+  makeupOfSessionId      String?
+  makeupOfSession        LectureSession?          @relation("SessionMakeup", fields: [makeupOfSessionId], references: [id], onDelete: SetNull)
+  makeups                LectureSession[]         @relation("SessionMakeup")
+  updatedById            String?
+  updatedBy              Profile?                 @relation("SessionUpdatedBy", fields: [updatedById], references: [id], onDelete: SetNull)
+  classGroups            LectureSessionGroup[]
+  reports                LectureReport[]
+  facilitiesIssues       FacilitiesIssue[]
+  createdAt              DateTime                 @default(now())
+  updatedAt              DateTime                 @updatedAt
+
+  @@unique([scheduleId, lectureDate])
+  @@index([courseId, lectureDate])
+  @@index([status, lectureDate])
+  @@index([attributedToFacilities, lectureDate])
+  @@index([roomId, lectureDate])
+}
+
+model LectureSessionGroup {
+  id           String         @id @default(cuid())
+  sessionId    String
+  session      LectureSession @relation(fields: [sessionId], references: [id], onDelete: Cascade)
+  classGroupId String
+  classGroup   ClassGroup     @relation(fields: [classGroupId], references: [id], onDelete: Cascade)
+
+  @@unique([sessionId, classGroupId])
+  @@index([classGroupId])
+}
+
+model AcademicBlackout {
+  id              String       @id @default(cuid())
+  universityId    String
+  university      University   @relation(fields: [universityId], references: [id], onDelete: Cascade)
+  departmentId    String?
+  department      Department?  @relation(fields: [departmentId], references: [id], onDelete: Cascade)
+  type            BlackoutType
+  title           String
+  startDate       DateTime
+  endDate         DateTime
+  suppressesFlags Boolean      @default(true)
+  createdAt       DateTime     @default(now())
+
+  @@index([universityId, startDate, endDate])
+  @@index([departmentId, startDate, endDate])
+}
+
+model FacilitiesIssue {
+  id           String                  @id @default(cuid())
+  universityId String
+  university   University              @relation(fields: [universityId], references: [id], onDelete: Cascade)
+  roomId       String
+  room         Room                    @relation(fields: [roomId], references: [id], onDelete: Cascade)
+  sessionId    String?
+  session      LectureSession?         @relation(fields: [sessionId], references: [id], onDelete: SetNull)
+  reportedById String
+  reportedBy   Profile                 @relation("FacilitiesReportedBy", fields: [reportedById], references: [id], onDelete: Cascade)
+  category     SessionDisruptionReason
+  description  String
+  status       FacilitiesIssueStatus   @default(OPEN)
+  createdAt    DateTime                @default(now())
+  resolvedAt   DateTime?
+
+  @@index([universityId, status, createdAt])
+  @@index([roomId, status])
 }

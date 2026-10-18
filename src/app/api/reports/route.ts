@@ -55,6 +55,7 @@ export const POST = withAuth(async (request, { profile }) => {
 
   const settings = await prisma.universitySettings.findUnique({ where: { universityId: course.department.faculty.universityId } });
   const windowHours = settings?.submissionWindowHours ?? Number(process.env.SUBMISSION_WINDOW_HOURS ?? 2);
+  const graceMinutes = settings?.lateGraceMinutes ?? 10;
   const classStartAt = timeOnSessionDate(lectureDate, schedule.startTime);
   const classEndAt = timeOnSessionDate(lectureDate, schedule.endTime);
   const windowClosedAt = new Date(classEndAt.getTime() + windowHours * 60 * 60 * 1000);
@@ -74,15 +75,23 @@ export const POST = withAuth(async (request, { profile }) => {
     if (allowedTopics !== new Set(topicIds).size) return badRequest("One or more selected topics do not belong to this course");
   }
 
+  const { applyLateGrace } = await import("@/lib/services/session-status");
+  const { ensureLectureSession } = await import("@/lib/services/timetable");
+  const lateAdjusted = isAbsent
+    ? { arrivalStatus: null as "ON_TIME" | "LATE" | null, lateMinutes: null as number | null }
+    : applyLateGrace({ lateMinutes: data.lateMinutes ?? null, graceMinutes });
+
   let report;
   try {
     report = await prisma.$transaction(async (tx) => {
+      const session = await ensureLectureSession({ scheduleId: schedule.id, lectureDate, tx });
       const created = await tx.lectureReport.create({
         data: {
           ...data,
           lectureDate,
-          arrivalStatus: isAbsent ? undefined : data.arrivalStatus,
-          lateMinutes: isAbsent ? undefined : data.lateMinutes,
+          lectureSessionId: session.id,
+          arrivalStatus: isAbsent ? undefined : (lateAdjusted.arrivalStatus ?? data.arrivalStatus),
+          lateMinutes: isAbsent ? undefined : (lateAdjusted.lateMinutes ?? data.lateMinutes),
           earlyDismissal: isAbsent ? false : Boolean(data.earlyDismissal),
           dismissedEarlyMinutes: isAbsent ? undefined : data.dismissedEarlyMinutes,
           previousTopicsRevisited: isAbsent ? false : Boolean(data.previousTopicsRevisited),
