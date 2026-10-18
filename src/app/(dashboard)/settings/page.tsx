@@ -45,6 +45,7 @@ export default async function SettingsPage() {
           missedReportFlagThreshold: settings.missedReportFlagThreshold,
           backupNotifySmsEnabled: settings.backupNotifySmsEnabled,
           repReminderSmsEnabled: settings.repReminderSmsEnabled,
+          attendanceEditWindowHours: settings.attendanceEditWindowHours,
           activeSemesterId: activeSemester?.id ?? null
         }}
         semesters={semesters.map((semester) => ({ id: semester.id, name: semester.name }))}

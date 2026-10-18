@@ -25,6 +25,7 @@ const settingsSchema = z.object({
   missedReportFlagThreshold: z.coerce.number().int().min(1).max(20),
   backupNotifySmsEnabled: z.boolean(),
   repReminderSmsEnabled: z.boolean(),
+  attendanceEditWindowHours: z.coerce.number().int().min(1).max(72),
   activeSemesterId: z.string().nullable().optional(),
   newSemester: z
     .object({

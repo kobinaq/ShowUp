@@ -9,6 +9,8 @@ import { calculateCoverage } from "@/lib/services/coverage.service";
 import { displayText } from "@/lib/utils/displayText";
 import { PageHeader } from "@/components/shared/PageHeader";
 import { MetricCard, SectionPanel } from "@/components/shared/Panels";
+import { NeedsAttentionList } from "@/components/home/NeedsAttentionList";
+import { buildStaffAttention } from "@/lib/services/role-attention";
 
 export default async function AnalyticsPage() {
   const profile = await getAuthProfile();
@@ -123,10 +125,22 @@ export default async function AnalyticsPage() {
     .sort((a, b) => a.coveragePercent - b.coveragePercent)
     .slice(0, 5);
   const scopeTitle = isSuperAdmin ? "All universities" : isDepartmentScope ? profile.department?.name ?? "Your department" : profile.university?.name ?? "Your university";
+  const vcAttention = buildStaffAttention({
+    unresolvedFlags,
+    pendingContests: openContests,
+    openDiscrepancies: 0,
+    noDataSessions: 0,
+    repFlags: 0
+  });
 
   return (
     <div className="space-y-6">
       <PageHeader eyebrow={scopeTitle} title="Analytics" description="Executive indicators for attendance, topic coverage, late alerts, flags, and contested reports." />
+      {(profile.role === "VC" || profile.role === "SUPER_ADMIN") && (
+        <SectionPanel title="Needs attention today" description="Leadership view of open quality risks.">
+          <NeedsAttentionList items={vcAttention} emptyTitle="No executive escalations." emptyDescription="Open flags and contests will surface here for VC review." />
+        </SectionPanel>
+      )}
       <section className="grid gap-4 md:grid-cols-2 xl:grid-cols-4">
         <MetricCard label="Attendance rate" value={`${attendanceRate}%`} helper={`${reports.length} reports analyzed`} tone={attendanceRate >= 85 ? "green" : attendanceRate >= 70 ? "amber" : "red"} />
         <MetricCard label="Average coverage" value={`${averageCoverage}%`} helper={`${courses.length} courses in scope`} tone={averageCoverage >= 80 ? "green" : averageCoverage >= 60 ? "amber" : "red"} />

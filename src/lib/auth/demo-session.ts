@@ -39,7 +39,8 @@ export function roleHomeForDemo(role: Role) {
   if (role === Role.CLASS_REP) return "/rep/submit";
   if (role === Role.VC) return "/analytics";
   if (role === Role.SUPER_ADMIN || role === Role.IT) return "/admin";
-  if (role === Role.HOD || role === Role.LECTURER) return "/courses";
+  if (role === Role.LECTURER) return "/lecturer";
+  if (role === Role.HOD) return "/courses";
   return "/dashboard";
 }
 

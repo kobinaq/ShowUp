@@ -8,7 +8,7 @@ export const roleHome: Record<Role, string> = {
   IT: "/admin",
   HOD: "/courses",
   HOD_ASSISTANT: "/courses",
-  LECTURER: "/courses",
+  LECTURER: "/lecturer",
   CLASS_REP: "/rep/submit"
 };
 
@@ -31,6 +31,7 @@ const COURSE_MANAGERS: Role[] = [...QA_HOD, Role.IT, Role.LECTURER];
 /** Shared nav + page access matrix — keep Sidebar/MobileNav in sync with this. */
 export const pathRoles: Record<string, Role[]> = {
   "/dashboard": OPS,
+  "/lecturer": [Role.LECTURER, Role.SUPER_ADMIN],
   "/analytics": STAFF.filter((role) => role !== Role.LECTURER),
   "/reports": STAFF.filter((role) => role !== Role.LECTURER),
   "/courses": STAFF,
@@ -43,7 +44,7 @@ export const pathRoles: Record<string, Role[]> = {
   "/lookups": QA,
   "/discrepancies": QA,
   "/reps": [...QA, Role.IT, Role.HOD, Role.HOD_ASSISTANT],
-  "/timetable": [...QA, Role.IT, Role.HOD, Role.HOD_ASSISTANT],
+  "/timetable": [...QA, Role.IT, Role.HOD, Role.HOD_ASSISTANT, Role.LECTURER],
   "/facilities": [...QA, Role.IT, Role.HOD, Role.HOD_ASSISTANT, Role.LECTURER, Role.VC],
   "/calendar": [...QA, Role.IT, Role.HOD, Role.HOD_ASSISTANT, Role.VC, Role.LECTURER],
   "/support": STAFF.filter((role) => role !== Role.LECTURER),

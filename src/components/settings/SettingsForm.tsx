@@ -31,6 +31,7 @@ type SettingsState = {
   missedReportFlagThreshold: number;
   backupNotifySmsEnabled: boolean;
   repReminderSmsEnabled: boolean;
+  attendanceEditWindowHours: number;
   activeSemesterId: string | null;
 };
 
@@ -141,6 +142,15 @@ export function SettingsForm({ initialSettings, semesters }: Props) {
             min={1}
             max={20}
             onChange={(value) => update("missedReportFlagThreshold", value)}
+          />
+          <NumberField
+            label="Attendance edit window"
+            helper="Lecturers can mark/edit student attendance for this many hours after class ends."
+            value={settings.attendanceEditWindowHours}
+            min={1}
+            max={72}
+            suffix="hours"
+            onChange={(value) => update("attendanceEditWindowHours", value)}
           />
           <div className="grid gap-3">
             <Toggle label="SMS backup when primary is silent" checked={settings.backupNotifySmsEnabled} onChange={(value) => update("backupNotifySmsEnabled", value)} />

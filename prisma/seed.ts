@@ -663,7 +663,8 @@ async function main() {
       lateSubmissionHours: 24,
       missedReportFlagThreshold: 3,
       backupNotifySmsEnabled: true,
-      repReminderSmsEnabled: true
+      repReminderSmsEnabled: true,
+      attendanceEditWindowHours: 24
     }
   });
 

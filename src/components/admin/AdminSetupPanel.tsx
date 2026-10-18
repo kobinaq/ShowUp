@@ -138,7 +138,30 @@ function Fields({
   if (type === "department") return <><Input name="name" label="Name" /><Select name="facultyId" label="Faculty" options={faculties} /></>;
   if (type === "semester") return <><Input name="name" label="Name" />{showUniversityFields ? <Select name="universityId" label="University" options={universities} /> : null}<Input name="startDate" label="Start date" type="date" /><Input name="endDate" label="End date" type="date" /><label className="flex items-center gap-2 text-sm"><input name="isActive" type="checkbox" defaultChecked /> Active semester</label></>;
   if (type === "lecturer") return <><Input name="firstName" label="First name" /><Input name="lastName" label="Last name" /><Input name="email" label="Email" type="email" /><Input name="phone" label="Phone" /><Input name="staffId" label="Staff ID" />{showDepartmentFields ? <Select name="departmentId" label="Department" options={departments} /> : null}</>;
-  if (type === "user") return <><Input name="displayName" label="Display name" /><Input name="email" label="Email" type="email" /><Input name="phone" label="Phone" required={false} />{showUniversityFields ? <Select name="universityId" label="University" options={universities} /> : null}<Select name="role" label="Role" options={[{ id: "VC", name: "VC" }, { id: "QA_OFFICER", name: "QA Officer" }, { id: "QA_ASSISTANT", name: "QA Assistant" }, { id: "IT", name: "IT" }, { id: "HOD", name: "HOD" }, { id: "HOD_ASSISTANT", name: "HOD Assistant" }]} /><Select name="departmentId" label="Department for HOD roles" options={[{ id: "", name: "No department" }, ...departments]} required={false} /></>;
+  if (type === "user")
+    return (
+      <>
+        <Input name="displayName" label="Display name" />
+        <Input name="email" label="Email" type="email" />
+        <Input name="phone" label="Phone" required={false} />
+        {showUniversityFields ? <Select name="universityId" label="University" options={universities} /> : null}
+        <Select
+          name="role"
+          label="Role"
+          options={[
+            { id: "VC", name: "VC" },
+            { id: "QA_OFFICER", name: "QA Officer" },
+            { id: "QA_ASSISTANT", name: "QA Assistant" },
+            { id: "IT", name: "IT" },
+            { id: "HOD", name: "HOD" },
+            { id: "HOD_ASSISTANT", name: "HOD Assistant" },
+            { id: "LECTURER", name: "Lecturer" }
+          ]}
+        />
+        <Select name="departmentId" label="Department for HOD roles" options={[{ id: "", name: "No department" }, ...departments]} required={false} />
+        <Select name="lecturerId" label="Link to Lecturer record (required for LECTURER role)" options={[{ id: "", name: "No lecturer link" }, ...lecturers]} required={false} />
+      </>
+    );
   return <><Input name="code" label="Code" /><Input name="title" label="Title" />{showDepartmentFields ? <Select name="departmentId" label="Department" options={departments} /> : null}<Select name="semesterId" label="Semester" options={semesters} /><Select name="lecturerId" label="Lecturer" options={lecturers} /><Input name="creditHours" label="Credit hours" type="number" defaultValue="3" /><Input name="classSize" label="Class size" type="number" defaultValue="60" /><Select name="dayOfWeek" label="Day" options={[{ id: "1", name: "Monday" }, { id: "2", name: "Tuesday" }, { id: "3", name: "Wednesday" }, { id: "4", name: "Thursday" }, { id: "5", name: "Friday" }]} /><Input name="startTime" label="Start time" defaultValue="08:00" /><Input name="endTime" label="End time" defaultValue="10:00" /><Input name="venue" label="Venue" /></>;
 }
 
