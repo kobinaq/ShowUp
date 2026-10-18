@@ -26,6 +26,8 @@ const settingsSchema = z.object({
   backupNotifySmsEnabled: z.boolean(),
   repReminderSmsEnabled: z.boolean(),
   attendanceEditWindowHours: z.coerce.number().int().min(1).max(72),
+  monthlyReportEmailEnabled: z.boolean(),
+  monthlyReportDayOfMonth: z.coerce.number().int().min(1).max(28),
   activeSemesterId: z.string().nullable().optional(),
   newSemester: z
     .object({

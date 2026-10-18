@@ -16,6 +16,7 @@ const groups: Array<{
     items: [
       { href: "/dashboard", label: "Command Center", icon: LayoutDashboard },
       { href: "/lecturer", label: "My home", icon: UserRound },
+      { href: "/insights", label: "Insights", icon: BarChart3 },
       { href: "/analytics", label: "Analytics", icon: BarChart3 }
     ]
   },

@@ -24,6 +24,7 @@ model University {
   rooms            Room[]
   blackouts        AcademicBlackout[]
   facilitiesIssues FacilitiesIssue[]
+  scheduledReports ScheduledReportJob[]
 }
 
 model UniversitySettings {
@@ -53,6 +54,8 @@ model UniversitySettings {
   repReminderSmsEnabled       Boolean    @default(true)
   attendanceEditWindowHours   Int        @default(24)
   setupWizardCompletedAt      DateTime?
+  monthlyReportEmailEnabled   Boolean    @default(false)
+  monthlyReportDayOfMonth     Int        @default(1)
   updatedById                 String?
   updatedAt                   DateTime   @updatedAt
 }
@@ -993,4 +996,36 @@ model FacilitiesIssue {
 
   @@index([universityId, status, createdAt])
   @@index([roomId, status])
+}
+
+enum ReportScopeType {
+  UNIVERSITY
+  FACULTY
+  DEPARTMENT
+}
+
+enum ReportExportFormat {
+  PDF
+  CSV
+  XLSX
+}
+
+model ScheduledReportJob {
+  id              String             @id @default(cuid())
+  universityId    String
+  university      University         @relation(fields: [universityId], references: [id], onDelete: Cascade)
+  scopeType       ReportScopeType    @default(UNIVERSITY)
+  scopeId         String?
+  cadence         String             @default("MONTHLY")
+  format          ReportExportFormat @default(CSV)
+  recipientRoles  String[]           @default([])
+  recipientEmails String[]           @default([])
+  enabled         Boolean            @default(true)
+  lastRunAt       DateTime?
+  nextRunAt       DateTime?
+  lastStatus      String?
+  createdAt       DateTime           @default(now())
+  updatedAt       DateTime           @updatedAt
+
+  @@index([universityId, enabled, nextRunAt])
 }

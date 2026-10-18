@@ -121,6 +121,7 @@ async function cleanupDemoData() {
 
   await prisma.identityLookup.deleteMany({ where: { OR: [{ performedBy: { email: { endsWith: "@atu.showup.demo" } } }, { lookedUpProfile: { email: { endsWith: "@atu.showup.demo" } } }] } });
   await prisma.activityLog.deleteMany({ where: { universityId } });
+  await prisma.scheduledReportJob.deleteMany({ where: { universityId } });
   await prisma.repReliabilityFlag.deleteMany({ where: { OR: [{ courseId: { in: courseIds } }, { profile: { anonymousAlias: { startsWith: "reporter_ATU_" } } }] } });
   await prisma.repNotification.deleteMany({ where: { OR: [{ courseId: { in: courseIds } }, { profile: { anonymousAlias: { startsWith: "reporter_ATU_" } } }] } });
   await prisma.reportDiscrepancy.deleteMany({ where: { courseId: { in: courseIds } } });
@@ -132,6 +133,7 @@ async function cleanupDemoData() {
   await prisma.classGroup.deleteMany({ where: { courseId: { in: courseIds } } });
   await prisma.room.deleteMany({ where: { universityId } });
   await prisma.studentAttendanceFlag.deleteMany({ where: { courseId: { in: courseIds } } });
+  await prisma.attendanceRecordEdit.deleteMany({ where: { record: { session: { courseId: { in: courseIds } } } } });
   await prisma.attendanceRecord.deleteMany({ where: { session: { courseId: { in: courseIds } } } });
   await prisma.attendanceSession.deleteMany({ where: { courseId: { in: courseIds } } });
   await prisma.courseEnrollment.deleteMany({ where: { courseId: { in: courseIds } } });
@@ -664,7 +666,27 @@ async function main() {
       missedReportFlagThreshold: 3,
       backupNotifySmsEnabled: true,
       repReminderSmsEnabled: true,
-      attendanceEditWindowHours: 24
+      attendanceEditWindowHours: 24,
+      monthlyReportEmailEnabled: true,
+      monthlyReportDayOfMonth: 1
+    }
+  });
+
+  await prisma.scheduledReportJob.upsert({
+    where: { id: "atu_monthly_report_job" },
+    create: {
+      id: "atu_monthly_report_job",
+      universityId: university.id,
+      scopeType: "UNIVERSITY",
+      cadence: "MONTHLY",
+      format: "CSV",
+      recipientRoles: ["VC", "HOD"],
+      enabled: true,
+      nextRunAt: null
+    },
+    update: {
+      enabled: true,
+      recipientRoles: ["VC", "HOD"]
     }
   });
 

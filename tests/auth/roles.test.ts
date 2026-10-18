@@ -57,6 +57,12 @@ describe("canAccessPath", () => {
     expect(canAccessPath(Role.LECTURER, "/reps")).toBe(false);
     expect(canAccessPath(Role.CLASS_REP, "/reps")).toBe(false);
   });
+
+  it("opens insights for VC and HOD but not lecturers", () => {
+    expect(canAccessPath(Role.VC, "/insights")).toBe(true);
+    expect(canAccessPath(Role.HOD, "/insights")).toBe(true);
+    expect(canAccessPath(Role.LECTURER, "/insights")).toBe(false);
+  });
 });
 
 describe("pathRoles / rolesForHref", () => {

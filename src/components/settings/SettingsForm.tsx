@@ -32,6 +32,8 @@ type SettingsState = {
   backupNotifySmsEnabled: boolean;
   repReminderSmsEnabled: boolean;
   attendanceEditWindowHours: number;
+  monthlyReportEmailEnabled: boolean;
+  monthlyReportDayOfMonth: number;
   activeSemesterId: string | null;
 };
 
@@ -215,6 +217,20 @@ export function SettingsForm({ initialSettings, semesters }: Props) {
           <NumberField label="Week 6 coverage" helper="Minimum topic coverage by week 6." value={settings.flagCoverageWeek6} min={0} max={100} suffix="%" onChange={(value) => update("flagCoverageWeek6", value)} />
           <NumberField label="Week 10 coverage" helper="Minimum topic coverage by week 10." value={settings.flagCoverageWeek10} min={0} max={100} suffix="%" onChange={(value) => update("flagCoverageWeek10", value)} />
           <NumberField label="Student attendance floor" helper="Students below this course attendance % are flagged." value={settings.studentAttendanceThreshold} min={1} max={100} suffix="%" onChange={(value) => update("studentAttendanceThreshold", value)} />
+        </div>
+      </SectionPanel>
+
+      <SectionPanel title="Monthly reports" description="Email VC/HOD a monthly attendance × quality summary via Resend (ops cron).">
+        <div className="grid gap-4 lg:grid-cols-2">
+          <Toggle label="Enable scheduled monthly report emails" checked={settings.monthlyReportEmailEnabled} onChange={(value) => update("monthlyReportEmailEnabled", value)} />
+          <NumberField
+            label="Send on day of month"
+            helper="UTC day when the ops cron may dispatch the previous month’s report."
+            value={settings.monthlyReportDayOfMonth}
+            min={1}
+            max={28}
+            onChange={(value) => update("monthlyReportDayOfMonth", value)}
+          />
         </div>
       </SectionPanel>
 

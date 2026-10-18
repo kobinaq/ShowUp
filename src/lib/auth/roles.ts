@@ -32,6 +32,7 @@ const COURSE_MANAGERS: Role[] = [...QA_HOD, Role.IT, Role.LECTURER];
 export const pathRoles: Record<string, Role[]> = {
   "/dashboard": OPS,
   "/lecturer": [Role.LECTURER, Role.SUPER_ADMIN],
+  "/insights": STAFF.filter((role) => role !== Role.LECTURER),
   "/analytics": STAFF.filter((role) => role !== Role.LECTURER),
   "/reports": STAFF.filter((role) => role !== Role.LECTURER),
   "/courses": STAFF,
