@@ -69,12 +69,12 @@ async function notifyUniversityIt(universityId: string, ticketId: string, subjec
     if (user.email) {
       emailResults.push(await notificationService.sendEmail(
         user.email,
-        `ShowUp IT support: ${subject}`,
-        `<div style="font-family:Inter,Arial,sans-serif;color:#0D1F3C"><h1>ShowUp IT support</h1><p>${message}</p><p>Ticket ID: ${ticketId}</p></div>`
+        `Meridiqa IT support: ${subject}`,
+        `<div style="font-family:Inter,Arial,sans-serif;color:#0D1F3C"><h1>Meridiqa IT support</h1><p>${message}</p><p>Ticket ID: ${ticketId}</p></div>`
       ));
     }
     if (user.phone) {
-      smsResults.push(await notificationService.sendSms(user.phone, `ShowUp IT support: ${subject}. Ticket ${ticketId}. Do not reply.`));
+      smsResults.push(await notificationService.sendSms(user.phone, `Meridiqa IT support: ${subject}. Ticket ${ticketId}. Do not reply.`));
     }
   }
   return {

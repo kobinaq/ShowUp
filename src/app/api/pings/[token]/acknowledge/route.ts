@@ -17,5 +17,5 @@ export async function GET(_request: NextRequest, { params }: Params) {
 }
 
 function buildPage(title: string, message: string) {
-  return `<!DOCTYPE html><html><body style="font-family:Inter,Arial,sans-serif;background:#F4F6F9;display:flex;align-items:center;justify-content:center;min-height:100vh;margin:0"><main style="background:white;border-radius:10px;padding:40px 28px;text-align:center;max-width:420px;width:90%"><h1 style="color:#0D1F3C;margin-bottom:8px">${title}</h1><p style="color:#6B7280">${message}</p><p style="color:#6B7280;font-size:12px;margin-top:28px">ShowUp · University Quality Assurance Platform</p></main></body></html>`;
+  return `<!DOCTYPE html><html><body style="font-family:Inter,Arial,sans-serif;background:#F4F6F9;display:flex;align-items:center;justify-content:center;min-height:100vh;margin:0"><main style="background:white;border-radius:10px;padding:40px 28px;text-align:center;max-width:420px;width:90%"><h1 style="color:#0D1F3C;margin-bottom:8px">${title}</h1><p style="color:#6B7280">${message}</p><p style="color:#6B7280;font-size:12px;margin-top:28px">Meridiqa · University Quality Assurance Platform</p></main></body></html>`;
 }

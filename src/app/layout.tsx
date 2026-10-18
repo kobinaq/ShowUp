@@ -4,7 +4,7 @@ import { ServiceWorkerRegister } from "@/components/pwa/ServiceWorkerRegister";
 import "./globals.css";
 
 export const metadata: Metadata = {
-  title: "ShowUp",
+  title: "Meridiqa",
   description: "University lecturer quality assurance platform",
   manifest: "/manifest.json"
 };

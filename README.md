@@ -1,6 +1,6 @@
-# ShowUp
+# Meridiqa
 
-ShowUp is a production-oriented University Lecturer Quality Assurance Platform. It uses Next.js App Router, Supabase Auth, Prisma on Supabase Postgres, Vercel Cron, Resend, Arkesel, and Groq.
+Meridiqa (formerly ShowUp) is a production-oriented University Lecturer Quality Assurance Platform. It uses Next.js App Router, Supabase Auth, Prisma on Supabase Postgres, Vercel Cron, Resend, Arkesel, and Groq.
 
 ## Local Setup
 
@@ -24,7 +24,7 @@ All required variables are documented in `.env.local.example`.
 - `DIRECT_URL`: direct Postgres connection for Prisma migrations, usually port `5432`.
 - `RESEND_API_KEY` and `RESEND_FROM_EMAIL`: email delivery.
 - `ARKESEL_API_KEY`, `ARKESEL_SENDER_ID`: Arkesel SMS.
-- `GROQ_API_KEY`: Groq API access for the ShowUp AI analytics assistant, using `qwen/qwen3.6-27b`.
+- `GROQ_API_KEY`: Groq API access for the Meridiqa AI analytics assistant, using `qwen/qwen3.6-27b`.
 - `CRON_SECRET`: bearer token for `/api/cron/rotation`.
 - `DEMO_ACCESS_TOKEN`: enables `/demo` live pitch mode (auth bypass + SMS console). Leave unset to disable.
 - `DEMO_SESSION_SECRET`: HMAC key for demo cookies. Must differ from `DEMO_ACCESS_TOKEN`. Required whenever demo mode is on.
@@ -66,9 +66,9 @@ Resend / Arkesel
 Vercel Cron
 ```
 
-## ShowUp AI
+## Meridiqa AI
 
-QA Officers, VCs, HODs, and HOD assistants get a floating `ShowUp AI` button in the dashboard. Questions are parsed by Groq's `qwen/qwen3.6-27b` model into a constrained query plan, executed against ShowUp data through Prisma, then summarized by Groq in plain English. HOD and HOD assistant questions are forced to their own department before any query executes. The API is exposed at `POST /api/ask`.
+QA Officers, VCs, HODs, and HOD assistants get a floating `Meridiqa AI` button in the dashboard. Questions are parsed by Groq's `qwen/qwen3.6-27b` model into a constrained query plan, executed against Meridiqa data through Prisma, then summarized by Groq in plain English. HOD and HOD assistant questions are forced to their own department before any query executes. The API is exposed at `POST /api/ask`.
 
 ## Security Notes
 

@@ -45,7 +45,7 @@ export function MobileLeadForm() {
     <section id="demo-request" className="px-4 py-12">
       <div className="mx-auto max-w-md rounded-[28px] bg-[#12203a] p-5 text-white shadow-[0_24px_60px_rgba(18,32,58,0.18)]">
         <p className="font-mono text-xs font-black uppercase tracking-[0.18em] text-[#8df2de]">Request access</p>
-        <h2 className="mt-3 text-4xl font-black leading-[0.98] tracking-[-0.065em]">See how ShowUp can strengthen academic quality assurance.</h2>
+        <h2 className="mt-3 text-4xl font-black leading-[0.98] tracking-[-0.065em]">See how Meridiqa can strengthen academic quality assurance.</h2>
         <p className="mt-4 text-sm leading-6 text-white/68">
           Tell us a bit about your university and we will reach out to set up a walkthrough.
         </p>
@@ -57,7 +57,7 @@ export function MobileLeadForm() {
                 <CheckCircle2 className="h-7 w-7" aria-hidden />
               </div>
               <h3 className="mt-5 text-2xl font-black tracking-[-0.04em]">Thank you. We will be in touch within 1-2 business days.</h3>
-              <p className="mt-3 text-sm leading-6 text-[#667085]">Your request has been received by the ShowUp team.</p>
+              <p className="mt-3 text-sm leading-6 text-[#667085]">Your request has been received by the Meridiqa team.</p>
             </div>
           ) : (
             <form onSubmit={form.handleSubmit(onSubmit)} className="space-y-4">

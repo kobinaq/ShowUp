@@ -30,7 +30,7 @@ export default function UpdatePasswordPage() {
     <main className="grid min-h-screen place-items-center bg-[#0D1F3C] px-4 py-10">
       <form onSubmit={onSubmit} className="w-full max-w-sm rounded-card border border-white/20 bg-white p-6 shadow-2xl">
         <h1 className="font-display text-3xl font-bold">Set new password</h1>
-        <p className="mt-2 text-sm text-muted">Choose a new password for your ShowUp account.</p>
+        <p className="mt-2 text-sm text-muted">Choose a new password for your Meridiqa account.</p>
         <label className="mt-6 block text-sm font-medium" htmlFor="password">New password</label>
         <input id="password" type="password" required minLength={10} value={password} onChange={(event) => setPassword(event.target.value)} className="mt-2 h-12 w-full rounded-md border px-3" />
         <label className="mt-4 block text-sm font-medium" htmlFor="confirm">Confirm password</label>

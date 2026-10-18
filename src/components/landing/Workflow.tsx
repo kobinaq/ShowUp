@@ -1,7 +1,7 @@
 const steps = [
   ["1", "Class happens", "Lecture details are captured after or during the session through a guided report flow."],
   ["2", "Rep reports", "An anonymous rotating class rep confirms lecturer presence, time, topic and class observations."],
-  ["3", "System verifies", "ShowUp compares the report with timetables, course outlines and previous patterns."],
+  ["3", "System verifies", "Meridiqa compares the report with timetables, course outlines and previous patterns."],
   ["4", "Leaders act", "QA, HODs and university executives see alerts, dashboards and clean evidence trails."]
 ];
 

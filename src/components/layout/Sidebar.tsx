@@ -55,9 +55,9 @@ export function Sidebar({ children, role }: { children?: React.ReactNode; role?:
     <aside className="hidden h-screen w-72 shrink-0 overflow-y-auto border-r border-slate-200 bg-white md:block">
       <div className="border-b border-slate-100 px-6 py-5">
         <Link href={brandHref} className="flex items-center gap-3 rounded-lg transition hover:opacity-85" aria-label="Open home">
-          <div className="flex h-10 w-10 items-center justify-center rounded-lg bg-navy font-display text-lg font-bold text-white">S</div>
+          <div className="flex h-10 w-10 items-center justify-center rounded-lg bg-navy font-display text-lg font-bold text-white">M</div>
           <div>
-            <p className="font-display text-xl font-bold text-navy">ShowUp</p>
+            <p className="font-display text-xl font-bold text-navy">Meridiqa</p>
             <p className="text-xs font-medium text-muted">Quality assurance</p>
           </div>
         </Link>

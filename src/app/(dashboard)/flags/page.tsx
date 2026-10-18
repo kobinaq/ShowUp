@@ -40,7 +40,7 @@ export default async function FlagsPage() {
   }));
   return (
     <div className="space-y-6">
-      <PageHeader title="Flags" eyebrow="Governance" description="Review attendance, lateness, early dismissal, and coverage issues raised by ShowUp." />
+      <PageHeader title="Flags" eyebrow="Governance" description="Review attendance, lateness, early dismissal, and coverage issues raised by Meridiqa." />
       <SectionPanel title="Quality flags" description={`${flags.filter((flag) => !flag.isResolved).length} open flags need review.`}>
         <DataTable
           columns={columns}

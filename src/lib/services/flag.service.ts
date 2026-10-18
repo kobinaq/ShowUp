@@ -43,7 +43,7 @@ export async function notifyAbsenceForReport(reportId: string) {
   const settings = await prisma.universitySettings.findUnique({ where: { universityId: report.course.department.faculty.universityId } });
   const delivery = await notificationService.notifyLecturer(
     report.course.lecturer,
-    "ShowUp absence report",
+    "Meridiqa absence report",
     `You were reported absent for your ${report.course.code} class today at ${formatClassTime(report.schedule.startTime)}. Contact your HOD if incorrect. Do not reply to this message.`,
     {
       emailEnabled: settings?.lecturerAbsenceEmailEnabled ?? true,

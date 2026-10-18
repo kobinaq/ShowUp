@@ -15,6 +15,6 @@ export const GET = withAuth(async (_request, { profile }) => {
     }))
   );
   return new Response(csv, {
-    headers: { "content-type": "text/csv", "content-disposition": "attachment; filename=showup-reports.csv" }
+    headers: { "content-type": "text/csv", "content-disposition": "attachment; filename=meridiqa-reports.csv" }
   });
 });
