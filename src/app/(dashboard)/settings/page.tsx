@@ -38,6 +38,7 @@ export default async function SettingsPage() {
           contestSlaDays: settings.contestSlaDays,
           notificationMaxRetries: settings.notificationMaxRetries,
           lecturerDigestEnabled: settings.lecturerDigestEnabled,
+          studentAttendanceThreshold: settings.studentAttendanceThreshold,
           activeSemesterId: activeSemester?.id ?? null
         }}
         semesters={semesters.map((semester) => ({ id: semester.id, name: semester.name }))}

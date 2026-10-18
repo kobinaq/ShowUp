@@ -118,6 +118,11 @@ async function cleanupDemoData() {
 
   await prisma.identityLookup.deleteMany({ where: { OR: [{ performedBy: { email: { endsWith: "@atu.showup.demo" } } }, { lookedUpProfile: { email: { endsWith: "@atu.showup.demo" } } }] } });
   await prisma.activityLog.deleteMany({ where: { universityId } });
+  await prisma.studentAttendanceFlag.deleteMany({ where: { courseId: { in: courseIds } } });
+  await prisma.attendanceRecord.deleteMany({ where: { session: { courseId: { in: courseIds } } } });
+  await prisma.attendanceSession.deleteMany({ where: { courseId: { in: courseIds } } });
+  await prisma.courseEnrollment.deleteMany({ where: { courseId: { in: courseIds } } });
+  await prisma.student.deleteMany({ where: { universityId } });
   await prisma.rotationLog.deleteMany({ where: { courseId: { in: courseIds } } });
   await prisma.lecturerNotification.deleteMany({ where: { lecturerId: { in: lecturerIds } } });
   await prisma.flag.deleteMany({ where: { OR: [{ lecturerId: { in: lecturerIds } }, { reportId: { in: reportIds } }] } });
@@ -175,7 +180,8 @@ async function main() {
       latePingSmsEnabled: true,
       latePingEmailEnabled: true,
       qaLatePingEmailEnabled: true,
-      showUpAiEnabled: true
+      showUpAiEnabled: true,
+      studentAttendanceThreshold: 75
     }
   });
 
@@ -385,13 +391,101 @@ async function main() {
     await prisma.lectureReport.update({ where: { id: contestedReport.id }, data: { isContested: true } });
   }
 
+  const demoCourse = allCourses[0];
+  const lecturerUser = await createAuthUser("lecturer@atu.showup.demo", "ATU Demo Lecturer");
+  await prisma.profile.create({
+    data: {
+      id: "atu_profile_lecturer_1",
+      supabaseUid: lecturerUser.id,
+      email: "lecturer@atu.showup.demo",
+      displayName: "ATU Demo Lecturer",
+      role: Role.LECTURER,
+      departmentId: departmentRecords[0].id,
+      universityId: university.id,
+      lecturerId: demoCourse.lecturerId
+    }
+  });
+
+  const studentNames = [
+    ["ATU/CS/001", "Ada Mensah"],
+    ["ATU/CS/002", "Kofi Boateng"],
+    ["ATU/CS/003", "Ama Owusu"],
+    ["ATU/CS/004", "Yaw Asante"],
+    ["ATU/CS/005", "Esi Darko"],
+    ["ATU/CS/006", "Kojo Nyarko"],
+    ["ATU/CS/007", "Abena Appiah"],
+    ["ATU/CS/008", "Fiifi Quartey"]
+  ];
+  const seededStudents = [];
+  for (const [index, [studentNumber, fullName]] of studentNames.entries()) {
+    const student = await prisma.student.create({
+      data: {
+        id: `atu_student_${index + 1}`,
+        universityId: university.id,
+        studentNumber,
+        fullName,
+        email: `${studentNumber.toLowerCase().replaceAll("/", ".")}@students.atu.edu.gh`
+      }
+    });
+    seededStudents.push(student);
+    await prisma.courseEnrollment.create({
+      data: { id: `atu_enrollment_${index + 1}`, courseId: demoCourse.id, studentId: student.id }
+    });
+  }
+
+  for (let week = 1; week <= 4; week++) {
+    const session = await prisma.attendanceSession.create({
+      data: {
+        id: `atu_att_session_${week}`,
+        courseId: demoCourse.id,
+        scheduleId: demoCourse.scheduleId,
+        lectureDate: new Date(Date.UTC(2026, 8, week * 7)),
+        status: week === 4 ? "OPEN" : "CLOSED",
+        openedById: "atu_profile_lecturer_1",
+        closedAt: week === 4 ? null : new Date(Date.UTC(2026, 8, week * 7, 2))
+      }
+    });
+    for (const [index, student] of seededStudents.entries()) {
+      const status =
+        index === 7 && week > 1
+          ? "ABSENT"
+          : index === 5 && week % 2 === 0
+            ? "LATE"
+            : "PRESENT";
+      await prisma.attendanceRecord.create({
+        data: {
+          id: `atu_att_record_${week}_${index + 1}`,
+          sessionId: session.id,
+          studentId: student.id,
+          status,
+          markedById: "atu_profile_lecturer_1"
+        }
+      });
+    }
+  }
+  await prisma.studentAttendanceFlag.create({
+    data: {
+      id: "atu_student_flag_1",
+      studentId: "atu_student_8",
+      courseId: demoCourse.id,
+      attendancePercent: 25,
+      threshold: 75,
+      status: "OPEN"
+    }
+  });
+
   await prisma.activityLog.create({
     data: {
       id: "atu_activity_seed_completed",
       universityId: university.id,
       actorId: admin.id,
       action: "sample_data.loaded",
-      metadata: { departments: departmentRecords.length, courses: allCourses.length, reports: allCourses.length * 8 }
+      metadata: {
+        departments: departmentRecords.length,
+        courses: allCourses.length,
+        reports: allCourses.length * 8,
+        students: seededStudents.length
+      }
     }
   });
 }
