@@ -7,6 +7,7 @@ describe("roleHome", () => {
     expect(roleHome[Role.CLASS_REP]).toBe("/rep/submit");
     expect(roleHome[Role.QA_OFFICER]).toBe("/dashboard");
     expect(roleHome[Role.HOD]).toBe("/courses");
+    expect(roleHome[Role.LECTURER]).toBe("/courses");
   });
 });
 
@@ -33,6 +34,12 @@ describe("canAccessPath", () => {
   it("locks class reps to reporter surfaces", () => {
     expect(canAccessPath(Role.CLASS_REP, "/rep/submit")).toBe(true);
     expect(canAccessPath(Role.CLASS_REP, "/dashboard")).toBe(false);
+  });
+
+  it("lets lecturers open courses but not analytics", () => {
+    expect(canAccessPath(Role.LECTURER, "/courses")).toBe(true);
+    expect(canAccessPath(Role.LECTURER, "/analytics")).toBe(false);
+    expect(canAccessPath(Role.LECTURER, "/dashboard")).toBe(false);
   });
 });
 

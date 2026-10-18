@@ -44,9 +44,10 @@ const payloadSchema = z.discriminatedUnion("type", [
     displayName: z.string().min(2).max(120),
     email: z.string().email(),
     phone: z.string().min(8).optional(),
-    role: z.enum(["VC", "QA_OFFICER", "QA_ASSISTANT", "IT", "HOD", "HOD_ASSISTANT"]),
+    role: z.enum(["VC", "QA_OFFICER", "QA_ASSISTANT", "IT", "HOD", "HOD_ASSISTANT", "LECTURER"]),
     universityId: z.string().min(3).optional(),
-    departmentId: z.string().min(3).optional()
+    departmentId: z.string().min(3).optional(),
+    lecturerId: z.string().min(3).optional()
   }),
   z.object({
     type: z.literal("course"),
@@ -167,13 +168,25 @@ export const POST = withAuth(async (request, { profile }): Promise<Response> => 
     if (!universityId) return badRequest("University is required");
     if (!isSuperAdmin && universityId !== profile.universityId) return forbidden("University is outside your scope.");
     const role = data.role as Role;
-    const needsDepartment = role === Role.HOD || role === Role.HOD_ASSISTANT;
+    const needsDepartment = role === Role.HOD || role === Role.HOD_ASSISTANT || role === Role.LECTURER;
     let departmentId: string | null = null;
+    let lecturerId: string | null = null;
     if (needsDepartment) {
-      if (!data.departmentId) return badRequest("Department is required for HOD users.");
+      if (!data.departmentId) return badRequest("Department is required for HOD and lecturer users.");
       const department = await prisma.department.findFirst({ where: { id: data.departmentId, faculty: { universityId } }, select: { id: true } });
       if (!department) return forbidden("Department is outside this university.");
       departmentId = department.id;
+    }
+    if (role === Role.LECTURER) {
+      if (!data.lecturerId) return badRequest("lecturerId is required for lecturer login accounts.");
+      const lecturer = await prisma.lecturer.findFirst({
+        where: { id: data.lecturerId, department: { faculty: { universityId } } },
+        select: { id: true, departmentId: true }
+      });
+      if (!lecturer) return forbidden("Lecturer record is outside this university.");
+      if (departmentId && lecturer.departmentId !== departmentId) return badRequest("Lecturer must belong to the selected department.");
+      departmentId = lecturer.departmentId;
+      lecturerId = lecturer.id;
     }
     const password = generatePassword();
     const supabaseUid = await createAuthUser(data.email, password).catch((error) => {
@@ -189,14 +202,15 @@ export const POST = withAuth(async (request, { profile }): Promise<Response> => 
         phone: data.phone,
         role,
         universityId,
-        departmentId
+        departmentId,
+        lecturerId
       }
     });
     await notificationService.sendStaffWelcome(data.email, data.displayName, password);
     if (data.phone) {
       await notificationService.sendSms(
         data.phone,
-        `ShowUp: your staff account was created for ${data.email}. Check your email for login details — the password is not sent by SMS.`
+        `Meridiqa: your staff account was created for ${data.email}. Check your email for login details — the password is not sent by SMS.`
       );
     }
     await prisma.activityLog.create({

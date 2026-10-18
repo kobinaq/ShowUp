@@ -18,6 +18,7 @@ const settingsSchema = z.object({
   contestSlaDays: z.coerce.number().int().min(1).max(30),
   notificationMaxRetries: z.coerce.number().int().min(1).max(8),
   lecturerDigestEnabled: z.boolean(),
+  studentAttendanceThreshold: z.coerce.number().int().min(1).max(100),
   activeSemesterId: z.string().nullable().optional(),
   newSemester: z
     .object({

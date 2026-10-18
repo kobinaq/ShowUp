@@ -5,6 +5,7 @@ export const DEMO_ROLES = [
   Role.QA_OFFICER,
   Role.VC,
   Role.HOD,
+  Role.LECTURER,
   Role.CLASS_REP,
   Role.SUPER_ADMIN,
   Role.IT
@@ -38,7 +39,7 @@ export function roleHomeForDemo(role: Role) {
   if (role === Role.CLASS_REP) return "/rep/submit";
   if (role === Role.VC) return "/analytics";
   if (role === Role.SUPER_ADMIN || role === Role.IT) return "/admin";
-  if (role === Role.HOD) return "/courses";
+  if (role === Role.HOD || role === Role.LECTURER) return "/courses";
   return "/dashboard";
 }
 

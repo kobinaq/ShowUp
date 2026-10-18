@@ -24,6 +24,7 @@ type SettingsState = {
   contestSlaDays: number;
   notificationMaxRetries: number;
   lecturerDigestEnabled: boolean;
+  studentAttendanceThreshold: number;
   activeSemesterId: string | null;
 };
 
@@ -150,12 +151,13 @@ export function SettingsForm({ initialSettings, semesters }: Props) {
         </div>
       </SectionPanel>
 
-      <SectionPanel title="Quality Rules" description="Thresholds used when ShowUp flags repeat issues and topic coverage risk.">
+      <SectionPanel title="Quality Rules" description="Thresholds used when Meridiqa flags repeat issues, topic coverage risk, and low student attendance.">
         <div className="grid gap-4 md:grid-cols-3">
           <NumberField label="Contest review SLA" helper="Pending contests older than this are overdue." value={settings.contestSlaDays} min={1} max={30} suffix="days" onChange={(value) => update("contestSlaDays", value)} />
           <NumberField label="Repeat issue threshold" helper="Repeated absence/lateness flag count." value={settings.flagRepeatThreshold} min={2} max={10} onChange={(value) => update("flagRepeatThreshold", value)} />
           <NumberField label="Week 6 coverage" helper="Minimum topic coverage by week 6." value={settings.flagCoverageWeek6} min={0} max={100} suffix="%" onChange={(value) => update("flagCoverageWeek6", value)} />
           <NumberField label="Week 10 coverage" helper="Minimum topic coverage by week 10." value={settings.flagCoverageWeek10} min={0} max={100} suffix="%" onChange={(value) => update("flagCoverageWeek10", value)} />
+          <NumberField label="Student attendance floor" helper="Students below this course attendance % are flagged." value={settings.studentAttendanceThreshold} min={1} max={100} suffix="%" onChange={(value) => update("studentAttendanceThreshold", value)} />
         </div>
       </SectionPanel>
 

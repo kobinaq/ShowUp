@@ -5,6 +5,7 @@ export type ScopedProfile = {
   role: Role;
   universityId: string;
   departmentId: string | null;
+  lecturerId?: string | null;
 };
 
 const noAccessId = "__no_access__";
@@ -19,6 +20,7 @@ export function isUniversityRole(role: Role) {
 
 export function courseScope(profile: ScopedProfile): Prisma.CourseWhereInput {
   if (profile.role === Role.SUPER_ADMIN) return {};
+  if (profile.role === Role.LECTURER) return { lecturerId: profile.lecturerId ?? noAccessId };
   if (isDepartmentRole(profile.role)) return { departmentId: profile.departmentId ?? noAccessId };
   if (isUniversityRole(profile.role)) return { department: { faculty: { universityId: profile.universityId } } };
   return { repAssignments: { some: { profileId: profile.id, isActive: true } } };
