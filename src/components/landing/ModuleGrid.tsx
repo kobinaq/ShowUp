@@ -10,7 +10,7 @@ const features = [
     className: ""
   },
   {
-    title: "Ask ShowUp AI",
+    title: "Ask Meridiqa AI",
     body: "Leadership can ask operational questions and receive fast answers from verified lecture data.",
     className: "lg:row-span-2"
   },

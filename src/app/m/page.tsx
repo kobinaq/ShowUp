@@ -32,8 +32,8 @@ const workflow = [
 ];
 
 export const metadata: Metadata = {
-  title: "ShowUp Mobile | University Quality Assurance Platform",
-  description: "A mobile-first view of ShowUp for monitoring lecturer attendance, course coverage, alerts, and academic delivery risk."
+  title: "Meridiqa Mobile | University Quality Assurance Platform",
+  description: "A mobile-first view of Meridiqa for monitoring lecturer attendance, course coverage, alerts, and academic delivery risk."
 };
 
 export default function MobileLandingPage() {
@@ -41,10 +41,10 @@ export default function MobileLandingPage() {
     <main className="showup-landing min-h-screen overflow-x-hidden bg-[#f7f9f8] font-sans text-[#12203a]">
       <header className="sticky top-0 z-40 border-b border-[#d9e8e4] bg-[#f7f9f8]/92 px-4 py-3 backdrop-blur-xl">
         <div className="mx-auto flex max-w-md items-center justify-between">
-          <Link href="/m" className="inline-flex items-center gap-2 font-black tracking-[-0.04em]" aria-label="ShowUp mobile home">
-            <span className="grid h-9 w-9 place-items-center rounded-[13px] bg-[#12203a] text-sm text-white">S</span>
+          <Link href="/m" className="inline-flex items-center gap-2 font-black tracking-[-0.04em]" aria-label="Meridiqa mobile home">
+            <span className="grid h-9 w-9 place-items-center rounded-[13px] bg-[#12203a] text-sm text-white">M</span>
             <span>
-              ShowUp
+              Meridiqa
               <span className="block text-[11px] font-semibold tracking-normal text-[#667085]">Quality assurance</span>
             </span>
           </Link>
@@ -61,7 +61,7 @@ export default function MobileLandingPage() {
             Academic delivery, monitored in real time.
           </h1>
           <p className="mt-5 text-base leading-7 text-[#475467]">
-            ShowUp helps universities monitor lecture attendance, punctuality, and course coverage through anonymous class rep reports, live alerts, and role-based quality assurance dashboards.
+            Meridiqa helps universities monitor lecture attendance, punctuality, and course coverage through anonymous class rep reports, live alerts, and role-based quality assurance dashboards.
           </p>
           <div className="mt-7 grid gap-3">
             <Link href="#demo-request" className="inline-flex min-h-12 items-center justify-center gap-2 rounded-full bg-[#12203a] px-5 text-sm font-black text-white">
@@ -101,7 +101,7 @@ export default function MobileLandingPage() {
           <div className="my-5 flex justify-center text-[#2a9d8f]">
             <ArrowRight className="h-6 w-6 rotate-90" aria-hidden />
           </div>
-          <p className="font-mono text-[11px] font-black uppercase tracking-[0.22em] text-white/42">THE SHOWUP WAY</p>
+          <p className="font-mono text-[11px] font-black uppercase tracking-[0.22em] text-white/42">THE MERIDIQA WAY</p>
           <div className="mt-4 rounded-[16px] bg-white p-4 text-[#12203a]">
             <div className="flex items-center justify-between gap-3">
               <span className="text-sm font-semibold text-[#667085]">CS301 - Dr. Mensah</span>
@@ -181,10 +181,10 @@ export default function MobileLandingPage() {
       <footer className="bg-[#12203a] px-4 py-8 text-white">
         <div className="mx-auto max-w-md">
           <div className="inline-flex items-center gap-2 font-black tracking-[-0.04em]">
-            <span className="grid h-9 w-9 place-items-center rounded-[13px] bg-white text-sm text-[#12203a]">S</span>
-            ShowUp
+            <span className="grid h-9 w-9 place-items-center rounded-[13px] bg-white text-sm text-[#12203a]">M</span>
+            Meridiqa
           </div>
-          <p className="mt-3 text-sm leading-6 text-white/58">Copyright 2026 ShowUp. Built for university quality assurance.</p>
+          <p className="mt-3 text-sm leading-6 text-white/58">Copyright 2026 Meridiqa. Built for university quality assurance.</p>
           <div className="mt-5 grid gap-1 text-sm font-semibold text-[#2a9d8f]">
             <a href="mailto:info@weareubic.com">info@weareubic.com</a>
             <a href="tel:+233533904720">+233 533 904 720</a>

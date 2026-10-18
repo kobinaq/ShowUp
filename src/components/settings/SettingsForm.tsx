@@ -150,7 +150,7 @@ export function SettingsForm({ initialSettings, semesters }: Props) {
         </div>
       </SectionPanel>
 
-      <SectionPanel title="Quality Rules" description="Thresholds used when ShowUp flags repeat issues and topic coverage risk.">
+      <SectionPanel title="Quality Rules" description="Thresholds used when Meridiqa flags repeat issues and topic coverage risk.">
         <div className="grid gap-4 md:grid-cols-3">
           <NumberField label="Contest review SLA" helper="Pending contests older than this are overdue." value={settings.contestSlaDays} min={1} max={30} suffix="days" onChange={(value) => update("contestSlaDays", value)} />
           <NumberField label="Repeat issue threshold" helper="Repeated absence/lateness flag count." value={settings.flagRepeatThreshold} min={2} max={10} onChange={(value) => update("flagRepeatThreshold", value)} />
@@ -159,8 +159,8 @@ export function SettingsForm({ initialSettings, semesters }: Props) {
         </div>
       </SectionPanel>
 
-      <SectionPanel title="ShowUp AI" description="Control database-only assistant access for this university.">
-        <Toggle label="Enable ShowUp AI" checked={settings.showUpAiEnabled} onChange={(value) => update("showUpAiEnabled", value)} />
+      <SectionPanel title="Meridiqa AI" description="Control database-only assistant access for this university.">
+        <Toggle label="Enable Meridiqa AI" checked={settings.showUpAiEnabled} onChange={(value) => update("showUpAiEnabled", value)} />
       </SectionPanel>
 
       <div className="sticky bottom-20 z-10 flex justify-end md:bottom-4">

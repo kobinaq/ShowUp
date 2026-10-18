@@ -45,7 +45,7 @@ export default async function DiscrepanciesPage() {
       <PageHeader
         eyebrow="Governance"
         title="Reporter discrepancies"
-        description="When two active reporters disagree on presence for the same session, ShowUp opens a discrepancy instead of silently keeping both answers."
+        description="When two active reporters disagree on presence for the same session, Meridiqa opens a discrepancy instead of silently keeping both answers."
       />
       <SectionPanel title="Open disagreements" description={`${discrepancies.filter((item) => item.status === "OPEN").length} still open.`}>
         <DataTable

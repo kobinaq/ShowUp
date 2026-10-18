@@ -2,7 +2,7 @@ import Groq, { APIError } from "groq-sdk";
 import { z } from "zod";
 import { askQueryTypes, type QueryPlan } from "@/types/ask";
 
-const MODEL = "qwen/qwen3.6-27b";
+const MODEL = process.env.GROQ_MODEL?.trim() || "qwen/qwen3.6-27b";
 
 const queryPlanSchema = z.object({
   queryType: z.enum(askQueryTypes),
@@ -70,11 +70,11 @@ export async function parseQuestion(question: string): Promise<QueryPlan> {
     messages: [
       {
         role: "system",
-        content: `You are a query planner for ShowUp, a university lecturer quality assurance platform.
+        content: `You are a query planner for Meridiqa, a university lecturer quality assurance platform.
 
-Default assumption: the user's question is about ShowUp database records unless it is clearly personal, general knowledge, entertainment, medical, legal, financial, or otherwise not directed at university quality assurance data. Ambiguous analytics questions such as "who was late?", "what happened today?", "which courses are behind?", or "show problems" should be interpreted as ShowUp database questions.
+Default assumption: the user's question is about Meridiqa database records unless it is clearly personal, general knowledge, entertainment, medical, legal, financial, or otherwise not directed at university quality assurance data. Ambiguous analytics questions such as "who was late?", "what happened today?", "which courses are behind?", or "show problems" should be interpreted as Meridiqa database questions.
 
-ShowUp tracks:
+Meridiqa tracks:
 - Lecturer attendance (present / absent / late / early dismissal) per class session
 - Topic coverage: % of course outline topics taught vs expected by current week
 - Flags: ABSENCE, LATENESS, EARLY_DISMISSAL, COVERAGE_LAG, REPEATED_ABSENCE, REPEATED_LATENESS
@@ -97,7 +97,7 @@ Respond ONLY with a valid JSON object, no explanation, no markdown, no code fenc
 For questions like "Who has been late more than 3 times?", respond:
 {"queryType":"top_late","params":{"threshold":3,"semesterId":"active"},"intent":"Find lecturers with more than 3 late reports"}
 
-Only if the question is clearly unrelated to ShowUp data, such as "what time will my wife arrive today?", respond exactly with:
+Only if the question is clearly unrelated to Meridiqa data, such as "what time will my wife arrive today?", respond exactly with:
 {"queryType":"unsupported","params":{},"intent":""}`
       },
       { role: "user", content: question }
@@ -129,8 +129,8 @@ export async function formatAnswer(question: string, data: object): Promise<stri
     messages: [
       {
         role: "system",
-        content: `You are the ShowUp analytics assistant for a university quality assurance platform.
-You will receive a user's question and the relevant data fetched from the ShowUp database.
+        content: `You are the Meridiqa analytics assistant for a university quality assurance platform.
+You will receive a user's question and the relevant data fetched from the Meridiqa database.
 Write a clear, concise, plain-English answer in 1-4 sentences.
 Return only the final answer for the user. Do not include reasoning, analysis, chain-of-thought, markdown headings, tags, or notes.
 Use specific names, numbers, and percentages from the data.
@@ -212,7 +212,7 @@ function parseCommonQuestion(question: string): QueryPlan | null {
     return {
       queryType: "flags",
       params: { semesterId: "active", limit: 10 },
-      intent: "Find recent ShowUp quality assurance flags"
+      intent: "Find recent Meridiqa quality assurance flags"
     };
   }
 
