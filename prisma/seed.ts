@@ -16,7 +16,10 @@ const supabaseUrl = process.env.NEXT_PUBLIC_SUPABASE_URL;
 const serviceKey = process.env.SUPABASE_SERVICE_ROLE_KEY;
 
 const universityId = "atu_university";
-const password = process.env.SEED_USER_PASSWORD ?? "Password123!";
+const password = process.env.SEED_USER_PASSWORD;
+if (!password) {
+  throw new Error("SEED_USER_PASSWORD must be set — refusing to seed with a hardcoded/default password.");
+}
 
 async function refreshPrismaConnection() {
   await prisma.$disconnect().catch(() => undefined);
