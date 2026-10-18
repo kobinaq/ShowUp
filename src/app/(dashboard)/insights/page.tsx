@@ -13,11 +13,15 @@ export default async function InsightsPage() {
   if (!profile) redirect("/login");
 
   const { start, end, label } = monthRange();
+  const isHod = profile.role === "HOD" || profile.role === "HOD_ASSISTANT";
   const rows = await buildMonthlyQualityRows({
     universityId: profile.universityId,
+    departmentId: isHod ? profile.departmentId : null,
     start,
     end
   });
+  const exportFacultyId = undefined;
+  const exportDepartmentId = isHod ? profile.departmentId ?? undefined : undefined;
 
   return (
     <div className="space-y-6">
@@ -25,7 +29,7 @@ export default async function InsightsPage() {
         eyebrow="Insights"
         title="Attendance × lecture quality"
         description={`Combined view for ${label}: low student attendance vs late/missed lectures by department.`}
-        actions={<MonthlyExportButtons />}
+        actions={<MonthlyExportButtons facultyId={exportFacultyId} departmentId={exportDepartmentId} />}
       />
 
       <SectionPanel title="Department scorecard" description="Absence and lateness from class-rep reports; student rate uses reported headcount vs class size.">

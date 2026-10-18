@@ -1,4 +1,4 @@
-export const REPORT_DRAFTS_KEY = "showup:report-drafts";
+export { REPORT_DRAFTS_KEY } from "@/lib/branding/storage-keys";
 
 export type ReportDraftPayload = {
   courseId: string;

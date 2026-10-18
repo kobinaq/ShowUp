@@ -89,7 +89,7 @@ export class NotificationService {
     if (!this.resend) return DeliveryStatus.SKIPPED;
     try {
       await this.resend.emails.send({
-        from: process.env.RESEND_FROM_EMAIL ?? "Meridiqa <noreply@showup.app>",
+        from: process.env.RESEND_FROM_EMAIL ?? "Meridiqa <noreply@meridiqa.app>",
         to,
         subject,
         html

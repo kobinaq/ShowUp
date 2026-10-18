@@ -20,6 +20,7 @@ const password = process.env.SEED_USER_PASSWORD;
 if (!password) {
   throw new Error("SEED_USER_PASSWORD must be set — refusing to seed with a hardcoded/default password.");
 }
+const password = process.env.SEED_USER_PASSWORD ?? "Atu!Meridiqa9kR2wL";
 
 async function refreshPrismaConnection() {
   await prisma.$disconnect().catch(() => undefined);

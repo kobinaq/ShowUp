@@ -6,17 +6,22 @@ import { canRetryNotification, nextNotificationRetryAt } from "@/lib/services/no
 import { notificationService } from "@/lib/services/notification.service";
 import { processRepReliabilityJobs, retryFailedRepNotifications } from "@/lib/services/rep-reliability-jobs";
 import { runDueMonthlyReports } from "@/lib/services/monthly-report-jobs";
+import { recomputeDailySummaries } from "@/lib/services/daily-summary.service";
 
 export async function retryFailedNotifications(now = new Date()) {
   const pending = await prisma.lecturerNotification.findMany({
     where: { status: DeliveryStatus.FAILED, nextRetryAt: { lte: now } },
-    include: { lecturer: { include: { department: { include: { faculty: true } } } } }
+    include: { lecturer: { include: { department: { include: { faculty: true } } } } },
+    take: 100
   });
+  const settingsByUniversity = new Map<string, Awaited<ReturnType<typeof prisma.universitySettings.findUnique>>>();
   let retried = 0;
   for (const notice of pending) {
-    const settings = await prisma.universitySettings.findUnique({
-      where: { universityId: notice.lecturer.department.faculty.universityId }
-    });
+    const universityId = notice.lecturer.department.faculty.universityId;
+    if (!settingsByUniversity.has(universityId)) {
+      settingsByUniversity.set(universityId, await prisma.universitySettings.findUnique({ where: { universityId } }));
+    }
+    const settings = settingsByUniversity.get(universityId);
     const maxRetries = settings?.notificationMaxRetries ?? 3;
     if (!canRetryNotification(notice, maxRetries, now)) continue;
     const status =
@@ -123,6 +128,7 @@ export async function runOpsJobs(now = new Date()) {
     contests: await escalateOverdueContests(now),
     repReliability: await processRepReliabilityJobs(now),
     repNotificationRetries: await retryFailedRepNotifications(now),
-    monthlyReports: await runDueMonthlyReports(now)
+    monthlyReports: await runDueMonthlyReports(now),
+    dailySummaries: await recomputeDailySummaries(now)
   };
 }

@@ -20,7 +20,9 @@ import {
 import { ensureLectureSession } from "@/lib/services/timetable";
 
 export async function processRepReliabilityJobs(now = new Date()) {
+  const todayDow = now.getDay();
   const schedules = await prisma.classSchedule.findMany({
+    where: { dayOfWeek: todayDow },
     include: {
       course: {
         include: {
@@ -34,24 +36,26 @@ export async function processRepReliabilityJobs(now = new Date()) {
           }
         }
       }
-    }
+    },
+    take: 500
   });
 
   let backupNotified = 0;
   let noDataMarked = 0;
   let reliabilityFlags = 0;
+  const settingsByUniversity = new Map<string, Awaited<ReturnType<typeof prisma.universitySettings.findUnique>>>();
 
   for (const schedule of schedules) {
     const universityId = schedule.course.department.faculty.universityId;
-    const settings = await prisma.universitySettings.findUnique({ where: { universityId } });
+    if (!settingsByUniversity.has(universityId)) {
+      settingsByUniversity.set(universityId, await prisma.universitySettings.findUnique({ where: { universityId } }));
+    }
+    const settings = settingsByUniversity.get(universityId);
     const windowHours = settings?.submissionWindowHours ?? 2;
     const lateHours = settings?.lateSubmissionHours ?? 24;
     const escalateMinutes = settings?.backupEscalateMinutes ?? 30;
     const missThreshold = settings?.missedReportFlagThreshold ?? 3;
     const smsEnabled = settings?.backupNotifySmsEnabled !== false;
-
-    // Look at today's occurrence for this weekly schedule
-    if (now.getDay() !== schedule.dayOfWeek) continue;
 
     const lectureDate = startOfSessionDay(now);
     const classEndAt = timeOnSessionDate(lectureDate, schedule.endTime);

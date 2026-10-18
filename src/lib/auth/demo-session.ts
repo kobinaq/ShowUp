@@ -1,6 +1,8 @@
 import { Role } from "@prisma/client";
+import { DEMO_COOKIE as MERIDIQA_DEMO_COOKIE, DEMO_COOKIE_LEGACY } from "@/lib/branding/storage-keys";
 
-export const DEMO_COOKIE = "showup_demo";
+export const DEMO_COOKIE = MERIDIQA_DEMO_COOKIE;
+export const DEMO_COOKIE_CANDIDATES = [MERIDIQA_DEMO_COOKIE, DEMO_COOKIE_LEGACY] as const;
 export const DEMO_ROLES = [
   Role.QA_OFFICER,
   Role.VC,

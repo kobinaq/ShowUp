@@ -14,7 +14,9 @@ const schema = z.object({
 });
 
 export async function POST(request: NextRequest) {
-  const session = await parseDemoSession(request.cookies.get(DEMO_COOKIE)?.value);
+  const session =
+    (await parseDemoSession(request.cookies.get(DEMO_COOKIE)?.value)) ??
+    (await parseDemoSession(request.cookies.get("showup_demo")?.value));
   if (!session) return json({ error: "Start a live demo session first" }, { status: 401 });
 
   const body = schema.safeParse(await request.json().catch(() => null));

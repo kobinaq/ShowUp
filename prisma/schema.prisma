@@ -25,6 +25,7 @@ model University {
   blackouts        AcademicBlackout[]
   facilitiesIssues FacilitiesIssue[]
   scheduledReports ScheduledReportJob[]
+  dailySummaries   DailyQualitySummary[]
 }
 
 model UniversitySettings {
@@ -56,6 +57,7 @@ model UniversitySettings {
   setupWizardCompletedAt      DateTime?
   monthlyReportEmailEnabled   Boolean    @default(false)
   monthlyReportDayOfMonth     Int        @default(1)
+  dailySummaryEnabled         Boolean    @default(true)
   updatedById                 String?
   updatedAt                   DateTime   @updatedAt
 }
@@ -1028,4 +1030,29 @@ model ScheduledReportJob {
   updatedAt       DateTime           @updatedAt
 
   @@index([universityId, enabled, nextRunAt])
+}
+
+model DailyQualitySummary {
+  id              String     @id @default(cuid())
+  universityId    String
+  university      University @relation(fields: [universityId], references: [id], onDelete: Cascade)
+  facultyId       String?
+  departmentId    String?
+  summaryDate     DateTime
+  reportCount     Int        @default(0)
+  presentCount    Int        @default(0)
+  absentCount     Int        @default(0)
+  lateCount       Int        @default(0)
+  unresolvedFlags Int        @default(0)
+  openContests    Int        @default(0)
+  pingCount       Int        @default(0)
+  pingAckCount    Int        @default(0)
+  noDataSessions  Int        @default(0)
+  courseCount     Int        @default(0)
+  computedAt      DateTime   @default(now())
+
+  @@unique([universityId, facultyId, departmentId, summaryDate])
+  @@index([universityId, summaryDate])
+  @@index([departmentId, summaryDate])
+  @@index([facultyId, summaryDate])
 }
