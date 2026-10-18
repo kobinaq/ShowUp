@@ -1,6 +1,6 @@
 import { NextResponse, type NextRequest } from "next/server";
 import { updateSession } from "@/lib/supabase/middleware";
-import { DEMO_COOKIE, hasDemoCookieShape, isDemoModeEnabled } from "@/lib/auth/demo-session";
+import { DEMO_COOKIE, DEMO_COOKIE_CANDIDATES, hasDemoCookieShape, isDemoModeEnabled } from "@/lib/auth/demo-session";
 
 const publicPaths = [
   "/m",
@@ -39,10 +39,13 @@ export async function middleware(request: NextRequest) {
   const { response, user } = await updateSession(request);
   if (user) return response;
 
-  if (isDemoModeEnabled() && hasDemoCookieShape(request.cookies.get(DEMO_COOKIE)?.value)) {
+  const demoCookie = DEMO_COOKIE_CANDIDATES.map((name) => request.cookies.get(name)?.value).find((value) => hasDemoCookieShape(value));
+  if (isDemoModeEnabled() && demoCookie) {
     const requestHeaders = new Headers(request.headers);
     requestHeaders.set("x-showup-pathname", path);
     requestHeaders.set("x-showup-demo", "1");
+    requestHeaders.set("x-meridiqa-pathname", path);
+    requestHeaders.set("x-meridiqa-demo", "1");
     return NextResponse.next({ request: { headers: requestHeaders } });
   }
 
