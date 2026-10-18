@@ -26,6 +26,11 @@ type SettingsState = {
   lecturerDigestEnabled: boolean;
   studentAttendanceThreshold: number;
   lateGraceMinutes: number;
+  backupEscalateMinutes: number;
+  lateSubmissionHours: number;
+  missedReportFlagThreshold: number;
+  backupNotifySmsEnabled: boolean;
+  repReminderSmsEnabled: boolean;
   activeSemesterId: string | null;
 };
 
@@ -109,6 +114,37 @@ export function SettingsForm({ initialSettings, semesters }: Props) {
               <input type="checkbox" checked={newSemester.makeActive} onChange={(event) => setNewSemester((current) => ({ ...current, makeActive: event.target.checked }))} />
               Set as active semester when saved
             </label>
+          </div>
+          <NumberField
+            label="Late submission window"
+            helper="After the normal window closes, reps can still submit for this many hours with a late tag. Missing reports become NO_DATA — not missed lectures."
+            value={settings.lateSubmissionHours}
+            min={1}
+            max={48}
+            suffix="hours"
+            onChange={(value) => update("lateSubmissionHours", value)}
+          />
+          <NumberField
+            label="Backup escalate after"
+            helper="If the primary has not reported this many minutes after class ends, SMS the backup rep (Arkesel)."
+            value={settings.backupEscalateMinutes}
+            min={5}
+            max={180}
+            step={5}
+            suffix="minutes"
+            onChange={(value) => update("backupEscalateMinutes", value)}
+          />
+          <NumberField
+            label="Missed-report flag threshold"
+            helper="Flag a primary rep after this many NO_DATA sessions."
+            value={settings.missedReportFlagThreshold}
+            min={1}
+            max={20}
+            onChange={(value) => update("missedReportFlagThreshold", value)}
+          />
+          <div className="grid gap-3">
+            <Toggle label="SMS backup when primary is silent" checked={settings.backupNotifySmsEnabled} onChange={(value) => update("backupNotifySmsEnabled", value)} />
+            <Toggle label="SMS primary reminder near window close" checked={settings.repReminderSmsEnabled} onChange={(value) => update("repReminderSmsEnabled", value)} />
           </div>
           <ReadOnlySetting icon={CheckCircle2} title="Absent report shortcut" description="Enabled. Reporters can submit an absence without teaching details." />
           <ReadOnlySetting icon={Clock} title="Duplicate report policy" description="One report is allowed per schedule and class date." />

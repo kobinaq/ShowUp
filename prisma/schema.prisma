@@ -46,6 +46,11 @@ model UniversitySettings {
   lecturerDigestEnabled       Boolean    @default(false)
   studentAttendanceThreshold  Int        @default(75)
   lateGraceMinutes            Int        @default(10)
+  backupEscalateMinutes       Int        @default(30)
+  lateSubmissionHours         Int        @default(24)
+  missedReportFlagThreshold   Int        @default(3)
+  backupNotifySmsEnabled      Boolean    @default(true)
+  repReminderSmsEnabled       Boolean    @default(true)
   updatedById                 String?
   updatedAt                   DateTime   @updatedAt
 }
@@ -113,6 +118,10 @@ model Profile {
   attendanceRecordsMarked  AttendanceRecord[]  @relation("AttendanceMarkedBy")
   facilitiesIssuesReported FacilitiesIssue[]   @relation("FacilitiesReportedBy")
   lectureSessionsUpdated   LectureSession[]    @relation("SessionUpdatedBy")
+  sessionConfirmations     SessionConfirmation[] @relation("SessionConfirmedBy")
+  repNotifications         RepNotification[]
+  repReliabilityFlags      RepReliabilityFlag[]
+  discrepanciesResolved    ReportDiscrepancy[]  @relation("DiscrepancyResolvedBy")
   isActive                 Boolean             @default(true)
   createdAt                DateTime            @default(now())
 }
@@ -266,24 +275,34 @@ model ClassSchedule {
   @@index([classGroupId])
 }
 
+enum RepDutyRole {
+  PRIMARY
+  BACKUP
+}
+
 model RepAssignment {
-  id               String            @id @default(cuid())
-  courseId         String
-  course           Course            @relation(fields: [courseId], references: [id], onDelete: Cascade)
-  profileId        String
-  profile          Profile           @relation(fields: [profileId], references: [id], onDelete: Cascade)
-  sealedIdentityId String
-  sealedIdentity   SealedRepIdentity @relation(fields: [sealedIdentityId], references: [id])
-  startDate        DateTime
-  endDate          DateTime?
-  isActive         Boolean           @default(true)
-  rotationOrder    Int
-  assignedById     String
-  rotationWeeks    Int               @default(4)
-  createdAt        DateTime          @default(now())
-  logs             RotationLog[]
+  id                   String            @id @default(cuid())
+  courseId             String
+  course               Course            @relation(fields: [courseId], references: [id], onDelete: Cascade)
+  profileId            String
+  profile              Profile           @relation(fields: [profileId], references: [id], onDelete: Cascade)
+  sealedIdentityId     String
+  sealedIdentity       SealedRepIdentity @relation(fields: [sealedIdentityId], references: [id])
+  startDate            DateTime
+  endDate              DateTime?
+  isActive             Boolean           @default(true)
+  dutyRole             RepDutyRole       @default(PRIMARY)
+  rotationOrder        Int
+  assignedById         String
+  rotationWeeks        Int               @default(4)
+  missedReportCount    Int               @default(0)
+  lastMissedAt         DateTime?
+  reliabilityFlaggedAt DateTime?
+  createdAt            DateTime          @default(now())
+  logs                 RotationLog[]
 
   @@index([courseId, isActive])
+  @@index([courseId, dutyRole, isActive])
 }
 
 model LectureReport {
@@ -316,6 +335,8 @@ model LectureReport {
   discrepanciesAsSecond   ReportDiscrepancy[] @relation("DiscrepancySecond")
   lectureSessionId        String?
   lectureSession          LectureSession?     @relation(fields: [lectureSessionId], references: [id], onDelete: SetNull)
+  isLateSubmission        Boolean             @default(false)
+  submissionSource        SubmissionSource    @default(WEB)
   submittedAt             DateTime            @default(now())
   windowClosedAt          DateTime
 
@@ -324,6 +345,13 @@ model LectureReport {
   @@index([lectureDate, lecturerPresent])
   @@index([lectureDate, arrivalStatus])
   @@index([submittedById, lectureDate])
+  @@index([isLateSubmission, lectureDate])
+}
+
+enum SubmissionSource {
+  WEB
+  OFFLINE_DRAFT
+  SMS
 }
 
 model LatePing {
@@ -521,21 +549,34 @@ enum ReportDiscrepancyStatus {
   RESOLVED
 }
 
+enum DiscrepancyKind {
+  PEER_REPORT
+  LECTURER_CONFIRMATION
+}
+
 model ReportDiscrepancy {
-  id             String                  @id @default(cuid())
-  courseId       String
-  course         Course                  @relation(fields: [courseId], references: [id], onDelete: Cascade)
-  scheduleId     String
-  lectureDate    DateTime
-  firstReportId  String
-  firstReport    LectureReport           @relation("DiscrepancyFirst", fields: [firstReportId], references: [id], onDelete: Cascade)
-  secondReportId String
-  secondReport   LectureReport           @relation("DiscrepancySecond", fields: [secondReportId], references: [id], onDelete: Cascade)
-  status         ReportDiscrepancyStatus @default(OPEN)
-  createdAt      DateTime                @default(now())
+  id               String                  @id @default(cuid())
+  courseId         String
+  course           Course                  @relation(fields: [courseId], references: [id], onDelete: Cascade)
+  scheduleId       String
+  lectureDate      DateTime
+  kind             DiscrepancyKind         @default(PEER_REPORT)
+  firstReportId    String
+  firstReport      LectureReport           @relation("DiscrepancyFirst", fields: [firstReportId], references: [id], onDelete: Cascade)
+  secondReportId   String?
+  secondReport     LectureReport?          @relation("DiscrepancySecond", fields: [secondReportId], references: [id], onDelete: Cascade)
+  confirmationId   String?                 @unique
+  confirmation     SessionConfirmation?    @relation(fields: [confirmationId], references: [id], onDelete: SetNull)
+  status           ReportDiscrepancyStatus @default(OPEN)
+  resolvedById     String?
+  resolvedBy       Profile?                @relation("DiscrepancyResolvedBy", fields: [resolvedById], references: [id], onDelete: SetNull)
+  resolutionNote   String?
+  resolvedAt       DateTime?
+  createdAt        DateTime                @default(now())
 
   @@unique([scheduleId, lectureDate])
   @@index([status, createdAt])
+  @@index([kind, status])
 }
 
 model ActivityLog {
@@ -778,6 +819,13 @@ model ClassGroup {
   @@unique([courseId, code])
 }
 
+enum SessionReportCoverage {
+  PENDING
+  REPORTED
+  LATE_REPORTED
+  NO_DATA
+}
+
 model LectureSession {
   id                     String                   @id @default(cuid())
   courseId               String
@@ -789,6 +837,10 @@ model LectureSession {
   reason                 SessionDisruptionReason?
   reasonNote             String?
   attributedToFacilities Boolean                  @default(false)
+  reportCoverage         SessionReportCoverage    @default(PENDING)
+  primaryNotifiedAt      DateTime?
+  backupNotifiedAt       DateTime?
+  noDataMarkedAt         DateTime?
   roomId                 String?
   room                   Room?                    @relation(fields: [roomId], references: [id], onDelete: SetNull)
   substituteLecturerId   String?
@@ -801,6 +853,7 @@ model LectureSession {
   classGroups            LectureSessionGroup[]
   reports                LectureReport[]
   facilitiesIssues       FacilitiesIssue[]
+  confirmation           SessionConfirmation?
   createdAt              DateTime                 @default(now())
   updatedAt              DateTime                 @updatedAt
 
@@ -809,6 +862,68 @@ model LectureSession {
   @@index([status, lectureDate])
   @@index([attributedToFacilities, lectureDate])
   @@index([roomId, lectureDate])
+  @@index([reportCoverage, lectureDate])
+}
+
+model SessionConfirmation {
+  id               String              @id @default(cuid())
+  lectureSessionId String              @unique
+  lectureSession   LectureSession      @relation(fields: [lectureSessionId], references: [id], onDelete: Cascade)
+  confirmedById    String
+  confirmedBy      Profile             @relation("SessionConfirmedBy", fields: [confirmedById], references: [id], onDelete: Cascade)
+  presence         PresenceStatus
+  note             String?
+  confirmedAt      DateTime            @default(now())
+  discrepancy      ReportDiscrepancy?
+
+  @@index([confirmedById, confirmedAt])
+}
+
+model RepNotification {
+  id            String              @id @default(cuid())
+  profileId     String
+  profile       Profile             @relation(fields: [profileId], references: [id], onDelete: Cascade)
+  courseId      String?
+  sessionId     String?
+  channel       NotificationChannel
+  kind          RepNotificationKind
+  message       String
+  subject       String?
+  sentAt        DateTime            @default(now())
+  status        DeliveryStatus
+  attemptCount  Int                 @default(1)
+  lastAttemptAt DateTime            @default(now())
+  nextRetryAt   DateTime?
+
+  @@index([status, nextRetryAt])
+  @@index([profileId, sentAt])
+  @@index([sessionId, kind])
+}
+
+enum RepNotificationKind {
+  BACKUP_ESCALATION
+  PRIMARY_REMINDER
+  MISSING_REPORT_NUDGE
+  SMS_REPORT_HINT
+}
+
+model RepReliabilityFlag {
+  id         String                  @id @default(cuid())
+  profileId  String
+  profile    Profile                 @relation(fields: [profileId], references: [id], onDelete: Cascade)
+  courseId   String?
+  type       RepReliabilityFlagType
+  message    String
+  isResolved Boolean                 @default(false)
+  createdAt  DateTime                @default(now())
+  resolvedAt DateTime?
+
+  @@index([profileId, isResolved, createdAt])
+  @@index([isResolved, createdAt])
+}
+
+enum RepReliabilityFlagType {
+  REPEATED_MISS_REPORT
 }
 
 model LectureSessionGroup {

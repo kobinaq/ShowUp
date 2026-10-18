@@ -36,6 +36,7 @@ const groups: Array<{
       { href: "/roster", label: "Roster", icon: Users },
       { href: "/rotation", label: "Rotation", icon: RefreshCw },
       { href: "/discrepancies", label: "Discrepancies", icon: ShieldCheck },
+      { href: "/reps", label: "Rep reliability", icon: Users },
       { href: "/facilities", label: "Facilities", icon: Wrench },
       { href: "/calendar", label: "Calendar", icon: CalendarDays },
       { href: "/lookups", label: "Lookups", icon: Search },

@@ -40,6 +40,11 @@ export default async function SettingsPage() {
           lecturerDigestEnabled: settings.lecturerDigestEnabled,
           studentAttendanceThreshold: settings.studentAttendanceThreshold,
           lateGraceMinutes: settings.lateGraceMinutes,
+          backupEscalateMinutes: settings.backupEscalateMinutes,
+          lateSubmissionHours: settings.lateSubmissionHours,
+          missedReportFlagThreshold: settings.missedReportFlagThreshold,
+          backupNotifySmsEnabled: settings.backupNotifySmsEnabled,
+          repReminderSmsEnabled: settings.repReminderSmsEnabled,
           activeSemesterId: activeSemester?.id ?? null
         }}
         semesters={semesters.map((semester) => ({ id: semester.id, name: semester.name }))}

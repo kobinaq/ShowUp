@@ -1,4 +1,4 @@
-import { AidType, Prisma, Role } from "@prisma/client";
+import { AidType, DiscrepancyKind, Prisma, Role, SessionReportCoverage, SubmissionSource } from "@prisma/client";
 import { prisma } from "@/lib/prisma";
 import { andWhere, courseScope, reportScope, startOfSessionDay, timeOnSessionDate } from "@/lib/auth/scope";
 import { withAuth, json, badRequest, forbidden } from "@/lib/middleware/withAuth";
@@ -7,6 +7,7 @@ import { createFlagsForReport, notifyAbsenceForReport } from "@/lib/services/fla
 import { recalculateAndFlag } from "@/lib/services/coverage.service";
 import { handlePostClassPingEscalation } from "@/lib/services/ping.service";
 import { presenceDisagrees } from "@/lib/services/report-discrepancy";
+import { isWithinLateSubmissionWindow, nextReportCoverage } from "@/lib/services/rep-reliability";
 
 export const GET = withAuth(async (request, { profile }) => {
   const url = new URL(request.url);
@@ -55,14 +56,25 @@ export const POST = withAuth(async (request, { profile }) => {
 
   const settings = await prisma.universitySettings.findUnique({ where: { universityId: course.department.faculty.universityId } });
   const windowHours = settings?.submissionWindowHours ?? Number(process.env.SUBMISSION_WINDOW_HOURS ?? 2);
+  const lateSubmissionHours = settings?.lateSubmissionHours ?? 24;
   const graceMinutes = settings?.lateGraceMinutes ?? 10;
   const classStartAt = timeOnSessionDate(lectureDate, schedule.startTime);
   const classEndAt = timeOnSessionDate(lectureDate, schedule.endTime);
   const windowClosedAt = new Date(classEndAt.getTime() + windowHours * 60 * 60 * 1000);
   const now = new Date();
+  const url = new URL(request.url);
+  const sourceParam = url.searchParams.get("source");
+  const submissionSource =
+    sourceParam === "offline" ? SubmissionSource.OFFLINE_DRAFT : sourceParam === "sms" ? SubmissionSource.SMS : SubmissionSource.WEB;
+  let isLateSubmission = false;
   if (profile.role === Role.CLASS_REP) {
     if (now < classStartAt) return badRequest("Reports can only be submitted after class starts");
-    if (now > windowClosedAt) return forbidden("The reporting window for this session has closed");
+    if (now > windowClosedAt) {
+      if (!isWithinLateSubmissionWindow(now, windowClosedAt, lateSubmissionHours)) {
+        return forbidden("The reporting window for this session has closed");
+      }
+      isLateSubmission = true;
+    }
   }
 
   const payload = parsed.data;
@@ -99,10 +111,21 @@ export const POST = withAuth(async (request, { profile }) => {
           studentCount: isAbsent ? undefined : data.studentCount,
           submittedById: profile.id,
           windowClosedAt,
+          isLateSubmission,
+          submissionSource,
           topicsCovered: { create: isAbsent ? [] : Array.from(new Set(topicIds)).map((topicId) => ({ topicId })) },
           teachingAids: { create: teachingAids.map((type) => ({ type })) }
         },
         include: { topicsCovered: true, teachingAids: true }
+      });
+      await tx.lectureSession.update({
+        where: { id: session.id },
+        data: {
+          reportCoverage: nextReportCoverage(true, isLateSubmission, session.reportCoverage),
+          ...(session.reportCoverage === SessionReportCoverage.NO_DATA
+            ? {}
+            : { noDataMarkedAt: null })
+        }
       });
       await createFlagsForReport(tx, created.id);
       return created;
@@ -123,6 +146,7 @@ export const POST = withAuth(async (request, { profile }) => {
         courseId: report.courseId,
         scheduleId: report.scheduleId,
         lectureDate: report.lectureDate,
+        kind: DiscrepancyKind.PEER_REPORT,
         firstReportId: peer.id,
         secondReportId: report.id
       },

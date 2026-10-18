@@ -49,6 +49,13 @@ describe("canAccessPath", () => {
     expect(canAccessPath(Role.LECTURER, "/facilities")).toBe(true);
     expect(canAccessPath(Role.VC, "/calendar")).toBe(true);
   });
+
+  it("opens rep reliability for QA and HOD", () => {
+    expect(canAccessPath(Role.QA_OFFICER, "/reps")).toBe(true);
+    expect(canAccessPath(Role.HOD, "/reps")).toBe(true);
+    expect(canAccessPath(Role.LECTURER, "/reps")).toBe(false);
+    expect(canAccessPath(Role.CLASS_REP, "/reps")).toBe(false);
+  });
 });
 
 describe("pathRoles / rolesForHref", () => {

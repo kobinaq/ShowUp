@@ -42,6 +42,7 @@ export const pathRoles: Record<string, Role[]> = {
   "/rotation": [Role.SUPER_ADMIN, Role.QA_OFFICER, Role.QA_ASSISTANT, Role.IT],
   "/lookups": QA,
   "/discrepancies": QA,
+  "/reps": [...QA, Role.IT, Role.HOD, Role.HOD_ASSISTANT],
   "/timetable": [...QA, Role.IT, Role.HOD, Role.HOD_ASSISTANT],
   "/facilities": [...QA, Role.IT, Role.HOD, Role.HOD_ASSISTANT, Role.LECTURER, Role.VC],
   "/calendar": [...QA, Role.IT, Role.HOD, Role.HOD_ASSISTANT, Role.VC, Role.LECTURER],

@@ -4,6 +4,7 @@ import { isContestOverdue } from "@/lib/services/contest-sla";
 import { lecturerDigestBody, shouldSendLecturerDigest } from "@/lib/services/lecturer-digest";
 import { canRetryNotification, nextNotificationRetryAt } from "@/lib/services/notification-retry";
 import { notificationService } from "@/lib/services/notification.service";
+import { processRepReliabilityJobs, retryFailedRepNotifications } from "@/lib/services/rep-reliability-jobs";
 
 export async function retryFailedNotifications(now = new Date()) {
   const pending = await prisma.lecturerNotification.findMany({
@@ -118,6 +119,8 @@ export async function runOpsJobs(now = new Date()) {
   return {
     retries: await retryFailedNotifications(now),
     digests: await sendLecturerDigests(now),
-    contests: await escalateOverdueContests(now)
+    contests: await escalateOverdueContests(now),
+    repReliability: await processRepReliabilityJobs(now),
+    repNotificationRetries: await retryFailedRepNotifications(now)
   };
 }

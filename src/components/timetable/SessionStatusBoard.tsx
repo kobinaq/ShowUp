@@ -3,6 +3,7 @@
 import { useEffect, useState, useTransition } from "react";
 import toast from "react-hot-toast";
 import { SectionPanel } from "@/components/shared/Panels";
+import { SessionConfirmButton } from "@/components/timetable/SessionConfirmButton";
 
 type SessionRow = {
   id: string;
@@ -80,6 +81,7 @@ export function SessionStatusBoard() {
               <th className="px-2 py-2">Room</th>
               <th className="px-2 py-2">Groups</th>
               <th className="px-2 py-2">Status</th>
+              <th className="px-2 py-2">Confirm</th>
             </tr>
           </thead>
           <tbody>
@@ -118,6 +120,9 @@ export function SessionStatusBoard() {
                       Sub: {session.substituteLecturer.firstName} {session.substituteLecturer.lastName}
                     </p>
                   ) : null}
+                </td>
+                <td className="px-2 py-3">
+                  <SessionConfirmButton sessionId={session.id} />
                 </td>
               </tr>
             ))}

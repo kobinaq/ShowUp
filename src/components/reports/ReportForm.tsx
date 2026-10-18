@@ -4,7 +4,7 @@ import { useEffect, useMemo, useState } from "react";
 import toast from "react-hot-toast";
 import { CheckCircle2, Send } from "lucide-react";
 import { PingCard } from "@/components/reports/PingCard";
-import { parseReportDrafts, removeReportDraft, REPORT_DRAFTS_KEY, upsertReportDraft } from "@/lib/reports/offline-draft";
+import { parseReportDrafts, removeReportDraft, REPORT_DRAFTS_KEY, upsertReportDraft, verifyReportDraft } from "@/lib/reports/offline-draft";
 import { displayText } from "@/lib/utils/displayText";
 
 type SchedulePayload = {
@@ -50,11 +50,13 @@ type ReportPayload = {
 export function ReportForm({
   assignments,
   pingThresholdMinutes,
-  submissionWindowHours
+  submissionWindowHours,
+  lateSubmissionHours = 24
 }: {
   assignments: AssignmentPayload[];
   pingThresholdMinutes: number;
   submissionWindowHours: number;
+  lateSubmissionHours?: number;
 }) {
   const [online, setOnline] = useState(typeof navigator === "undefined" ? true : navigator.onLine);
   const [submitting, setSubmitting] = useState(false);
@@ -190,6 +192,7 @@ export function ReportForm({
           <p className="rounded-md bg-blue-50 px-3 py-3 text-sm font-medium text-blue-700">
             Submission opens at class start and closes {formatWindowDuration(submissionWindowHours)} after class ends
             {formatClosingTime(selectedSchedule.endTime, submissionWindowHours) ? `, around ${formatClosingTime(selectedSchedule.endTime, submissionWindowHours)}` : ""}.
+            Late submissions are accepted for {formatWindowDuration(lateSubmissionHours)} after that with a late tag.
           </p>
         </Section>
         <PingCard
@@ -346,14 +349,19 @@ async function flushStoredDrafts() {
   if (typeof window === "undefined") return;
   const drafts = parseReportDrafts(window.localStorage.getItem(REPORT_DRAFTS_KEY));
   for (const draft of drafts) {
-    const response = await fetch("/api/reports", {
+    const check = verifyReportDraft(draft);
+    if (!check.ok) {
+      if (check.reason === "stale_date" || check.reason === "malformed") forgetDraft(draft.payload);
+      continue;
+    }
+    const response = await fetch("/api/reports?source=offline", {
       method: "POST",
       headers: { "content-type": "application/json" },
       body: JSON.stringify(draft.payload)
     });
     if (response.ok || response.status === 409) {
       forgetDraft(draft.payload);
-      if (response.ok) toast.success("Saved report sent");
+      if (response.ok) toast.success("Saved offline report sent");
     }
   }
 }

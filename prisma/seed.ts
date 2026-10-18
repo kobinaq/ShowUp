@@ -121,6 +121,10 @@ async function cleanupDemoData() {
 
   await prisma.identityLookup.deleteMany({ where: { OR: [{ performedBy: { email: { endsWith: "@atu.showup.demo" } } }, { lookedUpProfile: { email: { endsWith: "@atu.showup.demo" } } }] } });
   await prisma.activityLog.deleteMany({ where: { universityId } });
+  await prisma.repReliabilityFlag.deleteMany({ where: { OR: [{ courseId: { in: courseIds } }, { profile: { anonymousAlias: { startsWith: "reporter_ATU_" } } }] } });
+  await prisma.repNotification.deleteMany({ where: { OR: [{ courseId: { in: courseIds } }, { profile: { anonymousAlias: { startsWith: "reporter_ATU_" } } }] } });
+  await prisma.reportDiscrepancy.deleteMany({ where: { courseId: { in: courseIds } } });
+  await prisma.sessionConfirmation.deleteMany({ where: { lectureSession: { courseId: { in: courseIds } } } });
   await prisma.facilitiesIssue.deleteMany({ where: { universityId } });
   await prisma.lectureSessionGroup.deleteMany({ where: { session: { courseId: { in: courseIds } } } });
   await prisma.lectureSession.deleteMany({ where: { courseId: { in: courseIds } } });
@@ -145,7 +149,15 @@ async function cleanupDemoData() {
   await prisma.courseOutline.deleteMany({ where: { id: { in: outlineIds } } });
   await prisma.classSchedule.deleteMany({ where: { courseId: { in: courseIds } } });
   await prisma.course.deleteMany({ where: { id: { in: courseIds } } });
-  await prisma.profile.deleteMany({ where: { OR: [{ email: { endsWith: "@atu.showup.demo" } }, { anonymousAlias: { startsWith: "reporter_ATU_" } }] } });
+  await prisma.profile.deleteMany({
+    where: {
+      OR: [
+        { email: { endsWith: "@atu.showup.demo" } },
+        { anonymousAlias: { startsWith: "reporter_ATU_" } },
+        { anonymousAlias: { startsWith: "backup_ATU_" } }
+      ]
+    }
+  });
   await prisma.lecturer.deleteMany({ where: { id: { in: lecturerIds } } });
   await prisma.department.deleteMany({ where: { id: { startsWith: "atu_dept_" } } });
   await prisma.faculty.deleteMany({ where: { id: { startsWith: "atu_fac_" } } });
@@ -339,11 +351,74 @@ async function main() {
         sealedIdentityId: `atu_identity_rep_${index + 1}`,
         startDate: new Date("2026-08-17T00:00:00.000Z"),
         isActive: true,
+        dutyRole: "PRIMARY",
         rotationOrder: index + 1,
         assignedById: admin.id
       }
     });
   }
+
+  // Stage 2: backup reps on first 6 courses (demo slice — not full ATU enrollment)
+  for (const [index, course] of allCourses.slice(0, 6).entries()) {
+    const alias = `backup_ATU_${String(index + 1).padStart(2, "0")}`;
+    const auth = await createAuthUser(`${alias}@showup.internal`, `ATU Backup ${index + 1}`);
+    const profile = await prisma.profile.create({
+      data: {
+        id: `atu_profile_backup_${index + 1}`,
+        supabaseUid: auth.id,
+        anonymousAlias: alias,
+        role: Role.CLASS_REP,
+        departmentId: (await prisma.course.findUniqueOrThrow({ where: { id: course.id } })).departmentId,
+        universityId: university.id
+      }
+    });
+    await prisma.sealedRepIdentity.create({
+      data: {
+        id: `atu_identity_backup_${index + 1}`,
+        realName: `ATU Backup Rep ${index + 1}`,
+        realEmail: `backup${index + 1}@atu.edu.gh`,
+        realPhone: `+23355100${String(index + 1).padStart(4, "0")}`,
+        courseId: course.id
+      }
+    });
+    await prisma.repAssignment.create({
+      data: {
+        id: `atu_assignment_backup_${index + 1}`,
+        courseId: course.id,
+        profileId: profile.id,
+        sealedIdentityId: `atu_identity_backup_${index + 1}`,
+        startDate: new Date("2026-08-17T00:00:00.000Z"),
+        isActive: true,
+        dutyRole: "BACKUP",
+        rotationOrder: 100 + index + 1,
+        assignedById: admin.id
+      }
+    });
+  }
+
+  await prisma.repAssignment.update({
+    where: { id: "atu_assignment_1" },
+    data: {
+      missedReportCount: 3,
+      lastMissedAt: new Date("2026-09-20T00:00:00.000Z"),
+      reliabilityFlaggedAt: new Date("2026-09-20T00:00:00.000Z")
+    }
+  });
+
+  await prisma.repReliabilityFlag.upsert({
+    where: { id: "atu_rep_flag_1" },
+    create: {
+      id: "atu_rep_flag_1",
+      profileId: "atu_profile_rep_1",
+      courseId: allCourses[0]?.id,
+      type: "REPEATED_MISS_REPORT",
+      message: "Class rep missed 3 reports for demo course. Sessions marked NO_DATA (not lecture missed)."
+    },
+    update: {
+      message: "Class rep missed 3 reports for demo course. Sessions marked NO_DATA (not lecture missed).",
+      isResolved: false
+    }
+  });
 
   await refreshPrismaConnection();
   const reps = await prisma.profile.findMany({ where: { anonymousAlias: { startsWith: "reporter_ATU_" } } });
@@ -582,8 +657,47 @@ async function main() {
 
   await prisma.universitySettings.update({
     where: { id: "atu_settings" },
-    data: { lateGraceMinutes: 10 }
+    data: {
+      lateGraceMinutes: 10,
+      backupEscalateMinutes: 30,
+      lateSubmissionHours: 24,
+      missedReportFlagThreshold: 3,
+      backupNotifySmsEnabled: true,
+      repReminderSmsEnabled: true
+    }
   });
+
+  // Stage 2 sample: NO_DATA session (missing report ≠ missed lecture) + late-tagged report
+  const scheduleForNoData = await prisma.classSchedule.findFirst({
+    where: { id: { startsWith: "atu_schedule_" } },
+    orderBy: { id: "asc" }
+  });
+  if (scheduleForNoData) {
+    const noDataDate = new Date(Date.UTC(2026, 8, 8));
+    await prisma.lectureSession.upsert({
+      where: { scheduleId_lectureDate: { scheduleId: scheduleForNoData.id, lectureDate: noDataDate } },
+      create: {
+        id: "atu_session_no_data_1",
+        courseId: scheduleForNoData.courseId,
+        scheduleId: scheduleForNoData.id,
+        lectureDate: noDataDate,
+        status: "SCHEDULED",
+        reportCoverage: "NO_DATA",
+        noDataMarkedAt: new Date(Date.UTC(2026, 8, 9, 12, 0, 0))
+      },
+      update: {
+        reportCoverage: "NO_DATA",
+        noDataMarkedAt: new Date(Date.UTC(2026, 8, 9, 12, 0, 0))
+      }
+    });
+  }
+  const lateReport = await prisma.lectureReport.findFirst({ where: { id: "atu_report_1_2" } });
+  if (lateReport) {
+    await prisma.lectureReport.update({
+      where: { id: lateReport.id },
+      data: { isLateSubmission: true, submissionSource: "OFFLINE_DRAFT" }
+    });
+  }
 
   await prisma.activityLog.create({
     data: {
@@ -597,7 +711,9 @@ async function main() {
         reports: allCourses.length * 8,
         students: seededStudents.length,
         rooms: 2,
-        blackouts: 2
+        blackouts: 2,
+        backupReps: 6,
+        stage: "rep-reliability"
       }
     }
   });
